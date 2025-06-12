@@ -59,6 +59,61 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+
+        /* 影片響應式容器 */
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 比例 */
+            height: 0;
+            overflow: hidden;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-lg */
+        }
+
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 學員回饋滾動動畫 */
+        @keyframes scrollTestimonials {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); } /* 滾動整個內容的一半長度 */
+        }
+
+        .testimonials-scroll-container {
+            display: flex;
+            gap: 2rem; /* 設定卡片之間的間距 */
+            animation: scrollTestimonials 60s linear infinite; /* 60秒滾動一圈，無限循環 */
+            will-change: transform; /* 提升動畫效能 */
+            white-space: nowrap; /* 確保內容在一行 */
+        }
+
+        .testimonials-scroll-container:hover {
+            animation-play-state: paused; /* 滑鼠移入時暫停滾動 */
+        }
+
+        .testimonial-card {
+            flex-shrink: 0; /* 防止卡片縮小 */
+            width: 380px; /* 設定單張卡片的寬度，可依內容調整 */
+            background-color: #ffffff;
+            border-radius: 0.75rem;
+            padding: 2rem; /* 增加內邊距以增加高度和空間 */
+            min-height: 14rem; /* 設定最小高度，確保有足夠的空間 */
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: left;
+        }
+
+        /* 手機版適應，讓滾動卡片較小 */
+        @media (max-width: 640px) {
+            .testimonial-card {
+                width: 85vw; /* 手機上卡片佔螢幕寬度的大部分 */
+                min-height: 12rem; /* 手機上較小的最小高度 */
+            }
+        }
     </style>
 </head>
 <body>
@@ -66,7 +121,7 @@
     <nav class="bg-blue-900 p-4 shadow-lg sticky top-0 z-50">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
             <!-- Logo / 品牌名稱 -->
-            <a href="#" class="text-white text-2xl font-bold rounded-lg px-3 py-1 whitespace-nowrap">RAPID研所直達車</a>
+            <a href="./index.html" class="text-white text-2xl font-bold rounded-lg px-3 py-1 whitespace-nowrap">RAPID研所直達車</a>
 
             <!-- 漢堡選單按鈕 (僅限手機版顯示) -->
             <button id="mobile-menu-button" class="md:hidden text-white focus:outline-none">
@@ -78,10 +133,11 @@
             <!-- 導覽連結 (桌面版顯示) -->
             <div class="hidden md:flex space-x-4"> <!-- 調整 space-x 以確保單行顯示 -->
                 <a href="#about-us" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">關於我們</a>
+                <a href="#core-problems" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">核心難處</a>
                 <a href="#course-catalog" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">課程目錄</a>
                 <a href="#benefits" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">學員福利</a>
                 <a href="#llm-feature" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">學習計畫</a>
-                <a href="#testimonials" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">學員回饋</a>
+                <a href="#testimonials-section" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">學員回饋</a>
                 <a href="#cta-section" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">聯絡我們</a>
             </div>
         </div>
@@ -89,10 +145,11 @@
         <!-- 手機版選單內容 (預設隱藏) -->
         <div id="mobile-menu" class="hidden md:hidden mt-4">
             <a href="#about-us" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">關於我們</a>
+            <a href="#core-problems" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">核心難處</a>
             <a href="#course-catalog" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">課程目錄</a>
             <a href="#benefits" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">學員福利</a>
             <a href="#llm-feature" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">學習計畫</a>
-            <a href="#testimonials" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">學員回饋</a>
+            <a href="#testimonials-section" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">學員回饋</a>
             <a href="#cta-section" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">聯絡我們</a>
         </div>
     </nav>
@@ -109,13 +166,14 @@
                 <p class="text-xl md:text-2xl opacity-90 mb-8 animate-fadeIn delay-200">
                     在規劃的時間內，系統化取得畢業證書
                 </p>
-                <a href="#cta-section" class="inline-block bg-white text-blue-800 font-bold py-3 px-8 rounded-full text-lg cta-button animate-bounceIn">
+                <!-- 「立即啟動您的學習計畫」按鈕，href 已更改為範例網址 -->
+                <a href="https://www.google.com" class="inline-block bg-white text-blue-800 font-bold py-3 px-8 rounded-full text-lg cta-button animate-bounceIn" target="_blank" rel="noopener noreferrer">
                     立即啟動您的學習計畫
                 </a>
             </div>
         </section>
 
-        <!-- 關於我們/課程簡介區塊 -->
+        <!-- 關於我們/課程簡介區塊 (已恢復) -->
         <section id="about-us" class="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 bg-white p-8 rounded-xl shadow-md">
             <!-- 圖片區塊，寬度調整為 md:w-1/3 -->
             <div class="md:w-1/3">
@@ -128,12 +186,49 @@
                 <p class="text-gray-700 text-lg leading-relaxed mb-4">
                     明明進了研究所，卻每天感覺像在原地打轉？忙著上課、做實驗、寫報告，卻找不到平衡？
                 </p>
-                <p class="text-gray-700 text-lg leading-relaxed mb-4">
+                <p class="text-700 text-lg leading-relaxed mb-4">
                     研所直達車，針對這些常見問題，打造出一套R、A、P、I、D，5 大核心學習模組。整合實戰經驗與高效學習方法，助您在學術道路上少走彎路。
                 </p>
                 <p class="text-gray-700 text-lg leading-relaxed">
                     從研究技能、AI 工具、人際溝通到生涯思維，幫助您有系統、有策略地完成任務。不是能力不足，只是沒有人跟你說要怎麼做。立馬上車，系統化掌握研究流程，直達終點！
                 </p>
+            </div>
+        </section>
+
+        <!-- 您的痛點，我幫你解決 (新增區塊) -->
+        <section id="core-problems" class="mb-16 bg-blue-100 text-gray-800 rounded-xl shadow-lg p-8 md:p-12 border-l-4 border-blue-500">
+            <h2 class="text-4xl font-bold text-center text-gray-800 mb-12">您的痛點，我幫你解決</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8 text-lg text-gray-700">
+                <!-- 困難點 1: 論文閱讀與寫作障礙 -->
+                <div class="flex flex-col items-center text-center bg-white p-6 rounded-lg shadow-md">
+                    <span class="text-red-500 text-5xl mb-4">🤯</span> <!-- 腦袋爆炸/困惑 -->
+                    <p class="font-bold mb-2">論文閱讀與寫作障礙</p>
+                    <p class="text-base break-words">讀不懂、寫不出，不知道重點與邏輯，常常被術語和細節牽著走，看完整篇論文卻抓不到價值。</p>
+                </div>
+                <!-- 困難點 2: 簡報表達困境 -->
+                <div class="flex flex-col items-center text-center bg-white p-6 rounded-lg shadow-md">
+                    <span class="text-yellow-500 text-5xl mb-4">🗣️</span> <!-- 簡報/表達 -->
+                    <p class="font-bold mb-2">簡報表達困境</p>
+                    <p class="text-base break-words">投影片亂無章法、口條不順暢、肢體僵硬，無法有效傳達研究價值，聽眾容易分心。</p>
+                </div>
+                <!-- 困難點 3: 時間與目標管理混亂 -->
+                <div class="flex flex-col items-center text-center bg-white p-6 rounded-lg shadow-md">
+                    <span class="text-purple-500 text-5xl mb-4">⏰</span> <!-- 時鐘/時間 -->
+                    <p class="font-bold mb-2">時間與目標管理混亂</p>
+                    <p class="text-base break-words">事情多又雜，不知道要怎麼做，沒有計劃與執行力，導致進度卡關，學位之路漫長。</p>
+                </div>
+                <!-- 困難點 4: 人際溝通與應對挑戰 -->
+                <div class="flex flex-col items-center text-center bg-white p-6 rounded-lg shadow-md">
+                    <span class="text-green-500 text-5xl mb-4">🤝</span> <!-- 握手/溝通 -->
+                    <p class="font-bold mb-2">人際溝通與應對挑戰</p>
+                    <p class="text-base break-words">跟學長姐不熟有事不敢問，害怕團體中被點名，或遇到衝突不知如何應對。</p>
+                </div>
+                <!-- 困難點 5: 教授溝通困難 -->
+                <div class="flex flex-col items-center text-center bg-white p-6 rounded-lg shadow-md">
+                    <span class="text-blue-500 text-5xl mb-4">🎓</span> <!-- 教授/指導 -->
+                    <p class="font-bold mb-2">教授溝通困難</p>
+                    <p class="text-base break-words">不知道如何有效聯絡、開會或表達自身想法，影響研究指導與學術生涯發展。</p>
+                </div>
             </div>
         </section>
 
@@ -151,7 +246,7 @@
                 </div>
                 <div class="flex flex-col items-center text-center">
                     <span class="text-blue-600 text-5xl mb-4">🚀</span>
-                    <p><b>開源軟體：</b>降低學習成本，讓您輕鬆入門。</p>
+                    <p><b>開源軟體：：</b>降低學習成本，讓您輕鬆入門。</p>
                 </div>
             </div>
         </section>
@@ -269,16 +364,35 @@
                 </div>
             </div>
         </section>
+        
+        <!-- 影片介紹區塊 (新增) -->
+        <section class="mb-16 bg-white p-8 rounded-xl shadow-md">
+            <h2 class="text-4xl font-bold text-center text-gray-800 mb-12">課程介紹影片</h2>
+            <div class="video-container">
+                <!-- 請將 src 替換為您的 YouTube 嵌入網址 -->
+                <!-- 如何取得 YouTube 嵌入網址：在 YouTube 影片頁面點擊「分享」>「嵌入」，複製 <iframe ...> 標籤中的 src 屬性值 -->
+                <iframe 
+                    src="https://www.youtube.com/embed/dQw4w9WgXcQ?si=abcdefg" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+            </div>
+            <p class="text-center text-lg text-gray-600 mt-6">
+                透過影片深入了解 RAPID 研所直達車如何幫助您高效完成學業，實現學術目標。
+            </p>
+        </section>
+
 
         <!-- LLM Gemini API 功能區塊 -->
-        <section id="llm-feature" class="mb-16 bg-blue-50 text-gray-800 rounded-xl shadow-lg p-8 md:p-12 text-center border-l-4 border-blue-400">
+        <section id="llm-feature" class="mb-16 bg-blue-50 text-gray-800 rounded-xl shadow-lg p-8 md:p-12 text-center border-l-4 border-blue-400 hidden">
             <h2 class="text-4xl font-bold mb-6">✨ 學習計畫發想器 ✨</h2>
             <p class="text-xl mb-8">
                 輸入您的學術目標或研究方向，讓我們的 AI 助手為您提供初步的學習計畫或研究主題構想！
             </p>
             <div class="mb-6">
                 <input type="text" id="llmPromptInput" placeholder="例如：AI在教育上的應用 / 畢業論文大綱"
-                       class="w-full md:w-2/3 p-3 rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 text-lg">
+                       class="w-full md:w-2/3 p-3 rounded-lg border border-blue-300 focus:outline-none focus:ring-2 focus:ring-500 transition-all duration-300 text-lg">
             </div>
             <button id="generatePlanButton"
                     class="inline-flex items-center justify-center bg-blue-700 text-white font-bold py-3 px-8 rounded-full text-lg cta-button hover:bg-blue-800 transition-colors duration-300">
@@ -308,40 +422,155 @@
         </section>
 
 
-        <!-- 客戶見證區塊 -->
-        <section id="testimonials" class="bg-blue-600 text-white rounded-xl shadow-lg p-8 md:p-12 mb-16">
+        <!-- 學員真實回饋區塊 (滾動專欄 - 排版與內容複製優化) -->
+        <section id="testimonials-section" class="bg-blue-600 text-white rounded-xl shadow-lg p-8 md:p-12 mb-16">
             <h2 class="text-4xl font-bold text-center mb-12">學員真實回饋</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <!-- 見證 1 -->
-                <div class="bg-white text-gray-800 rounded-lg p-6 shadow-md">
-                    <p class="italic text-lg mb-4">"RAPID研所直達車真的太棒了！它幫助我有效地安排了讀書計畫，讓我在一年內就順利考上理想的研究所！"</p>
-                    <div class="flex items-center">
-                        <img src="https://placehold.co/60x60/bfdbfe/1f2937?text=學員A" alt="學員頭像A" class="w-12 h-12 rounded-full mr-4">
-                        <div>
-                            <p class="font-semibold">張同學</p>
-                            <p class="text-sm text-gray-500">成功考取學生</p>
+            <!-- 滾動容器 -->
+            <div class="overflow-hidden relative py-4">
+                <div class="testimonials-scroll-container">
+                    <!-- 學員回饋卡片 (重複多次以建立連續滾動效果) -->
+                    <!-- 第一組回饋 -->
+                    <div class="testimonial-card">
+                        <!-- 學員頭像、姓名、學校 - 上方區塊 -->
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/bfdbfe/1f2937?text=學員A" alt="學員頭像A" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">jason lin</p>
+                                <p class="text-sm text-gray-900">台科大電機所</p>
+                            </div>
                         </div>
+                        <!-- 回饋文字 - 下方區塊 -->
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"溝通那個章節，對於不要說別人壞話，轉移話題的處理技巧印象深刻，非常有幫助。"</p>
                     </div>
-                </div>
-                <!-- 見證 2 -->
-                <div class="bg-white text-gray-800 rounded-lg p-6 shadow-md">
-                    <p class="italic text-lg mb-4">"我在寫論文時遇到了瓶頸，幸好有RAPID研所直達車的導師耐心指導，最終順利完成了畢業論文，非常感謝！"</p>
-                    <div class="flex items-center">
-                        <img src="https://placehold.co/60x60/dbeafe/1f2937?text=學員B" alt="學員頭像B" class="w-12 h-12 rounded-full mr-4">
-                        <div>
-                            <p class="font-semibold">林同學</p>
-                            <p class="text-sm text-gray-500">論文順利畢業</p>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/dbeafe/1f2937?text=學員B" alt="學員頭像B" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">曾同學</p>
+                                <p class="text-sm text-gray-900">清華大學</p>
+                            </div>
                         </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"謝謝學長願意撥出時間給予我建議的修改的地方，讓我的論文方向更明確了！"</p>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/93c5fd/1f2937?text=學員C" alt="學員頭像C" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">王同學</p>
+                                <p class="text-sm text-gray-900">成功大學</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"學長教的 AI 工具真的太實用了，讓我的研究效率翻倍，不再卡稿！特別是數據分析的部分。"</p>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/60a5fa/1f2937?text=學員D" alt="學員頭像D" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">陳同學</p>
+                                <p class="text-sm text-gray-900">陽明交大</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"簡報技巧的指導非常受用，現在上台報告更有自信了，表達也更清晰有力！老師的案例分析很棒。"</p>
+                    </div>
+
+                    <!-- 重複第二組回饋，用於循環滾動效果 -->
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/bfdbfe/1f2937?text=學員A" alt="學員頭像A" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">jason lin</p>
+                                <p class="text-sm text-gray-900">台科大電機所</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"溝通那個章節，對於不要說別人壞話，轉移話題的處理技巧印象深刻，非常有幫助。"</p>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/dbeafe/1f2937?text=學員B" alt="學員頭像B" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">曾同學</p>
+                                <p class="text-sm text-gray-900">清華大學</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"謝謝學長願意撥出時間給予我建議的修改的地方，讓我的論文方向更明確了！"</p>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/93c5fd/1f2937?text=學員C" alt="學員頭像C" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">王同學</p>
+                                <p class="text-sm text-gray-900">成功大學</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"學長教的 AI 工具真的太實用了，讓我的研究效率翻倍，不再卡稿！特別是數據分析的部分。"</p>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/60a5fa/1f2937?text=學員D" alt="學員頭像D" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">陳同學</p>
+                                <p class="text-sm text-gray-900">陽明交大</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"簡報技巧的指導非常受用，現在上台報告更有自信了，表達也更清晰有力！老師的案例分析很棒。"</p>
+                    </div>
+                     <!-- 重複第三組回饋，確保滾動更流暢 -->
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/bfdbfe/1f2937?text=學員A" alt="學員頭像A" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">jason lin</p>
+                                <p class="text-sm text-gray-900">台科大電機所</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"溝通那個章節，對於不要說別人壞話，轉移話題的處理技巧印象深刻，非常有幫助。"</p>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/dbeafe/1f2937?text=學員B" alt="學員頭像B" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">曾同學</p>
+                                <p class="text-sm text-gray-900">清華大學</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"謝謝學長願意撥出時間給予我建議的修改的地方，讓我的論文方向更明確了！"</p>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/93c5fd/1f2937?text=學員C" alt="學員頭像C" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">王同學</p>
+                                <p class="text-sm text-gray-900">成功大學</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"學長教的 AI 工具真的太實用了，讓我的研究效率翻倍，不再卡稿！特別是數據分析的部分。"</p>
+                    </div>
+                    <div class="testimonial-card">
+                        <div class="flex items-center mb-4">
+                            <img src="https://placehold.co/60x60/60a5fa/1f2937?text=學員D" alt="學員頭像D" class="w-12 h-12 rounded-full mr-4">
+                            <div>
+                                <p class="font-semibold text-gray-900">陳同學</p>
+                                <p class="text-sm text-gray-900">陽明交大</p>
+                            </div>
+                        </div>
+                        <p class="italic text-lg text-gray-900 whitespace-normal break-all">"簡報技巧的指導非常受用，現在上台報告更有自信了，表達也更清晰有力！老師的案例分析很棒。"</p>
                     </div>
                 </div>
             </div>
+            <div class="text-center mt-8">
+                <p class="text-2xl font-bold mb-4">更多學員好評持續更新中！</p>
+                <a href="./full-testimonials.html" class="inline-block bg-blue-700 text-white font-bold py-3 px-8 rounded-full text-lg cta-button hover:bg-blue-800 transition-colors duration-300" target="_blank" rel="noopener noreferrer">
+                    查看所有學員回饋
+                </a>
+            </div>
         </section>
+
 
         <!-- 呼籲行動 (CTA) 區塊 -->
         <section id="cta-section" class="bg-blue-700 text-white rounded-xl shadow-lg p-8 md:p-12 text-center mb-16">
             <h2 class="text-4xl font-bold mb-6">準備好加速您的學術進程了嗎？</h2>
             <p class="text-xl mb-8">立即點擊按鈕，開始規劃您的「直達車」學習旅程！</p>
-            <a href="https://calendly.com/zhichiangai/30min" class="inline-block bg-white text-blue-700 font-bold py-4 px-10 rounded-full text-xl cta-button animate-pulse">
+            <a href="https://calendly.com/zhichiangai/30min" class="inline-block bg-white text-blue-700 font-bold py-4 px-10 rounded-full text-xl cta-button animate-pulse" target="_blank" rel="noopener noreferrer">
                 立即諮詢了解更多！
             </a>
         </section>
@@ -353,9 +582,8 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <p>&copy; 2025 RAPID研所直達車. 版權所有.</p>
             <p class="mt-2 text-sm">
-                <a href="#" class="hover:underline mx-2">隱私權政策</a> |
-                <a href="#" class="hover:underline mx-2">服務條款</a> |
-                <a href="#" class="hover:underline mx-2">聯絡我們</a>
+                <a href="./policies.html" class="hover:underline mx-2">隱私權政策與服務條款</a> |
+                <a href="https://calendly.com/zhichiangai/30min" target="_blank" rel="noopener noreferrer" class="hover:underline mx-2">聯絡我們</a>
             </p>
         </div>
     </footer>
