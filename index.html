@@ -4,6 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RAPID研所直達車 - 系統化取得畢業證書</title>
+    <!-- Open Graph Meta Tags (給 Facebook, LINE, LinkedIn 等社群媒體使用) -->
+    <meta property="og:title" content="RAPID研所直達車：系統化助您高效畢業！" />
+    <meta property="og:description" content="從論文寫作、工具應用到溝通技巧，一站式解決研究所學術困境，助您準時畢業！" />
+    <meta property="og:image" content="https://rapid4grad.com/og-image.jpg" /> <!-- 請替換為您實際的圖片網址 -->
+    <meta property="og:url" content="https://rapid4grad.com/" /> <!-- 請替換為您實際的網站網址 -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="RAPID研所直達車" />
+
+    <!-- Twitter Card Meta Tags (給 Twitter 使用) -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="RAPID研所直達車：系統化助您高效畢業！" />
+    <meta name="twitter:description" content="從論文寫作、工具應用到溝通技巧，一站式解決研究所學術困境，助您準時畢業！" />
+    <meta name="twitter:image" content="https://rapid4grad.com/og-image.jpg" /> <!-- 請替換為您實際的圖片網址 -->
+
+    <!-- Favicon (網站小圖示) -->
+    <link rel="icon" type="image/png" href="/favicon.png" /> <!-- 請替換為您實際的 favicon 檔案 -->
+
     <!-- 引入 Tailwind CSS CDN，用於快速建立響應式介面 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 設定字體為 Inter (或選擇更符合品牌形象的字體) -->
@@ -137,6 +154,7 @@
                 <a href="#course-catalog" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">課程目錄</a>
                 <a href="#benefits" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">學員福利</a>
                 <a href="#llm-feature" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">學習計畫</a>
+                <a href="./thesis-writing.html" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">AI推薦</a> <!-- 論文技巧 改為 AI推薦 -->
                 <a href="#testimonials-section" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">學員回饋</a>
                 <a href="#cta-section" class="text-white hover:text-blue-200 transition-colors duration-300 font-semibold px-3 py-2 rounded-md whitespace-nowrap">聯絡我們</a>
             </div>
@@ -149,6 +167,7 @@
             <a href="#course-catalog" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">課程目錄</a>
             <a href="#benefits" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">學員福利</a>
             <a href="#llm-feature" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">學習計畫</a>
+            <a href="./thesis-writing.html" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">AI推薦</a> <!-- 論文技巧 改為 AI推薦 -->
             <a href="#testimonials-section" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">學員回饋</a>
             <a href="#cta-section" class="block text-white hover:bg-blue-800 px-3 py-2 rounded-md text-base font-medium whitespace-nowrap">聯絡我們</a>
         </div>
@@ -173,12 +192,12 @@
             </div>
         </section>
 
-        <!-- 關於我們/課程簡介區塊 (已恢復) -->
+        <!-- 關於我們/課程簡介區塊 -->
         <section id="about-us" class="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 bg-white p-8 rounded-xl shadow-md">
             <!-- 圖片區塊，寬度調整為 md:w-1/3 -->
             <div class="md:w-1/3">
                 <!-- 關於我們的圖片，已替換為提供的圖片 -->
-                <img src="圖片1.png" alt="圖片1.png" class="rounded-lg shadow-xl w-full h-auto">
+                <img src="圖片1.png" alt="畢業生卡通圖" class="rounded-lg shadow-xl w-full h-auto">
             </div>
             <!-- 文字區塊，寬度調整為 md:w-2/3，內容已重整為三段 -->
             <div class="md:w-2/3 text-center md:text-left">
@@ -424,7 +443,7 @@
 
         <!-- 學員真實回饋區塊 (滾動專欄 - 排版與內容複製優化) -->
         <section id="testimonials-section" class="bg-blue-600 text-white rounded-xl shadow-lg p-8 md:p-12 mb-16">
-            <h2 class="text-4xl font-bold text-center mb-12">真實回饋</h2>
+            <h2 class="text-4xl font-bold text-center mb-12">學員真實回饋</h2>
             <!-- 滾動容器 -->
             <div class="overflow-hidden relative py-4">
                 <div class="testimonials-scroll-container">
@@ -558,9 +577,9 @@
                 </div>
             </div>
             <div class="text-center mt-8">
-                <p class="text-2xl font-bold mb-4">更多學員回饋持續更新中！</p>
+                <p class="text-2xl font-bold mb-4">更多學員好評持續更新中！</p>
                 <a href="./full-testimonials.html" class="inline-block bg-blue-700 text-white font-bold py-3 px-8 rounded-full text-lg cta-button hover:bg-blue-800 transition-colors duration-300" target="_blank" rel="noopener noreferrer">
-                    查看所有回饋
+                    查看所有學員回饋
                 </a>
             </div>
         </section>
