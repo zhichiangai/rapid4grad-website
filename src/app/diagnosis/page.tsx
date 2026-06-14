@@ -3,9 +3,9 @@ import { DiagnosisForm } from '@/components/diagnosis-form';
 import Link from 'next/link';
 
 const steps = [
-  { step: '01', title: '填基本資料', desc: '姓名、Email、學校、學位與目前階段' },
-  { step: '02', title: '說明卡點', desc: '題目、文獻、Meeting、寫作或投稿' },
-  { step: '03', title: '拿到結果', desc: '風險等級、下一步建議與推薦資源' }
+  { step: '01', title: '填基本資料', desc: '姓名、Email、學校、科系、學位與年級' },
+  { step: '02', title: '回答研究狀態', desc: '題目、Meeting、寫作與投稿壓力' },
+  { step: '03', title: '拿到結果', desc: '低 / 中 / 高風險與本週三個行動' }
 ];
 
 export default function DiagnosisPage() {
@@ -22,7 +22,7 @@ export default function DiagnosisPage() {
               先把你的研究狀態說清楚。
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-              這份診斷不是蒐集資訊而已，而是幫你直接找出最值得優先處理的卡點。填完後，系統會立刻回傳結果頁、Email 與 Dashboard。
+              這份診斷不是蒐集資訊而已，而是幫你直接找出最值得優先處理的卡點。填完後，你會拿到個人化畢業診斷、免費指南、Meeting 模板與進度追蹤建議。
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -41,7 +41,7 @@ export default function DiagnosisPage() {
           <div className="mb-5 rounded-[28px] border border-[#dbe6ff] bg-[#f7f9ff] px-5 py-4">
             <div className="text-sm font-bold text-[#2144b2]">填寫後你會得到什麼</div>
             <p className="mt-2 text-sm leading-7 text-[#62708d]">
-              你只要把目前狀況說清楚，剩下的交給系統整理成可執行的建議。
+              你只要把目前狀況說清楚，剩下的交給系統整理成可執行的建議。Email 會用來寄送後續免費指南與提醒。
             </p>
           </div>
           <div className="mb-5 rounded-[28px] border border-[#dbe6ff] bg-white px-5 py-4">

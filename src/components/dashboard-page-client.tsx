@@ -12,12 +12,7 @@ type Snapshot = {
   savedAt: string;
 };
 
-async function fetchLead(token: string) {
-  const response = await fetch(`/api/diagnosis?token=${encodeURIComponent(token)}`);
-  return response.json();
-}
-
-export function DashboardPageClient({ token }: { token: string }) {
+export function DashboardPageClient() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -30,30 +25,8 @@ export function DashboardPageClient({ token }: { token: string }) {
         // ignore parse errors
       }
     }
-
-    async function load() {
-      if (!token) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetchLead(token);
-        if (response.ok && response.lead) {
-          const remoteSnapshot: Snapshot = {
-            input: response.input,
-            result: response.result,
-            savedAt: response.savedAt || new Date().toISOString()
-          };
-          setSnapshot(remoteSnapshot);
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load().catch(() => setLoading(false));
-  }, [token]);
+    setLoading(false);
+  }, []);
 
   const input = snapshot?.input;
   const result = snapshot?.result;
@@ -118,7 +91,7 @@ export function DashboardPageClient({ token }: { token: string }) {
               </>
             ) : (
               <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
-                目前沒有你的資料。請先完成診斷，或使用結果頁提供的 token 連回來。
+                目前沒有你的資料。請先完成診斷。
               </div>
             )}
           </div>
@@ -127,31 +100,23 @@ export function DashboardPageClient({ token }: { token: string }) {
         <aside className="grid gap-4">
           <div className="rounded-[34px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f6f8ff_100%)] p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
             <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-bold tracking-[0.12em] text-[#2144b2]">
-              Free Tools
-            </div>
-            <div className="mt-4 text-lg font-extrabold text-[#10203a]">先看風險，再做下一步</div>
-            <p className="mt-2 text-sm leading-7 text-[#62708d]">
-              如果你還沒準備好進診斷，可以先用三個免費工具快速看見價值。
-            </p>
-            <Link
-              href="/tools"
-              className="mt-4 inline-flex min-h-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-5 text-sm font-bold text-white"
-            >
-              打開 Free Tools
-            </Link>
-          </div>
-
-          <div className="rounded-[34px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f6f8ff_100%)] p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
-            <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-bold tracking-[0.12em] text-[#2144b2]">
-              推薦資源
+              下一步
             </div>
             <div className="mt-5 grid gap-3">
+              {['先看今天要做什麼', '先完成本週最重要的三件事', '回到診斷頁重新測一次'].map((text, index) => (
+                <div key={text} className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
+                  <div className="text-xs font-bold text-[#2860f2]">0{index + 1}</div>
+                  <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-[34px] border border-[#dbe6ff] bg-[#f8faff] p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
+            <div className="text-sm font-bold text-[#2144b2]">推薦資源</div>
+            <div className="mt-4 grid gap-3">
               {(result?.resources || []).map((resource) => (
-                <Link
-                  key={resource.label}
-                  href={resource.href}
-                  className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 transition hover:-translate-y-0.5 hover:bg-white"
-                >
+                <Link key={resource.label} href={resource.href} className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 transition hover:-translate-y-0.5 hover:bg-white">
                   <div className="font-semibold text-[#10203a]">{resource.label}</div>
                   <p className="mt-1 text-sm leading-6 text-[#62708d]">{resource.description}</p>
                 </Link>
@@ -162,7 +127,7 @@ export function DashboardPageClient({ token }: { token: string }) {
           <div className="rounded-[34px] border border-[#dbe6ff] bg-white p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
             <div className="text-sm font-bold text-[#2144b2]">目前風險</div>
             <div className="mt-4 inline-flex rounded-full bg-[#f5f8ff] px-4 py-2 text-sm font-bold text-[#1f3f9a]">
-              {result?.riskLevel?.toUpperCase() || 'UNKNOWN'} · {result?.riskScore ?? 0}
+              {result?.riskLevel?.toUpperCase() || 'UNKNOWN'}
             </div>
 
             <div className="mt-6 rounded-[24px] bg-[#f8faff] p-4">
