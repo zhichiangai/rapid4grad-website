@@ -12,6 +12,14 @@ type Snapshot = {
   savedAt: string;
 };
 
+const sampleDashboard = {
+  title: '示意資料',
+  weeklyGoal: '完成文獻整理與 Meeting 準備',
+  meetingStatus: '每週固定一次',
+  thesisProgress: '45%',
+  riskLevel: '中風險'
+};
+
 export function DashboardPageClient() {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,9 +105,21 @@ export function DashboardPageClient() {
                 </div>
               </>
             ) : (
-              <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
-                目前沒有你的資料。請先完成診斷。
-              </div>
+              <>
+                <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
+                  找不到你的資料。請先完成診斷，或先看下面的示意畫面。
+                </div>
+                <div className="mt-4 rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur">
+                  <div className="text-xs font-bold text-white/72">{sampleDashboard.title}</div>
+                  <div className="mt-2 text-2xl font-black text-white">本週目標：{sampleDashboard.weeklyGoal}</div>
+                  <div className="mt-3 grid gap-2 text-sm text-white/84">
+                    <div>Meeting 狀態：{sampleDashboard.meetingStatus}</div>
+                    <div>論文進度：{sampleDashboard.thesisProgress}</div>
+                    <div>風險等級：{sampleDashboard.riskLevel}</div>
+                  </div>
+                  <p className="mt-4 text-xs font-semibold text-white/70">這是示意資料。完成診斷後會顯示你的個人資料。</p>
+                </div>
+              </>
             )}
           </div>
         </article>
@@ -110,7 +130,7 @@ export function DashboardPageClient() {
               下一步
             </div>
             <div className="mt-5 grid gap-3">
-              {['先看今天要做什麼', '先完成本週最重要的三件事', '回到診斷頁重新測一次'].map((text, index) => (
+              {['先看今天要做什麼', '先完成本週最重要的三件事', '每週回來更新一次診斷'].map((text, index) => (
                 <div key={text} className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
                   <div className="text-xs font-bold text-[#2860f2]">0{index + 1}</div>
                   <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{text}</p>

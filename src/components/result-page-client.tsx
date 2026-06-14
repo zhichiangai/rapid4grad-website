@@ -12,6 +12,12 @@ type Snapshot = {
   savedAt: string;
 };
 
+const sampleResult = {
+  riskLevel: '中風險',
+  mainReason: 'Meeting 不固定',
+  suggestions: ['固定每週 Meeting', '建立論文時程表', '完成文獻整理']
+};
+
 export function ResultPageClient({ token: _token }: { token: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,9 +96,24 @@ export function ResultPageClient({ token: _token }: { token: string }) {
                 </div>
               </>
             ) : (
-              <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
-                找不到你的診斷結果。請先回到診斷頁完成表單。
-              </div>
+              <>
+                <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
+                  找不到你的診斷結果。先看下面的示意結果，再開始填表。
+                </div>
+                <div className="mt-4 rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur">
+                  <div className="text-xs font-bold text-white/72">示意結果</div>
+                  <div className="mt-2 text-2xl font-black text-white">風險等級：{sampleResult.riskLevel}</div>
+                  <p className="mt-3 text-sm leading-7 text-white/84">主要原因：{sampleResult.mainReason}</p>
+                  <div className="mt-4 grid gap-2">
+                    {sampleResult.suggestions.map((item) => (
+                      <div key={item} className="rounded-2xl bg-white/10 p-3 text-sm text-white/84">
+                        {item}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-4 text-xs font-semibold text-white/70">這是示意結果。完成診斷後會顯示你的個人資料。</p>
+                </div>
+              </>
             )}
           </div>
         </article>
@@ -103,7 +124,7 @@ export function ResultPageClient({ token: _token }: { token: string }) {
               接下來
             </div>
             <div className="mt-5 grid gap-3">
-              {['你會收到個人化畢業診斷摘要', '你可以直接回 Dashboard 看今天要做什麼', '後續會進入 Email Engine 與免費指南'].map((text, index) => (
+              {['你會收到個人化畢業診斷摘要', '你可以直接回 Dashboard 看今天要做什麼', '每週回來更新一次，風險會重新計算'].map((text, index) => (
                 <div key={text} className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
                   <div className="text-xs font-bold text-[#2860f2]">0{index + 1}</div>
                   <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{text}</p>

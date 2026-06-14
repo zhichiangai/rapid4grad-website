@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import { SiteShell } from '@/components/site-shell';
 
 const problems = [
@@ -12,13 +15,24 @@ const solutions = [
   '讓教授只看需要決策的資訊'
 ];
 
-const waitlistBenefits = [
+const sampleBenefits = [
   '收到 Professor Beta 更新',
   '優先看到研究室版功能進展',
   '未來可以先試用教授版預覽'
 ];
 
+const initialForm = {
+  name: '',
+  email: '',
+  school: '',
+  department: '',
+  labSize: ''
+};
+
 export default function ProfessorPage() {
+  const [form, setForm] = useState(initialForm);
+  const [submitted, setSubmitted] = useState(false);
+
   return (
     <SiteShell>
       <section className="grid gap-6">
@@ -56,23 +70,82 @@ export default function ProfessorPage() {
             </div>
           </div>
           <div className="rounded-[34px] border border-[#dbe6ff] bg-white p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
-            <div className="text-sm font-bold text-[#2144b2]">加入 Waitlist</div>
+            <div className="text-sm font-bold text-[#2144b2]">教授 Waitlist</div>
             <p className="mt-4 text-[15px] leading-7 text-[#20304b]">
-              如果你想先收到教授版預覽與功能更新，可以先留下 Email。
+              留下資料，未來教授版上線時優先通知你。這不會進入學生診斷流程。
             </p>
-            <div className="mt-4 grid gap-3">
-              {waitlistBenefits.map((text) => (
+            <form
+              className="mt-5 grid gap-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setSubmitted(true);
+              }}
+            >
+              <label className="text-sm font-semibold text-[#1f3f9a]">
+                Name
+                <input
+                  value={form.name}
+                  onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-[#d8e4ff] bg-white px-4 py-3 text-sm text-[#10203a] outline-none focus:border-[#2f62ef] focus:ring-4 focus:ring-[#2f62ef1f]"
+                  placeholder="Professor name"
+                />
+              </label>
+              <label className="text-sm font-semibold text-[#1f3f9a]">
+                Email
+                <input
+                  value={form.email}
+                  onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+                  type="email"
+                  className="mt-2 w-full rounded-2xl border border-[#d8e4ff] bg-white px-4 py-3 text-sm text-[#10203a] outline-none focus:border-[#2f62ef] focus:ring-4 focus:ring-[#2f62ef1f]"
+                  placeholder="professor@example.com"
+                />
+              </label>
+              <label className="text-sm font-semibold text-[#1f3f9a]">
+                School
+                <input
+                  value={form.school}
+                  onChange={(event) => setForm((prev) => ({ ...prev, school: event.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-[#d8e4ff] bg-white px-4 py-3 text-sm text-[#10203a] outline-none focus:border-[#2f62ef] focus:ring-4 focus:ring-[#2f62ef1f]"
+                  placeholder="School"
+                />
+              </label>
+              <label className="text-sm font-semibold text-[#1f3f9a]">
+                Department
+                <input
+                  value={form.department}
+                  onChange={(event) => setForm((prev) => ({ ...prev, department: event.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-[#d8e4ff] bg-white px-4 py-3 text-sm text-[#10203a] outline-none focus:border-[#2f62ef] focus:ring-4 focus:ring-[#2f62ef1f]"
+                  placeholder="Department"
+                />
+              </label>
+              <label className="text-sm font-semibold text-[#1f3f9a]">
+                Lab Size (optional)
+                <input
+                  value={form.labSize}
+                  onChange={(event) => setForm((prev) => ({ ...prev, labSize: event.target.value }))}
+                  className="mt-2 w-full rounded-2xl border border-[#d8e4ff] bg-white px-4 py-3 text-sm text-[#10203a] outline-none focus:border-[#2f62ef] focus:ring-4 focus:ring-[#2f62ef1f]"
+                  placeholder="例如：12 人"
+                />
+              </label>
+              <button
+                type="submit"
+                className="mt-2 inline-flex min-h-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-5 text-sm font-bold text-white"
+              >
+                加入 Waitlist
+              </button>
+              {submitted ? (
+                <p className="text-sm font-semibold text-[#1d7b52]">已收到，之後教授版預覽會優先通知你。</p>
+              ) : (
+                <p className="text-sm text-[#62708d]">這是教授 Waitlist，不會進入學生診斷流程。</p>
+              )}
+            </form>
+            <div className="mt-5 grid gap-3">
+              {sampleBenefits.map((text) => (
                 <div key={text} className="rounded-[22px] bg-[#f8faff] p-4 text-sm leading-7 text-[#20304b]">
                   {text}
                 </div>
               ))}
             </div>
-            <a
-              href="/diagnosis"
-              className="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-5 text-sm font-bold text-white"
-            >
-              加入 Waitlist
-            </a>
           </div>
         </div>
       </section>
