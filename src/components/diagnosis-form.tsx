@@ -64,10 +64,10 @@ export function DiagnosisForm() {
     const formData = new FormData(form);
     const payload = buildDerivedPayload(formData);
 
-    if (!payload.name || !payload.email || !payload.department || !payload.current_blocker) {
+    if (!payload.department || !payload.current_blocker) {
       setStatus({
         type: 'error',
-        message: '請至少填寫姓名、Email、科系與目前最大問題。'
+        message: '請至少填寫科系與目前最大問題。'
       });
       return;
     }
@@ -99,12 +99,12 @@ export function DiagnosisForm() {
       </div>
       <div className="mt-4 grid gap-4">
         <label className="text-sm font-semibold text-[#1f3f9a]">
-          姓名
-          <input name="name" required placeholder="你的姓名" className={fieldClass} />
+          姓名（選填）
+          <input name="name" placeholder="你的姓名" className={fieldClass} />
         </label>
         <label className="text-sm font-semibold text-[#1f3f9a]">
-          Email
-          <input name="email" type="email" required placeholder="you@example.com" className={fieldClass} />
+          Email（選填）
+          <input name="email" type="email" placeholder="you@example.com" className={fieldClass} />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-[#1f3f9a]">

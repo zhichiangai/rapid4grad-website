@@ -80,12 +80,14 @@ export function ResultPageClient({ token: _token }: { token: string }) {
                 </div>
 
                 <div className="mt-8 grid gap-3">
-                  {snapshot.result.nextSteps.map((step, index) => (
-                    <div key={step} className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
-                      <div className="text-xs font-bold text-white/72">本週行動 {index + 1}</div>
-                      <div className="mt-2 text-base font-semibold text-white">{step}</div>
-                    </div>
-                  ))}
+                  <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
+                    <div className="text-xs font-bold text-white/72">今天先做這件事</div>
+                    <div className="mt-2 text-base font-semibold text-white">{snapshot.result.nextSteps[0]}</div>
+                  </div>
+                  <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
+                    <div className="text-xs font-bold text-white/72">下一步</div>
+                    <div className="mt-2 text-base font-semibold text-white">{snapshot.result.nextSteps[1]}</div>
+                  </div>
                 </div>
 
                 <div className="mt-6 rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
@@ -98,10 +100,10 @@ export function ResultPageClient({ token: _token }: { token: string }) {
             ) : (
               <>
                 <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
-                  找不到你的診斷結果。先看下面的示意結果，再開始填表。
+                  找不到你的診斷結果。先看一個範例版結果，再開始填表。
                 </div>
                 <div className="mt-4 rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur">
-                  <div className="text-xs font-bold text-white/72">示意結果</div>
+                  <div className="text-xs font-bold text-white/72">範例版結果</div>
                   <div className="mt-2 text-2xl font-black text-white">風險等級：{sampleResult.riskLevel}</div>
                   <p className="mt-3 text-sm leading-7 text-white/84">主要原因：{sampleResult.mainReason}</p>
                   <div className="mt-4 grid gap-2">
@@ -111,7 +113,7 @@ export function ResultPageClient({ token: _token }: { token: string }) {
                       </div>
                     ))}
                   </div>
-                  <p className="mt-4 text-xs font-semibold text-white/70">這是示意結果。完成診斷後會顯示你的個人資料。</p>
+                  <p className="mt-4 text-xs font-semibold text-white/70">完成診斷後，這裡會換成你的個人資料。</p>
                 </div>
               </>
             )}
@@ -121,15 +123,18 @@ export function ResultPageClient({ token: _token }: { token: string }) {
         <aside className="grid gap-4">
           <div className="rounded-[34px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f6f8ff_100%)] p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
             <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-bold tracking-[0.12em] text-[#2144b2]">
-              接下來
+              今天先做
             </div>
-            <div className="mt-5 grid gap-3">
-              {['你會收到個人化畢業診斷摘要', '你可以直接回 Dashboard 看今天要做什麼', '每週回來更新一次，風險會重新計算'].map((text, index) => (
-                <div key={text} className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
-                  <div className="text-xs font-bold text-[#2860f2]">0{index + 1}</div>
-                  <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{text}</p>
-                </div>
-              ))}
+            <div className="mt-5 rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
+              <p className="text-[15px] leading-7 text-[#20304b]">
+                {snapshot?.result.nextSteps[0] || sampleResult.suggestions[0]}
+              </p>
+            </div>
+            <div className="mt-4 rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
+              <div className="text-xs font-bold text-[#2860f2]">下一步</div>
+              <p className="mt-2 text-[15px] leading-7 text-[#20304b]">
+                {snapshot?.result.nextSteps[1] || sampleResult.suggestions[1]}
+              </p>
             </div>
           </div>
 

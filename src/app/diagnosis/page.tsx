@@ -2,10 +2,10 @@ import { SiteShell } from '@/components/site-shell';
 import { DiagnosisForm } from '@/components/diagnosis-form';
 import Link from 'next/link';
 
-const steps = [
-  { step: '01', title: '填基本資料', desc: '姓名、Email、學校、科系、學位與年級' },
-  { step: '02', title: '回答研究狀態', desc: '題目、Meeting、寫作與投稿壓力' },
-  { step: '03', title: '拿到結果', desc: '低 / 中 / 高風險與本週三個行動' }
+const benefits = [
+  '先知道目前風險高不高',
+  '直接看到本週該做的事',
+  '不用填太多，也能先開始'
 ];
 
 export default function DiagnosisPage() {
@@ -19,18 +19,16 @@ export default function DiagnosisPage() {
               免費診斷
             </div>
             <h1 className="mt-5 max-w-xl text-4xl font-black leading-[0.92] tracking-tight sm:text-5xl">
-              先把你的研究狀態說清楚。
+              先開始，幾個問題就能看到你的風險。
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-              這份診斷不是蒐集資訊而已，而是幫你直接找出最值得優先處理的卡點。填完後，你會拿到個人化畢業診斷、免費指南、Meeting 模板與進度追蹤建議。
+              這份診斷會直接告訴你現在該先處理什麼。姓名與 Email 都可以先不填，先把研究狀態說清楚就能開始。
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              {steps.map((item) => (
-                <div key={item.step} className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
-                  <div className="text-xs font-bold text-white/76">{item.step}</div>
-                  <div className="mt-1 text-base font-extrabold text-white">{item.title}</div>
-                  <p className="mt-2 text-sm leading-6 text-white/78">{item.desc}</p>
+              {benefits.map((item) => (
+                <div key={item} className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
+                  <p className="text-sm leading-7 text-white/88">{item}</p>
                 </div>
               ))}
             </div>
@@ -39,10 +37,12 @@ export default function DiagnosisPage() {
 
         <div className="rounded-[38px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f8faff_100%)] p-4 shadow-[0_18px_44px_rgba(16,32,58,0.08)] sm:p-6">
           <div className="mb-5 rounded-[28px] border border-[#dbe6ff] bg-[#f7f9ff] px-5 py-4">
-            <div className="text-sm font-bold text-[#2144b2]">填寫後你會得到什麼</div>
-            <p className="mt-2 text-sm leading-7 text-[#62708d]">
-              你只要把目前狀況說清楚，剩下的交給系統整理成可執行的建議。Email 會用來寄送後續免費指南與提醒。
-            </p>
+            <div className="text-sm font-bold text-[#2144b2]">完成後你會得到什麼</div>
+            <ul className="mt-2 grid gap-2 text-sm leading-7 text-[#62708d]">
+              <li>風險等級與主要卡點</li>
+              <li>本週三件事</li>
+              <li>可直接回 Dashboard 的下一步</li>
+            </ul>
           </div>
           <div className="mb-5 rounded-[28px] border border-[#dbe6ff] bg-white px-5 py-4">
             <div className="text-sm font-bold text-[#2144b2]">先試 Free Tools</div>

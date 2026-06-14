@@ -13,8 +13,9 @@ type Snapshot = {
 };
 
 const sampleDashboard = {
-  title: '示意資料',
-  weeklyGoal: '完成文獻整理與 Meeting 準備',
+  title: '範例版 Dashboard',
+  todayTask: '先完成文獻整理',
+  nextStep: '把下次 Meeting 的 3 個問題寫下來',
   meetingStatus: '每週固定一次',
   thesisProgress: '45%',
   riskLevel: '中風險'
@@ -56,7 +57,7 @@ export function DashboardPageClient() {
                   歡迎回來，{input?.name || '研究生'}
                 </h1>
                 <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-                  這裡會持續顯示你今天最該先做什麼，讓你的研究進度不是散掉，而是被整理成一條可執行的路線。每週回來更新一次，結果就會跟著變。
+                  這裡只顯示你今天最該先做什麼，以及下一步要往哪裡走。每週回來更新一次，結果就會跟著變。
                 </p>
 
                 <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -76,24 +77,16 @@ export function DashboardPageClient() {
 
                 <div className="mt-8 grid gap-3">
                   <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
-                    <div className="text-sm font-bold text-white">今日任務</div>
-                    <ul className="mt-3 grid gap-2 text-sm leading-6 text-white/82">
-                      {(result?.todayTasks || []).map((task) => (
-                        <li key={task} className="rounded-2xl bg-white/10 p-3">
-                          {task}
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="text-sm font-bold text-white">今天要做的一件事</div>
+                    <div className="mt-3 rounded-2xl bg-white/10 p-3 text-sm leading-6 text-white/86">
+                      {(result?.todayTasks || [sampleDashboard.todayTask])[0]}
+                    </div>
                   </div>
                   <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
-                    <div className="text-sm font-bold text-white">本週任務</div>
-                    <ul className="mt-3 grid gap-2 text-sm leading-6 text-white/82">
-                      {(result?.weeklyTasks || []).map((task) => (
-                        <li key={task} className="rounded-2xl bg-white/10 p-3">
-                          {task}
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="text-sm font-bold text-white">下一步</div>
+                    <div className="mt-3 rounded-2xl bg-white/10 p-3 text-sm leading-6 text-white/86">
+                      {(result?.weeklyTasks || [sampleDashboard.nextStep])[1] || sampleDashboard.nextStep}
+                    </div>
                   </div>
                 </div>
 
@@ -107,17 +100,17 @@ export function DashboardPageClient() {
             ) : (
               <>
                 <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
-                  找不到你的資料。請先完成診斷，或先看下面的示意畫面。
+                  找不到你的資料。先看一個範例版 Dashboard，再完成診斷。
                 </div>
                 <div className="mt-4 rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur">
                   <div className="text-xs font-bold text-white/72">{sampleDashboard.title}</div>
-                  <div className="mt-2 text-2xl font-black text-white">本週目標：{sampleDashboard.weeklyGoal}</div>
+                  <div className="mt-2 text-2xl font-black text-white">今天要做：{sampleDashboard.todayTask}</div>
                   <div className="mt-3 grid gap-2 text-sm text-white/84">
                     <div>Meeting 狀態：{sampleDashboard.meetingStatus}</div>
                     <div>論文進度：{sampleDashboard.thesisProgress}</div>
                     <div>風險等級：{sampleDashboard.riskLevel}</div>
                   </div>
-                  <p className="mt-4 text-xs font-semibold text-white/70">這是示意資料。完成診斷後會顯示你的個人資料。</p>
+                  <p className="mt-4 text-xs font-semibold text-white/70">完成診斷後，這裡會顯示你的個人資料。</p>
                 </div>
               </>
             )}
@@ -127,15 +120,14 @@ export function DashboardPageClient() {
         <aside className="grid gap-4">
           <div className="rounded-[34px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f6f8ff_100%)] p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
             <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-bold tracking-[0.12em] text-[#2144b2]">
-              下一步
+              今天先做
             </div>
-            <div className="mt-5 grid gap-3">
-              {['先看今天要做什麼', '先完成本週最重要的三件事', '每週回來更新一次診斷'].map((text, index) => (
-                <div key={text} className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
-                  <div className="text-xs font-bold text-[#2860f2]">0{index + 1}</div>
-                  <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{text}</p>
-                </div>
-              ))}
+            <div className="mt-5 rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
+              <p className="text-[15px] leading-7 text-[#20304b]">{(result?.todayTasks || [sampleDashboard.todayTask])[0]}</p>
+            </div>
+            <div className="mt-4 rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
+              <div className="text-xs font-bold text-[#2860f2]">下一步</div>
+              <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{sampleDashboard.nextStep}</p>
             </div>
           </div>
 
@@ -155,13 +147,6 @@ export function DashboardPageClient() {
             <div className="text-sm font-bold text-[#2144b2]">目前風險</div>
             <div className="mt-4 inline-flex rounded-full bg-[#f5f8ff] px-4 py-2 text-sm font-bold text-[#1f3f9a]">
               {result?.riskLevel?.toUpperCase() || 'UNKNOWN'}
-            </div>
-
-            <div className="mt-6 rounded-[24px] bg-[#f8faff] p-4">
-              <div className="text-sm font-bold text-[#2144b2]">建議你今天先做</div>
-              <div className="mt-2 text-sm leading-7 text-[#62708d]">
-                先處理第一個任務，今天只要把進度推進一小步即可。
-              </div>
             </div>
 
             <Link

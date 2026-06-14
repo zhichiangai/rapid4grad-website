@@ -33,6 +33,7 @@ function panelClass() {
 }
 
 export function FreeToolsHub() {
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [riskForm, setRiskForm] = useState<RiskForm>({
     current_stage: 'writing',
     thesis_topic_status: 'vague',
@@ -61,15 +62,25 @@ export function FreeToolsHub() {
   const meetingResult = useMemo(() => assistMeeting(meetingForm), [meetingForm]);
   const progressResult = useMemo(() => trackProgress(progressForm), [progressForm]);
 
+  async function copyText(key: string, text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedKey(key);
+      window.setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1200);
+    } catch {
+      setCopiedKey(key);
+    }
+  }
+
   return (
     <div className="grid gap-6">
       <section id="risk-checker" className={sectionCard()}>
         <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-semibold tracking-[0.12em] text-[#2144b2]">
-          01 · Graduation Risk Checker
+          Graduation Risk Checker
         </div>
         <div className="mt-4 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <h2 className="text-3xl font-black text-[#10203a]">30 秒看出你的畢業風險</h2>
+            <h2 className="text-3xl font-black text-[#10203a]">先看出你的畢業風險</h2>
             <p className="mt-3 text-[15px] leading-7 text-[#62708d]">
               不用 AI，先用規則引擎幫你判斷目前是不是該優先處理題目、Meeting、寫作或投稿。
             </p>
@@ -157,20 +168,30 @@ export function FreeToolsHub() {
           </div>
           <div className={panelClass()}>
             <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">可直接使用的內容模板</div>
-            <pre className="mt-3 overflow-auto whitespace-pre-wrap rounded-[22px] bg-[#eef4ff] p-4 text-sm leading-7 text-[#20304b]">
-              {riskResult.template}
-            </pre>
+            <details className="mt-3 rounded-[22px] bg-[#eef4ff] p-4">
+              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開 / 收合模板</summary>
+              <pre className="mt-3 overflow-auto whitespace-pre-wrap text-sm leading-7 text-[#20304b]">
+                {riskResult.template}
+              </pre>
+              <button
+                type="button"
+                onClick={() => copyText('risk', riskResult.template)}
+                className="mt-4 inline-flex min-h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-4 text-sm font-bold text-white"
+              >
+                {copiedKey === 'risk' ? '已複製' : 'Copy'}
+              </button>
+            </details>
           </div>
         </div>
       </section>
 
       <section id="meeting-assistant" className={sectionCard()}>
         <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-semibold tracking-[0.12em] text-[#2144b2]">
-          02 · Meeting Assistant
+          Meeting Assistant
         </div>
         <div className="mt-4 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <h2 className="text-3xl font-black text-[#10203a]">把 Meeting 內容變成可執行的待辦</h2>
+            <h2 className="text-3xl font-black text-[#10203a]">把 Meeting 內容直接變成待辦</h2>
             <p className="mt-3 text-[15px] leading-7 text-[#62708d]">
               先用固定規則整理會議內容，讓你在會後就能直接知道下一步。
             </p>
@@ -283,20 +304,30 @@ export function FreeToolsHub() {
           </div>
           <div className={panelClass()}>
             <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">可直接使用的內容模板</div>
-            <pre className="mt-3 overflow-auto whitespace-pre-wrap rounded-[22px] bg-[#eef4ff] p-4 text-sm leading-7 text-[#20304b]">
-              {meetingResult.template}
-            </pre>
+            <details className="mt-3 rounded-[22px] bg-[#eef4ff] p-4">
+              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開 / 收合模板</summary>
+              <pre className="mt-3 overflow-auto whitespace-pre-wrap text-sm leading-7 text-[#20304b]">
+                {meetingResult.template}
+              </pre>
+              <button
+                type="button"
+                onClick={() => copyText('meeting', meetingResult.template)}
+                className="mt-4 inline-flex min-h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-4 text-sm font-bold text-white"
+              >
+                {copiedKey === 'meeting' ? '已複製' : 'Copy'}
+              </button>
+            </details>
           </div>
         </div>
       </section>
 
       <section id="progress-tracker" className={sectionCard()}>
         <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-semibold tracking-[0.12em] text-[#2144b2]">
-          03 · Thesis Progress Tracker
+          Thesis Progress Tracker
         </div>
         <div className="mt-4 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-[30px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f6f8ff_100%)] p-6">
-            <h2 className="text-3xl font-black text-[#10203a]">把論文進度變成一條清楚的路線</h2>
+            <h2 className="text-3xl font-black text-[#10203a]">把論文進度整理成今天的一件事</h2>
             <p className="mt-3 text-[15px] leading-7 text-[#62708d]">
               先讓學生感覺到「我不是沒進度，而是進度沒被看見」。
             </p>
@@ -384,9 +415,19 @@ export function FreeToolsHub() {
           </div>
           <div className={panelClass()}>
             <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">可直接使用的內容模板</div>
-            <pre className="mt-3 overflow-auto whitespace-pre-wrap rounded-[22px] bg-[#eef4ff] p-4 text-sm leading-7 text-[#20304b]">
-              {progressResult.template}
-            </pre>
+            <details className="mt-3 rounded-[22px] bg-[#eef4ff] p-4">
+              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開 / 收合模板</summary>
+              <pre className="mt-3 overflow-auto whitespace-pre-wrap text-sm leading-7 text-[#20304b]">
+                {progressResult.template}
+              </pre>
+              <button
+                type="button"
+                onClick={() => copyText('progress', progressResult.template)}
+                className="mt-4 inline-flex min-h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-4 text-sm font-bold text-white"
+              >
+                {copiedKey === 'progress' ? '已複製' : 'Copy'}
+              </button>
+            </details>
           </div>
         </div>
       </section>
