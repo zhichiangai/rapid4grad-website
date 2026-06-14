@@ -81,6 +81,13 @@ export function ResultPageClient({ token: _token }: { token: string }) {
                     </div>
                   ))}
                 </div>
+
+                <div className="mt-6 rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
+                  <div className="text-xs font-bold text-white/72">每週回來更新</div>
+                  <p className="mt-2 text-sm leading-7 text-white/84">
+                    下週把你完成的內容帶回來更新一次，RAPID 會重新計算風險與下一步。這樣你每週都會看到新的結果，而不是重複同一份摘要。
+                  </p>
+                </div>
               </>
             ) : (
               <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
@@ -125,13 +132,13 @@ export function ResultPageClient({ token: _token }: { token: string }) {
                 href={snapshot ? snapshot.result.dashboardUrl : '/dashboard'}
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-5 text-sm font-bold text-white shadow-[0_14px_28px_rgba(33,68,178,0.2)]"
               >
-                前往 Dashboard
+                前往 Dashboard 看今天任務
               </Link>
               <Link
                 href="/diagnosis"
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#dbe6ff] bg-white px-5 text-sm font-bold text-[#2144b2]"
               >
-                重新診斷
+                下週回來更新診斷
               </Link>
             </div>
           </div>

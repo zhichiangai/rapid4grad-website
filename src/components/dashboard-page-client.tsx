@@ -48,7 +48,7 @@ export function DashboardPageClient() {
                   歡迎回來，{input?.name || '研究生'}
                 </h1>
                 <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-                  這裡會持續顯示你今天最該先做什麼，讓你的研究進度不是散掉，而是被整理成一條可執行的路線。
+                  這裡會持續顯示你今天最該先做什麼，讓你的研究進度不是散掉，而是被整理成一條可執行的路線。每週回來更新一次，結果就會跟著變。
                 </p>
 
                 <div className="mt-8 grid gap-3 sm:grid-cols-2">
@@ -87,6 +87,13 @@ export function DashboardPageClient() {
                       ))}
                     </ul>
                   </div>
+                </div>
+
+                <div className="mt-6 rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
+                  <div className="text-xs font-bold text-white/72">每週更新提醒</div>
+                  <p className="mt-2 text-sm leading-7 text-white/84">
+                    下週回到診斷頁，把這週完成的內容更新一次。你的風險、任務與推薦資源會跟著改變。
+                  </p>
                 </div>
               </>
             ) : (
@@ -136,6 +143,13 @@ export function DashboardPageClient() {
                 先處理第一個任務，今天只要把進度推進一小步即可。
               </div>
             </div>
+
+            <Link
+              href="/diagnosis"
+              className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-[#dbe6ff] bg-white px-5 text-sm font-bold text-[#2144b2]"
+            >
+              每週更新一次診斷
+            </Link>
           </div>
         </aside>
       </section>
