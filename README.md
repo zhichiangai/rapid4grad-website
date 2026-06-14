@@ -19,6 +19,9 @@ npm run dev
 ## Main Routes
 
 - `/`
+- `/student`
+- `/professor`
+- `/tools`
 - `/diagnosis`
 - `/result`
 - `/dashboard`
@@ -31,3 +34,4 @@ npm run dev
 - The old static HTML site has been removed.
 - Frontend pages are now written as React components in `.tsx` files under `src/app`.
 - `backend/google-apps-script` is the only backend source of truth for Sheets and email.
+- `/` is now the role entry page, with separate student and professor entry points.

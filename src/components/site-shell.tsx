@@ -3,6 +3,9 @@ import type { ReactNode } from 'react';
 import { SITE_NAME } from '@/lib/site';
 
 const navLinks = [
+  { href: '/', label: '首頁' },
+  { href: '/student', label: '學生入口' },
+  { href: '/professor', label: '教授入口' },
   { href: '/tools', label: 'Free Tools' },
   { href: '/diagnosis', label: '免費診斷' },
   { href: '/result', label: '結果頁' },
@@ -51,6 +54,12 @@ export function SiteShell({ children }: { children: ReactNode }) {
               <p>研究生畢業導航系統。先診斷，再提供下一步。</p>
             </div>
             <div className="flex flex-wrap gap-4">
+              <Link href="/student" className="font-semibold text-[#1f3f9a]">
+                學生入口
+              </Link>
+              <Link href="/professor" className="font-semibold text-[#1f3f9a]">
+                教授入口
+              </Link>
               <Link href="/tools" className="font-semibold text-[#1f3f9a]">
                 Free Tools
               </Link>

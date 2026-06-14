@@ -63,7 +63,7 @@ npx -y @google/clasp show-authorized-user
 8. 確認是 `zhichiang@rapid4grad.com` 後，再進入本資料夾：
 
 ```bash
-cd "/Users/fengfeng/Library/CloudStorage/OneDrive-個人/雲端資料/線上課程/website_rapid/20260614/google app script"
+cd "/Users/fengfeng/Library/CloudStorage/OneDrive-個人/雲端資料/線上課程/website_rapid/rapid4grad-website/backend/google-apps-script"
 ```
 
 9. 拉取雲端專案確認權限：
@@ -82,14 +82,14 @@ npx -y @google/clasp pull
 git commit -> git push -> clasp push -> clasp redeploy
 ```
 
-目前本資料夾尚未接上 GitHub repo。接 GitHub 前，至少先確認：
+目前這份 Apps Script 程式碼已經跟網站 repo 放在同一個專案樹。正式上線前，至少先確認：
 
 ```bash
 npx -y @google/clasp push
 npx -y @google/clasp deployments
 ```
 
-更新既有 deployment 時，應使用既有 deployment ID，不要建立新 Apps Script 專案。
+更新既有 deployment 時，應使用既有 deployment ID，不要建立新 Apps Script 專案，也不要另外開新的 Web App。
 
 ## 測試
 
