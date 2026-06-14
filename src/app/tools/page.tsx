@@ -22,20 +22,20 @@ export default function ToolsPage() {
               30 秒內，先讓研究生感受到可用的價值。
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-              這一頁不是展示概念，而是直接可以操作的工具入口。先選角色，再看風險、整理 Meeting、把進度轉成下一步。
+              這一頁不是展示概念，而是直接可以操作的工具入口。先看風險、整理 Meeting、把進度轉成下一步。
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href="/student"
+                href="/diagnosis"
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-extrabold text-[#173aac] shadow-[0_14px_30px_rgba(9,22,73,0.22)] transition hover:-translate-y-0.5"
               >
                 開始畢業診斷
               </Link>
               <Link
-                href="/professor"
+                href="/student"
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/18 bg-white/10 px-6 text-sm font-bold text-white transition hover:bg-white/16"
               >
-                教授 Beta 預覽
+                前往學生區
               </Link>
             </div>
           </div>
