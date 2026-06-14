@@ -7,12 +7,6 @@ const studentBenefits = [
   '把風險、任務、進度整理到 Dashboard'
 ];
 
-const professorBenefits = [
-  '先看到哪些學生需要幫忙',
-  '快速掌握研究室風險與 Meeting 狀態',
-  '不看雜訊，只看決策資訊'
-];
-
 const tools = [
   {
     title: 'Meeting Assistant',
@@ -42,19 +36,19 @@ export default function HomePage() {
               RAPID4GRAD
             </div>
             <h1 className="mt-5 max-w-2xl text-4xl font-black leading-[0.92] tracking-tight sm:text-5xl lg:text-6xl">
-              先選角色，再開始你的下一步。
+              開始畢業診斷，把混亂變成下一步。
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-              RAPID4GRAD 不是只給你介紹內容，而是先分成學生與教授兩條流程，讓每個人一進來就知道自己要做什麼。
+              你只要留下 Email，RAPID4GRAD 就會幫你整理個人化畢業診斷、免費指南、Meeting 模板與進度追蹤建議。這一版主要服務研究生；教授版先以 Beta 預覽呈現。
             </p>
 
-            <div className="mt-8 grid gap-3 sm:grid-cols-2">
+            <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               <Link
                 href="/student"
                 className="rounded-[30px] border border-white/14 bg-white/12 p-5 transition hover:-translate-y-0.5 hover:bg-white/16"
               >
-                <div className="text-xs font-bold tracking-[0.14em] text-white/72">我是學生</div>
-                <div className="mt-2 text-2xl font-black text-white">先看診斷，再看工具</div>
+                <div className="text-xs font-bold tracking-[0.14em] text-white/72">主入口 · 研究生</div>
+                <div className="mt-2 text-2xl font-black text-white">開始畢業診斷</div>
                 <p className="mt-2 text-sm leading-7 text-white/78">
                   如果你現在卡在題目、文獻、Meeting 或投稿，從這裡開始。
                 </p>
@@ -63,10 +57,10 @@ export default function HomePage() {
                 href="/professor"
                 className="rounded-[30px] border border-white/14 bg-white/10 p-5 transition hover:-translate-y-0.5 hover:bg-white/16"
               >
-                <div className="text-xs font-bold tracking-[0.14em] text-white/72">我是教授</div>
-                <div className="mt-2 text-2xl font-black text-white">直接看研究室決策資訊</div>
+                <div className="text-xs font-bold tracking-[0.14em] text-white/72">次入口 · 教授 Beta</div>
+                <div className="mt-2 text-2xl font-black text-white">Professor Program Preview</div>
                 <p className="mt-2 text-sm leading-7 text-white/78">
-                  如果你要先知道哪些學生有風險，從教授總覽開始。
+                  如果你想先了解未來能怎麼追蹤研究室進度，可以看預覽版。
                 </p>
               </Link>
             </div>
@@ -76,15 +70,18 @@ export default function HomePage() {
                 href="/diagnosis"
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-extrabold text-[#173aac] shadow-[0_14px_30px_rgba(9,22,73,0.22)] transition hover:-translate-y-0.5"
               >
-                先做免費診斷
+                開始畢業診斷
               </Link>
               <Link
                 href="/tools"
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/18 bg-white/10 px-6 text-sm font-bold text-white transition hover:bg-white/16"
               >
-                先看 Free Tools
+                瀏覽工具
               </Link>
             </div>
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-white/74">
+              留下 Email 後，你會收到個人化畢業診斷、免費畢業指南、Meeting 模板與後續進度提醒。
+            </p>
           </div>
         </article>
 
@@ -105,16 +102,17 @@ export default function HomePage() {
 
           <div className="rounded-[34px] border border-[#dbe6ff] bg-white p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
             <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-bold tracking-[0.12em] text-[#2144b2]">
-              教授會看到什麼
+              教授 Beta 預覽
             </div>
-            <div className="mt-5 grid gap-3">
-              {professorBenefits.map((text, index) => (
-                <div key={text} className="rounded-[24px] border border-[#dbe6ff] bg-[#f8faff] p-4">
-                  <div className="text-xs font-bold text-[#2860f2]">0{index + 1}</div>
-                  <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{text}</p>
-                </div>
-              ))}
-            </div>
+            <p className="mt-4 text-[15px] leading-7 text-[#20304b]">
+              Professor Dashboard 還在未來階段。現在先看它能解決什麼問題，以及未來如何幫教授快速掌握研究室進度。
+            </p>
+            <Link
+              href="/professor"
+              className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-[#dbe6ff] bg-[#f8faff] px-5 text-sm font-bold text-[#2144b2] transition hover:bg-white"
+            >
+              看 Professor Program Preview
+            </Link>
           </div>
         </aside>
       </section>

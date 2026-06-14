@@ -29,13 +29,13 @@ export default function ToolsPage() {
                 href="/student"
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-extrabold text-[#173aac] shadow-[0_14px_30px_rgba(9,22,73,0.22)] transition hover:-translate-y-0.5"
               >
-                我是學生
+                開始畢業診斷
               </Link>
               <Link
                 href="/professor"
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/18 bg-white/10 px-6 text-sm font-bold text-white transition hover:bg-white/16"
               >
-                我是教授
+                教授 Beta 預覽
               </Link>
             </div>
           </div>

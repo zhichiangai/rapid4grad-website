@@ -5,7 +5,7 @@ import { SITE_NAME } from '@/lib/site';
 const navLinks = [
   { href: '/', label: '首頁' },
   { href: '/student', label: '學生入口' },
-  { href: '/professor', label: '教授入口' },
+  { href: '/professor', label: 'Professor Beta' },
   { href: '/tools', label: 'Free Tools' },
   { href: '/diagnosis', label: '免費診斷' },
   { href: '/result', label: '結果頁' },
