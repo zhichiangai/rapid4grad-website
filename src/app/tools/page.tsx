@@ -4,18 +4,24 @@ import { FreeToolsHub } from '@/components/free-tools-hub';
 
 const tools = [
   {
-    title: 'Graduation Risk Checker',
-    desc: '先看目前風險高不高，再決定本週要先處理什麼。',
+    title: '我不知道風險高不高',
+    toolName: 'Graduation Risk Checker',
+    desc: '先看風險，再決定今天先做什麼。',
+    cta: '先看風險',
     href: '#risk-checker'
   },
   {
-    title: 'Meeting Assistant',
-    desc: '把一次 Meeting 變成可以直接拿去用的重點與待辦。',
+    title: '我剛 meeting 完，還不知道怎麼整理',
+    toolName: 'Meeting Assistant',
+    desc: '先把 meeting 重點變成待辦。',
+    cta: '幫我整理 meeting',
     href: '#meeting-assistant'
   },
   {
-    title: 'Thesis Progress Tracker',
-    desc: '把論文進度整理成清楚的一頁，不再只是一堆零碎項目。',
+    title: '我的論文進度很亂',
+    toolName: 'Thesis Progress Tracker',
+    desc: '先抓出今天最重要的一件事。',
+    cta: '幫我整理進度',
     href: '#progress-tracker'
   }
 ];
@@ -31,23 +37,23 @@ export default function ToolsPage() {
               Free Tools
             </div>
             <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[0.92] tracking-tight sm:text-5xl lg:text-6xl">
-              直接選工具，立刻拿到可用結果。
+              你現在卡在哪一種情境？
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-              這一頁不講流程，只給你可以直接使用的工具入口。先點進去，再看細節。
+              先選你的狀態，我先幫你整理今天先做什麼。
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="#tools"
                 className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 text-sm font-extrabold text-[#173aac] shadow-[0_14px_30px_rgba(9,22,73,0.22)] transition hover:-translate-y-0.5"
               >
-                立即使用工具
+                幫我選一個情境
               </Link>
               <Link
                 href="/diagnosis"
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/18 bg-white/10 px-6 text-sm font-bold text-white transition hover:bg-white/16"
               >
-                開始畢業診斷
+                我先做診斷
               </Link>
             </div>
           </div>
@@ -60,10 +66,12 @@ export default function ToolsPage() {
               href={tool.href}
               className="rounded-[30px] border border-[#dbe6ff] bg-white p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)] transition hover:-translate-y-0.5 hover:bg-[#f8faff]"
             >
-              <div className="text-2xl font-black text-[#2144b2]">{tool.title}</div>
+              <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">先看情境</div>
+              <div className="mt-2 text-2xl font-black text-[#2144b2]">{tool.title}</div>
+              <div className="mt-2 text-sm font-semibold text-[#10203a]">{tool.toolName}</div>
               <p className="mt-3 text-[15px] leading-7 text-[#62708d]">{tool.desc}</p>
               <span className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-5 text-sm font-bold text-white">
-                立即使用
+                {tool.cta}
               </span>
             </Link>
           ))}

@@ -3,25 +3,25 @@ import { SiteShell } from '@/components/site-shell';
 
 const modeCards = [
   {
-    title: '學生登入版',
+    title: '先直接開始',
     href: '/diagnosis',
-    action: '登入保存',
-    desc: '會保留你的診斷、結果與 Dashboard 紀錄。',
-    badge: '適合之後要回來接著做'
+    action: '幫我看下一步',
+    desc: '先做診斷，先看今天要做什麼。',
+    badge: '不用先登入'
   },
   {
-    title: '學生訪客版',
+    title: '想保存歷史再登入',
     href: '/diagnosis',
-    action: '直接開始',
-    desc: '可以直接使用相同功能，但不保存歷史資料。',
-    badge: '適合先看看再決定'
+    action: '先看一下',
+    desc: '如果你之後想回來看紀錄，再登入就好。',
+    badge: '之後再保存'
   }
 ];
 
 const benefits = [
-  '先完成畢業診斷',
-  '直接看到本週三件事',
-  '每週回來只要看今天最重要的一件事'
+  '你先回答最卡的地方',
+  '我先幫你整理今天要做什麼',
+  '想保存歷史，再登入就好'
 ];
 
 export default async function StudentPage({
@@ -42,10 +42,10 @@ export default async function StudentPage({
             學生區
           </div>
           <h1 className="mt-5 max-w-2xl text-4xl font-black leading-[0.92] tracking-tight sm:text-5xl lg:text-6xl">
-            先選登入版或訪客版，再直接開始。
+            你現在卡在不知道下一步嗎？
           </h1>
           <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-            兩種模式功能一樣。差別只在登入版會記錄歷史，訪客版不會留存。
+            你不用先懂系統，先直接開始。想保存歷史再登入就好。
           </p>
           <div className="mt-5 inline-flex rounded-full border border-white/18 bg-white/12 px-4 py-2 text-sm font-bold text-white">
             目前模式：{currentMode}
@@ -74,7 +74,7 @@ export default async function StudentPage({
                   href="/tools"
                   className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#dbe6ff] bg-white px-5 text-sm font-bold text-[#2144b2]"
                 >
-                  看免費工具
+                  先看情境
                 </Link>
               </div>
             </article>
@@ -84,7 +84,7 @@ export default async function StudentPage({
         <section className="grid gap-6 lg:grid-cols-[1.02fr_0.98fr]">
           <div className="rounded-[38px] border border-[#dbe6ff] bg-white p-7 shadow-[0_18px_44px_rgba(16,32,58,0.08)] sm:p-10">
             <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-semibold tracking-[0.12em] text-[#2144b2]">
-              你會先看到什麼
+              你現在先做什麼
             </div>
             <div className="mt-5 grid gap-3">
               {benefits.map((text) => (
@@ -97,17 +97,17 @@ export default async function StudentPage({
 
           <div className="rounded-[38px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f8faff_100%)] p-7 shadow-[0_18px_44px_rgba(16,32,58,0.08)] sm:p-10">
             <div className="inline-flex rounded-full bg-[#e9efff] px-3 py-1 text-xs font-semibold tracking-[0.12em] text-[#2144b2]">
-              差異只在記錄
+              先直接開始
             </div>
             <div className="mt-5 grid gap-3">
               <div className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 text-sm leading-7 text-[#20304b]">
-                訪客版可以直接使用，不會留下紀錄。
+                你先做診斷，我先幫你看今天該做什麼。
               </div>
               <div className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 text-sm leading-7 text-[#20304b]">
-                登入版會保存診斷、結果與進度，之後可以繼續。
+                想保存歷史，再登入就好。
               </div>
               <div className="rounded-[24px] border border-[#dbe6ff] bg-white p-4 text-sm leading-7 text-[#20304b]">
-                你不用先理解系統，只要先開始。
+                你不用一次想完，先回答最卡的地方。
               </div>
             </div>
           </div>

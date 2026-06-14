@@ -15,15 +15,15 @@ const accessCards = [
 ];
 
 const problems = [
-  '學生進度散落在不同地方，不容易一眼看懂',
-  'Meeting 與待辦沒有被整理成可決策的狀態',
-  '畢業風險通常太晚才被發現'
+  '學生進度常常散在不同地方，不容易一眼看懂',
+  'Meeting 和待辦沒有被整理成一個可以決策的畫面',
+  '畢業風險常常太晚才發現'
 ];
 
 const solutions = [
-  '先聚合學生進度與 Meeting 紀錄',
-  '把風險變成清楚的提醒與排序',
-  '讓教授只看需要決策的資訊'
+  '先把學生進度和 Meeting 紀錄放在一起',
+  '把風險變成好懂的提醒和排序',
+  '你只看需要決定的資訊就好'
 ];
 
 export default async function ProfessorPage({
@@ -44,10 +44,10 @@ export default async function ProfessorPage({
             教授區
           </div>
           <h1 className="mt-5 max-w-2xl text-4xl font-black leading-[0.92] tracking-tight sm:text-5xl lg:text-6xl">
-            先看教授訪客版，再決定要不要登入。
+            你如果是教授，先看預覽就好。
           </h1>
           <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-            兩種模式看到的是同一份內容。差別只在登入版會保留資料與偏好，訪客版不會留下紀錄。
+            你可以先看看未來會怎麼幫你看研究室。想保存，再登入就好。
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             {accessCards.map((card) => (
@@ -61,13 +61,13 @@ export default async function ProfessorPage({
             ))}
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-7 text-white/74">
-            {accessMode}：如果你只是想先看未來會長什麼樣子，直接用訪客版就可以。
+            {accessMode}：如果你只是想先看看，直接用訪客版就可以。
           </p>
         </article>
 
         <section className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-[34px] border border-[#dbe6ff] bg-white p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
-            <div className="text-sm font-bold text-[#2144b2]">問題</div>
+            <div className="text-sm font-bold text-[#2144b2]">你現在可能在想</div>
             <div className="mt-4 grid gap-3">
               {problems.map((text) => (
                 <div key={text} className="rounded-[22px] bg-[#f8faff] p-4 text-sm leading-7 text-[#20304b]">
@@ -77,7 +77,7 @@ export default async function ProfessorPage({
             </div>
           </div>
           <div className="rounded-[34px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f6f8ff_100%)] p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
-            <div className="text-sm font-bold text-[#2144b2]">未來解法</div>
+            <div className="text-sm font-bold text-[#2144b2]">未來可以幫你</div>
             <div className="mt-4 grid gap-3">
               {solutions.map((text) => (
                 <div key={text} className="rounded-[22px] border border-[#dbe6ff] bg-white p-4 text-sm leading-7 text-[#20304b]">
@@ -87,9 +87,9 @@ export default async function ProfessorPage({
             </div>
           </div>
           <div className="rounded-[34px] border border-[#dbe6ff] bg-white p-6 shadow-[0_18px_44px_rgba(16,32,58,0.08)]">
-            <div className="text-sm font-bold text-[#2144b2]">教授 Waitlist</div>
+            <div className="text-sm font-bold text-[#2144b2]">先留個名單</div>
             <p className="mt-4 text-[15px] leading-7 text-[#20304b]">
-              先留下資料，未來教授版正式上線時再通知你。這不會進入學生診斷流程。
+              如果你想先知道教授版何時上線，留名單就好。這不會進入學生診斷流程。
             </p>
             <form className="mt-5 grid gap-3">
               <label className="text-sm font-semibold text-[#1f3f9a]">
@@ -132,9 +132,9 @@ export default async function ProfessorPage({
                 type="button"
                 className="mt-2 inline-flex min-h-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-5 text-sm font-bold text-white"
               >
-                加入 Waitlist
+                先留名單
               </button>
-              <p className="text-sm text-[#62708d]">教授訪客版與登入版都能先看這個頁面，差別只是未來會不會保存紀錄。</p>
+              <p className="text-sm text-[#62708d]">你先看預覽就好，想保存再登入。</p>
             </form>
           </div>
         </section>

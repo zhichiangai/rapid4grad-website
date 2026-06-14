@@ -41,19 +41,19 @@ export function FreeToolsHub() {
     meeting_frequency: 'biweekly',
     writing_progress: '26-50',
     submission_status: 'not_started',
-    current_blocker: '論文寫作卡住，不知道下一步'
+    current_blocker: '你現在最卡的是哪裡？'
   });
 
   const [meetingForm, setMeetingForm] = useState<MeetingForm>({
-    summary: '這次想確認論文方向與下一次 Meeting 前要做什麼',
+    summary: '剛 meeting 完，先幫我整理',
     professorTone: 'neutral',
     progressState: 'stuck',
-    asks: '投稿策略'
+    asks: '我想確認下一步'
   });
 
   const [progressForm, setProgressForm] = useState<ProgressForm>({
     stage: 'writing',
-    percent: 45,
+    percent: 30,
     deadlineWeeks: '4_to_8',
     blocked: true
   });
@@ -80,13 +80,13 @@ export function FreeToolsHub() {
         </div>
         <div className="mt-4 grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
           <div>
-            <h2 className="text-3xl font-black text-[#10203a]">先看出你的畢業風險</h2>
+            <h2 className="text-3xl font-black text-[#10203a]">你現在不知道風險高不高嗎？</h2>
             <p className="mt-3 text-[15px] leading-7 text-[#62708d]">
-              不用 AI，先用規則引擎幫你判斷目前是不是該優先處理題目、Meeting、寫作或投稿。
+              先回答幾個問題，我幫你看今天要先處理什麼。
             </p>
             <div className="mt-5 grid gap-4">
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                目前階段
+                你現在在哪個階段
                 <select
                   className={fieldClass()}
                   value={riskForm.current_stage}
@@ -112,7 +112,7 @@ export function FreeToolsHub() {
                 </select>
               </label>
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                目前最大問題
+                你現在最卡的地方
                 <textarea
                   className={fieldClass()}
                   rows={3}
@@ -124,7 +124,7 @@ export function FreeToolsHub() {
           </div>
 
           <div className="rounded-[30px] bg-[linear-gradient(140deg,#315ef6_0%,#2144b2_52%,#122a79_100%)] p-6 text-white shadow-[0_18px_44px_rgba(33,68,178,0.24)]">
-            <div className="text-xs font-semibold tracking-[0.16em] text-white/78">交付物</div>
+            <div className="text-xs font-semibold tracking-[0.16em] text-white/78">我先幫你整理好了</div>
             <div className="mt-3 text-5xl font-black">{riskResult.score}</div>
             <div className="mt-2 inline-flex rounded-full border border-white/16 bg-white/12 px-3 py-1 text-sm font-bold">
               {riskResult.level.toUpperCase()}
@@ -147,7 +147,7 @@ export function FreeToolsHub() {
 
         <div className="grid gap-4 lg:grid-cols-3">
           <div className={panelClass()}>
-            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">本週三件事</div>
+            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">今天先做</div>
             <ul className="mt-3 grid gap-2">
               {riskResult.thisWeekActions.map((item) => (
                 <li key={item} className="rounded-2xl bg-white p-3 text-sm leading-6 text-[#20304b] shadow-[0_8px_16px_rgba(18,39,92,0.04)]">
@@ -157,7 +157,7 @@ export function FreeToolsHub() {
             </ul>
           </div>
           <div className={panelClass()}>
-            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">下次 Meeting 要問</div>
+            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">下次 Meeting 想問</div>
             <ul className="mt-3 grid gap-2">
               {riskResult.meetingQuestions.map((item) => (
                 <li key={item} className="rounded-2xl bg-white p-3 text-sm leading-6 text-[#20304b] shadow-[0_8px_16px_rgba(18,39,92,0.04)]">
@@ -167,9 +167,9 @@ export function FreeToolsHub() {
             </ul>
           </div>
           <div className={panelClass()}>
-            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">可直接使用的內容模板</div>
+            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">你可以直接複製這段</div>
             <details className="mt-3 rounded-[22px] bg-[#eef4ff] p-4">
-              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開 / 收合模板</summary>
+              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開我先整理好的版本</summary>
               <pre className="mt-3 overflow-auto whitespace-pre-wrap text-sm leading-7 text-[#20304b]">
                 {riskResult.template}
               </pre>
@@ -191,13 +191,13 @@ export function FreeToolsHub() {
         </div>
         <div className="mt-4 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <h2 className="text-3xl font-black text-[#10203a]">把 Meeting 內容直接變成待辦</h2>
+            <h2 className="text-3xl font-black text-[#10203a]">你剛 meeting 完，還不知道怎麼整理嗎？</h2>
             <p className="mt-3 text-[15px] leading-7 text-[#62708d]">
-              先用固定規則整理會議內容，讓你在會後就能直接知道下一步。
+              先把重點講給我，我幫你整理成待辦。
             </p>
             <div className="mt-5 grid gap-4">
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                會議摘要
+                你剛剛 meeting 的內容
                 <textarea
                   className={fieldClass()}
                   rows={3}
@@ -206,7 +206,7 @@ export function FreeToolsHub() {
                 />
               </label>
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                教授溝通風格
+                老師今天的語氣
                 <select
                   className={fieldClass()}
                   value={meetingForm.professorTone}
@@ -218,7 +218,7 @@ export function FreeToolsHub() {
                 </select>
               </label>
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                你目前狀態
+                你現在的感覺
                 <select
                   className={fieldClass()}
                   value={meetingForm.progressState}
@@ -230,7 +230,7 @@ export function FreeToolsHub() {
                 </select>
               </label>
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                想問的重點
+                你最想問教授什麼
                 <input
                   className={fieldClass()}
                   value={meetingForm.asks}
@@ -241,7 +241,7 @@ export function FreeToolsHub() {
           </div>
 
           <div className="rounded-[30px] border border-[#dbe6ff] bg-[#f8faff] p-6">
-            <div className="text-sm font-bold text-[#2144b2]">交付物</div>
+            <div className="text-sm font-bold text-[#2144b2]">我幫你整理好了</div>
             <div className="mt-4 rounded-[24px] border border-[#dbe6ff] bg-white p-4">
               <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">Meeting Brief</div>
               <p className="mt-2 text-sm leading-7 text-[#20304b]">{meetingResult.meetingBrief}</p>
@@ -293,7 +293,7 @@ export function FreeToolsHub() {
 
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
           <div className={panelClass()}>
-            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">會前 / 會後參考</div>
+            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">你可以直接照這樣做</div>
             <div className="mt-3 grid gap-2">
               {meetingResult.followUp.map((item) => (
                 <div key={item} className="rounded-2xl bg-white p-3 text-sm leading-6 text-[#20304b] shadow-[0_8px_16px_rgba(18,39,92,0.04)]">
@@ -303,9 +303,9 @@ export function FreeToolsHub() {
             </div>
           </div>
           <div className={panelClass()}>
-            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">可直接使用的內容模板</div>
+            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">你可以直接複製這段</div>
             <details className="mt-3 rounded-[22px] bg-[#eef4ff] p-4">
-              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開 / 收合模板</summary>
+              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開我先整理好的版本</summary>
               <pre className="mt-3 overflow-auto whitespace-pre-wrap text-sm leading-7 text-[#20304b]">
                 {meetingResult.template}
               </pre>
@@ -327,13 +327,13 @@ export function FreeToolsHub() {
         </div>
         <div className="mt-4 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="rounded-[30px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f6f8ff_100%)] p-6">
-            <h2 className="text-3xl font-black text-[#10203a]">把論文進度整理成今天的一件事</h2>
+            <h2 className="text-3xl font-black text-[#10203a]">你的論文進度是不是很亂？</h2>
             <p className="mt-3 text-[15px] leading-7 text-[#62708d]">
-              先讓學生感覺到「我不是沒進度，而是進度沒被看見」。
+              先抓出今天最重要的一件事就好。
             </p>
             <div className="mt-5 grid gap-4">
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                目前階段
+                你現在在哪裡
                 <select
                   className={fieldClass()}
                   value={progressForm.stage}
@@ -347,7 +347,7 @@ export function FreeToolsHub() {
                 </select>
               </label>
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                完成度
+                目前完成度
                 <input
                   className={fieldClass()}
                   type="number"
@@ -358,7 +358,7 @@ export function FreeToolsHub() {
                 />
               </label>
               <label className="text-sm font-semibold text-[#1f3f9a]">
-                距離 deadline
+                離 deadline 還有多久
                 <select
                   className={fieldClass()}
                   value={progressForm.deadlineWeeks}
@@ -382,7 +382,7 @@ export function FreeToolsHub() {
           </div>
 
           <div className="rounded-[30px] bg-[linear-gradient(140deg,#315ef6_0%,#2144b2_52%,#122a79_100%)] p-6 text-white shadow-[0_18px_44px_rgba(33,68,178,0.24)]">
-            <div className="text-xs font-semibold tracking-[0.16em] text-white/78">交付物</div>
+            <div className="text-xs font-semibold tracking-[0.16em] text-white/78">我先幫你抓出今天先做什麼</div>
             <div className="mt-3 text-5xl font-black">{progressResult.completionRate}</div>
             <div className="mt-2 inline-flex rounded-full border border-white/16 bg-white/12 px-3 py-1 text-sm font-bold">
               {progressResult.label}
@@ -404,7 +404,7 @@ export function FreeToolsHub() {
 
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
           <div className={panelClass()}>
-            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">本週 Checklist</div>
+            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">這週目標</div>
             <ul className="mt-3 grid gap-2">
               {progressResult.weeklyChecklist.map((item) => (
                 <li key={item} className="rounded-2xl bg-white p-3 text-sm leading-6 text-[#20304b] shadow-[0_8px_16px_rgba(18,39,92,0.04)]">
@@ -414,9 +414,9 @@ export function FreeToolsHub() {
             </ul>
           </div>
           <div className={panelClass()}>
-            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">可直接使用的內容模板</div>
+            <div className="text-xs font-bold tracking-[0.14em] text-[#2860f2]">你可以直接複製這段</div>
             <details className="mt-3 rounded-[22px] bg-[#eef4ff] p-4">
-              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開 / 收合模板</summary>
+              <summary className="cursor-pointer text-sm font-bold text-[#2144b2]">展開我先整理好的版本</summary>
               <pre className="mt-3 overflow-auto whitespace-pre-wrap text-sm leading-7 text-[#20304b]">
                 {progressResult.template}
               </pre>

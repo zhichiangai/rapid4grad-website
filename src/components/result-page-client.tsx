@@ -1,9 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DIAGNOSIS_STORAGE_KEY } from '@/lib/site';
-import { getDegreeLabel, type DiagnosisFormInput, type DiagnosisResult } from '@/lib/diagnosis';
+import { type DiagnosisFormInput, type DiagnosisResult } from '@/lib/diagnosis';
 import { SiteShell } from '@/components/site-shell';
 
 type Snapshot = {
@@ -21,13 +21,6 @@ const sampleResult = {
 export function ResultPageClient({ token: _token }: { token: string }) {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const riskStyle = useMemo(() => {
-    const riskLevel = snapshot?.result.riskLevel || 'low';
-    if (riskLevel === 'high') return 'border-[#f0d8ad] bg-[#fffaf1] text-[#9f641a]';
-    if (riskLevel === 'medium') return 'border-[#c9dcff] bg-[#f5f8ff] text-[#1f3f9a]';
-    return 'border-[#cde9de] bg-[#f4fff8] text-[#1d7b52]';
-  }, [snapshot]);
 
   useEffect(() => {
     const saved = window.localStorage.getItem(DIAGNOSIS_STORAGE_KEY);
@@ -60,33 +53,25 @@ export function ResultPageClient({ token: _token }: { token: string }) {
             ) : snapshot ? (
               <>
                 <h1 className="mt-5 max-w-2xl text-4xl font-black leading-[0.92] tracking-tight sm:text-5xl lg:text-6xl">
-                  {snapshot.input.name}，這是你目前的畢業風險。
+                  {snapshot.input.name || '你'}，我先幫你整理好了。
                 </h1>
-                <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">{snapshot.result.summary}</p>
+                <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
+                  你今天先做這件事就好，其他先放著。
+                </p>
 
-                <div className="mt-8 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
-                    <div className="text-xs font-bold text-white/72">身份</div>
-                    <div className="mt-2 text-lg font-extrabold text-white">{getDegreeLabel(snapshot.input.degree_type)}</div>
-                  </div>
-                  <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
-                    <div className="text-xs font-bold text-white/72">科系</div>
-                    <div className="mt-2 text-lg font-extrabold text-white">{snapshot.input.department || '未填寫'}</div>
-                  </div>
+                <div className="mt-8 rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur">
+                  <div className="text-xs font-bold text-white/72">今天先做</div>
+                  <div className="mt-2 text-2xl font-black text-white">{snapshot.result.nextSteps[0]}</div>
                 </div>
 
-                <div className={`mt-6 inline-flex rounded-full border px-4 py-2 text-sm font-bold ${riskStyle}`}>
-                  風險等級：{snapshot.result.riskLevel.toUpperCase()}
-                </div>
-
-                <div className="mt-8 grid gap-3">
-                  <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
-                    <div className="text-xs font-bold text-white/72">今天先做這件事</div>
-                    <div className="mt-2 text-base font-semibold text-white">{snapshot.result.nextSteps[0]}</div>
-                  </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
                     <div className="text-xs font-bold text-white/72">下一步</div>
                     <div className="mt-2 text-base font-semibold text-white">{snapshot.result.nextSteps[1]}</div>
+                  </div>
+                  <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
+                    <div className="text-xs font-bold text-white/72">這週目標</div>
+                    <div className="mt-2 text-base font-semibold text-white">{snapshot.result.nextSteps[2]}</div>
                   </div>
                 </div>
 
@@ -100,12 +85,12 @@ export function ResultPageClient({ token: _token }: { token: string }) {
             ) : (
               <>
                 <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
-                  找不到你的診斷結果。先看一個範例版結果，再開始填表。
+                  你還沒做診斷，我先用範例給你看你會拿到什麼。
                 </div>
                 <div className="mt-4 rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur">
                   <div className="text-xs font-bold text-white/72">範例版結果</div>
-                  <div className="mt-2 text-2xl font-black text-white">風險等級：{sampleResult.riskLevel}</div>
-                  <p className="mt-3 text-sm leading-7 text-white/84">主要原因：{sampleResult.mainReason}</p>
+                  <div className="mt-2 text-2xl font-black text-white">今天先做：{sampleResult.suggestions[0]}</div>
+                  <p className="mt-3 text-sm leading-7 text-white/84">下一步：{sampleResult.suggestions[1]}</p>
                   <div className="mt-4 grid gap-2">
                     {sampleResult.suggestions.map((item) => (
                       <div key={item} className="rounded-2xl bg-white/10 p-3 text-sm text-white/84">
@@ -113,7 +98,7 @@ export function ResultPageClient({ token: _token }: { token: string }) {
                       </div>
                     ))}
                   </div>
-                  <p className="mt-4 text-xs font-semibold text-white/70">完成診斷後，這裡會換成你的個人資料。</p>
+                  <p className="mt-4 text-xs font-semibold text-white/70">完成診斷後，這裡會換成你的資料。</p>
                 </div>
               </>
             )}
@@ -134,6 +119,12 @@ export function ResultPageClient({ token: _token }: { token: string }) {
               <div className="text-xs font-bold text-[#2860f2]">下一步</div>
               <p className="mt-2 text-[15px] leading-7 text-[#20304b]">
                 {snapshot?.result.nextSteps[1] || sampleResult.suggestions[1]}
+              </p>
+            </div>
+            <div className="mt-4 rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
+              <div className="text-xs font-bold text-[#2860f2]">這週目標</div>
+              <p className="mt-2 text-[15px] leading-7 text-[#20304b]">
+                {snapshot?.result.nextSteps[2] || sampleResult.suggestions[2]}
               </p>
             </div>
           </div>
@@ -164,7 +155,7 @@ export function ResultPageClient({ token: _token }: { token: string }) {
                 href="/diagnosis"
                 className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#dbe6ff] bg-white px-5 text-sm font-bold text-[#2144b2]"
               >
-                下週回來更新診斷
+                回去做診斷
               </Link>
             </div>
           </div>

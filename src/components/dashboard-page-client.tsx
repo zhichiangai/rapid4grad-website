@@ -54,11 +54,18 @@ export function DashboardPageClient() {
             ) : snapshot ? (
               <>
                 <h1 className="mt-5 max-w-2xl text-4xl font-black leading-[0.92] tracking-tight sm:text-5xl lg:text-6xl">
-                  歡迎回來，{input?.name || '研究生'}
+                  {input?.name || '你'}，今天先做這一件。
                 </h1>
                 <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-                  這裡只顯示你今天最該先做什麼，以及下一步要往哪裡走。每週回來更新一次，結果就會跟著變。
+                  先把今天最重要的事做完，其他先放著。
                 </p>
+
+                <div className="mt-8 rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur">
+                  <div className="text-xs font-bold text-white/72">今天先做</div>
+                  <div className="mt-2 text-2xl font-black text-white">
+                    {(result?.todayTasks || [sampleDashboard.todayTask])[0]}
+                  </div>
+                </div>
 
                 <div className="mt-8 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
@@ -88,6 +95,12 @@ export function DashboardPageClient() {
                       {(result?.weeklyTasks || [sampleDashboard.nextStep])[1] || sampleDashboard.nextStep}
                     </div>
                   </div>
+                  <div className="rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
+                    <div className="text-sm font-bold text-white">這週目標</div>
+                    <div className="mt-3 rounded-2xl bg-white/10 p-3 text-sm leading-6 text-white/86">
+                      {(result?.weeklyTasks || [sampleDashboard.nextStep])[2] || sampleDashboard.nextStep}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="mt-6 rounded-[24px] border border-white/12 bg-white/10 p-4 backdrop-blur">
@@ -100,7 +113,7 @@ export function DashboardPageClient() {
             ) : (
               <>
                 <div className="mt-5 rounded-[24px] border border-white/12 bg-white/10 p-4 text-white/84">
-                  找不到你的資料。先看一個範例版 Dashboard，再完成診斷。
+                  你還沒做診斷，我先放一個範例給你看。
                 </div>
                 <div className="mt-4 rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur">
                   <div className="text-xs font-bold text-white/72">{sampleDashboard.title}</div>
@@ -110,7 +123,7 @@ export function DashboardPageClient() {
                     <div>論文進度：{sampleDashboard.thesisProgress}</div>
                     <div>風險等級：{sampleDashboard.riskLevel}</div>
                   </div>
-                  <p className="mt-4 text-xs font-semibold text-white/70">完成診斷後，這裡會顯示你的個人資料。</p>
+                  <p className="mt-4 text-xs font-semibold text-white/70">先做診斷，這裡就會換成你的資料。</p>
                 </div>
               </>
             )}
@@ -127,6 +140,10 @@ export function DashboardPageClient() {
             </div>
             <div className="mt-4 rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
               <div className="text-xs font-bold text-[#2860f2]">下一步</div>
+              <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{sampleDashboard.nextStep}</p>
+            </div>
+            <div className="mt-4 rounded-[24px] border border-[#dbe6ff] bg-white p-4 shadow-[0_10px_18px_rgba(18,39,92,0.04)]">
+              <div className="text-xs font-bold text-[#2860f2]">這週目標</div>
               <p className="mt-2 text-[15px] leading-7 text-[#20304b]">{sampleDashboard.nextStep}</p>
             </div>
           </div>
@@ -153,7 +170,7 @@ export function DashboardPageClient() {
               href="/diagnosis"
               className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full border border-[#dbe6ff] bg-white px-5 text-sm font-bold text-[#2144b2]"
             >
-              每週更新一次診斷
+              回去做診斷
             </Link>
           </div>
         </aside>

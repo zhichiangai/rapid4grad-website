@@ -3,9 +3,9 @@ import { DiagnosisForm } from '@/components/diagnosis-form';
 import Link from 'next/link';
 
 const benefits = [
-  '先知道目前風險高不高',
-  '直接看到本週該做的事',
-  '不用填太多，也能先開始'
+  '你先不用講完整，我先幫你整理',
+  '你會看到今天先做什麼',
+  '先從最卡的地方開始就好'
 ];
 
 export default function DiagnosisPage() {
@@ -19,10 +19,10 @@ export default function DiagnosisPage() {
               免費診斷
             </div>
             <h1 className="mt-5 max-w-xl text-4xl font-black leading-[0.92] tracking-tight sm:text-5xl">
-              先開始，幾個問題就能看到你的風險。
+              你現在最卡的是哪一段？
             </h1>
             <p className="mt-5 max-w-2xl text-[17px] leading-8 text-white/84">
-              這份診斷會直接告訴你現在該先處理什麼。姓名與 Email 都可以先不填，先把研究狀態說清楚就能開始。
+              你不用先講完整。先告訴我題目、meeting、寫作還是投稿哪裡最卡，我先幫你整理今天先做什麼。
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -37,23 +37,19 @@ export default function DiagnosisPage() {
 
         <div className="rounded-[38px] border border-[#dbe6ff] bg-[linear-gradient(180deg,#ffffff_0%,#f8faff_100%)] p-4 shadow-[0_18px_44px_rgba(16,32,58,0.08)] sm:p-6">
           <div className="mb-5 rounded-[28px] border border-[#dbe6ff] bg-[#f7f9ff] px-5 py-4">
-            <div className="text-sm font-bold text-[#2144b2]">完成後你會得到什麼</div>
-            <ul className="mt-2 grid gap-2 text-sm leading-7 text-[#62708d]">
-              <li>風險等級與主要卡點</li>
-              <li>本週三件事</li>
-              <li>可直接回 Dashboard 的下一步</li>
-            </ul>
+            <div className="text-sm font-bold text-[#2144b2]">你會拿到什麼</div>
+            <p className="mt-2 text-sm leading-7 text-[#62708d]">一份「今天先做 + 下一步」清單。</p>
           </div>
           <div className="mb-5 rounded-[28px] border border-[#dbe6ff] bg-white px-5 py-4">
-            <div className="text-sm font-bold text-[#2144b2]">先試 Free Tools</div>
+            <div className="text-sm font-bold text-[#2144b2]">先想看工具也可以</div>
             <p className="mt-2 text-sm leading-7 text-[#62708d]">
-              如果你只想先快速看出風險，可以先到免費工具頁直接操作。
+              如果你現在只想先看看，也可以先去情境頁挑一個最像你的狀態。
             </p>
             <Link
               href="/tools"
               className="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-5 text-sm font-bold text-white"
             >
-              打開 Free Tools
+              先看情境
             </Link>
           </div>
           <DiagnosisForm />

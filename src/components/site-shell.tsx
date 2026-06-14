@@ -36,7 +36,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
               href="/diagnosis"
               className="inline-flex min-h-9 flex-none items-center rounded-full bg-white px-3.5 font-semibold text-[#1f3f9a] shadow-[0_10px_18px_rgba(3,15,58,0.12)]"
             >
-              立即診斷
+              幫我看下一步
             </Link>
           </nav>
         </div>

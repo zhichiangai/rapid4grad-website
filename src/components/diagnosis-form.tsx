@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import type { FormEvent } from 'react';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { DIAGNOSIS_STORAGE_KEY } from '@/lib/site';
 import { buildDiagnosisResult, createLocalStorageSnapshot, type DegreeType, type DiagnosisFormInput } from '@/lib/diagnosis';
 
@@ -56,8 +56,6 @@ export function DiagnosisForm() {
     type: 'idle',
     message: '完成後會直接看到你的結果摘要。'
   });
-  const buttonLabel = useMemo(() => (loading ? '送出中...' : '開始畢業診斷'), [loading]);
-
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -73,13 +71,13 @@ export function DiagnosisForm() {
     }
 
     setLoading(true);
-    setStatus({ type: 'idle', message: '正在計算你的畢業診斷...' });
+    setStatus({ type: 'idle', message: '我先幫你整理下一步...' });
 
     try {
       const result = buildDiagnosisResult(payload, 'lead_local', 'token_local', 'diag_local');
       const snapshot = createLocalStorageSnapshot(payload, result);
       window.localStorage.setItem(DIAGNOSIS_STORAGE_KEY, JSON.stringify(snapshot));
-      setStatus({ type: 'success', message: '已完成診斷，正在帶你看結果頁。' });
+      setStatus({ type: 'success', message: '好了，我幫你整理好了，正在帶你看結果。' });
       router.push('/result');
     } catch (error) {
       const message = error instanceof Error ? error.message : '送出失敗，請稍後再試。';
@@ -99,26 +97,26 @@ export function DiagnosisForm() {
       </div>
       <div className="mt-4 grid gap-4">
         <label className="text-sm font-semibold text-[#1f3f9a]">
-          姓名（選填）
-          <input name="name" placeholder="你的姓名" className={fieldClass} />
+          姓名（想留再填）
+          <input name="name" placeholder="先空著也可以" className={fieldClass} />
         </label>
         <label className="text-sm font-semibold text-[#1f3f9a]">
-          Email（選填）
-          <input name="email" type="email" placeholder="you@example.com" className={fieldClass} />
+          Email（想收結果再填）
+          <input name="email" type="email" placeholder="先空著也可以" className={fieldClass} />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-[#1f3f9a]">
-            學校
-            <input name="school" placeholder="目前就讀學校" className={fieldClass} />
+            你現在的學校
+            <input name="school" placeholder="先填學校也行" className={fieldClass} />
           </label>
           <label className="text-sm font-semibold text-[#1f3f9a]">
-            科系
+            你現在的科系
             <input name="department" required placeholder="例如：資管所 / 中文系" className={fieldClass} />
           </label>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-[#1f3f9a]">
-            學位
+            你是碩士還是博士
             <select name="degree_type" defaultValue="master" className={fieldClass}>
               {degreeOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -128,20 +126,20 @@ export function DiagnosisForm() {
             </select>
           </label>
           <label className="text-sm font-semibold text-[#1f3f9a]">
-            年級
+            你現在是幾年級
             <input name="current_year" placeholder="例如：碩二 / 博三" className={fieldClass} />
           </label>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-[#1f3f9a]">
-            是否已有題目
+            你現在有題目了嗎
             <select name="has_topic" defaultValue="no" className={fieldClass}>
               <option value="no">還沒有</option>
               <option value="yes">已經有</option>
             </select>
           </label>
           <label className="text-sm font-semibold text-[#1f3f9a]">
-            是否固定 Meeting
+            你現在有固定 meeting 嗎
             <select name="fixed_meeting" defaultValue="no" className={fieldClass}>
               <option value="no">還不固定</option>
               <option value="yes">有固定</option>
@@ -150,14 +148,14 @@ export function DiagnosisForm() {
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold text-[#1f3f9a]">
-            是否開始寫論文
+            你開始寫了嗎
             <select name="writing_started" defaultValue="no" className={fieldClass}>
               <option value="no">還沒開始</option>
               <option value="yes">已經開始</option>
             </select>
           </label>
           <label className="text-sm font-semibold text-[#1f3f9a]">
-            是否有投稿壓力
+            現在有投稿壓力嗎
             <select name="submission_pressure" defaultValue="none" className={fieldClass}>
               {pressureOptions.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -168,12 +166,12 @@ export function DiagnosisForm() {
           </label>
         </div>
         <label className="text-sm font-semibold text-[#1f3f9a]">
-          目前最大問題
+          你現在最卡的是哪裡
           <textarea
             name="current_blocker"
             required
             rows={4}
-            placeholder="例如：題目還沒定、Meeting 沒方向、論文寫不動、投稿節奏很亂"
+            placeholder="例如：題目還沒定、meeting 沒方向、論文寫不動、投稿節奏很亂"
             className={fieldClass}
           />
         </label>
@@ -186,7 +184,7 @@ export function DiagnosisForm() {
           disabled={loading}
           className="inline-flex min-h-12 items-center justify-center rounded-full bg-[linear-gradient(135deg,#315ef6,#2144b2)] px-6 text-sm font-extrabold text-white shadow-[0_14px_30px_rgba(33,68,178,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {buttonLabel}
+          {loading ? '我先幫你整理...' : '幫我看下一步'}
         </button>
         <p className={`text-sm ${status.type === 'error' ? 'text-[#b23d66]' : status.type === 'success' ? 'text-[#1d7b52]' : 'text-[#62708d]'}`}>
           {status.message}
