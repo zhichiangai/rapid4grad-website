@@ -6,8 +6,9 @@ const navLinks = [
   { href: '/', label: '首頁' },
   { href: '/student', label: '學生區' },
   { href: '/professor', label: '教授區' },
-  { href: '/tools', label: 'Free Tools' },
-  { href: '/diagnosis', label: '免費診斷' }
+  { href: '/tools', label: '卡關情境' },
+  { href: '/diagnosis', label: '免費診斷' },
+  { href: '/admin/login', label: '後台登入' }
 ];
 
 export function SiteShell({ children }: { children: ReactNode }) {
@@ -49,7 +50,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <strong className="block text-[#10203a]">{SITE_NAME}</strong>
-              <p>研究生畢業導航系統。先診斷，再提供下一步。</p>
+              <p>研究生畢業導航系統。先降低焦慮，再整理下一步。</p>
             </div>
             <div className="flex flex-wrap gap-4">
               <Link href="/student" className="font-semibold text-[#1f3f9a]">
@@ -59,13 +60,13 @@ export function SiteShell({ children }: { children: ReactNode }) {
                 教授區
               </Link>
               <Link href="/tools" className="font-semibold text-[#1f3f9a]">
-                Free Tools
+                卡關情境
               </Link>
               <Link href="/testimonials" className="font-semibold text-[#1f3f9a]">
                 回饋
               </Link>
               <Link href="/thesis-writing" className="font-semibold text-[#1f3f9a]">
-                AI 工具
+                AI 寫作工具
               </Link>
               <Link href="/policies" className="font-semibold text-[#1f3f9a]">
                 政策條款
@@ -74,10 +75,13 @@ export function SiteShell({ children }: { children: ReactNode }) {
                 結果頁
               </Link>
               <Link href="/dashboard" className="font-semibold text-[#1f3f9a]">
-                Dashboard
+                今日任務
               </Link>
               <Link href="/diagnosis" className="font-semibold text-[#1f3f9a]">
                 免費診斷
+              </Link>
+              <Link href="/admin/login" className="font-semibold text-[#1f3f9a]">
+                後台登入
               </Link>
             </div>
           </div>
