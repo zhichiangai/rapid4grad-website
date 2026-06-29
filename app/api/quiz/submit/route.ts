@@ -83,6 +83,32 @@ function normalizeTags(value: unknown) {
   return tags.length === value.length ? tags : null;
 }
 
+function getLeadDegreeFields(q1: QuizOptionValue) {
+  const mapping: Record<
+    QuizOptionValue,
+    { degree_type: string; current_year: string }
+  > = {
+    A: {
+      degree_type: "master",
+      current_year: "master_1",
+    },
+    B: {
+      degree_type: "master",
+      current_year: "master_2",
+    },
+    C: {
+      degree_type: "master",
+      current_year: "master_3_plus",
+    },
+    D: {
+      degree_type: "phd_or_part_time",
+      current_year: "phd_or_part_time",
+    },
+  };
+
+  return mapping[q1];
+}
+
 export async function POST(request: NextRequest) {
   let payload: QuizSubmitPayload;
 
@@ -163,6 +189,27 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient();
 
+  const { data: lead, error: leadReadError } = await supabase
+    .from("leads")
+    .select("id,email")
+    .eq("id", leadId)
+    .eq("email", email)
+    .maybeSingle();
+
+  if (leadReadError) {
+    return NextResponse.json(
+      { error: leadReadError.message },
+      { status: 500 },
+    );
+  }
+
+  if (!lead) {
+    return NextResponse.json(
+      { error: "Lead not found for the provided leadId and email." },
+      { status: 404 },
+    );
+  }
+
   const { error: insertError } = await supabase.from("quiz_answers").insert({
     lead_id: leadId,
     q1,
@@ -184,15 +231,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { error: updateError } = await supabase
+  const degreeFields = getLeadDegreeFields(q1);
+
+  const { data: updatedLead, error: updateError } = await supabase
     .from("leads")
     .update({
+      ...degreeFields,
       quiz_result: riskLevel,
       quiz_score: score,
       main_tags: tags,
     })
     .eq("id", leadId)
-    .eq("email", email);
+    .eq("email", email)
+    .select("id")
+    .single();
 
   if (updateError) {
     return NextResponse.json(
@@ -201,8 +253,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (!updatedLead) {
+    return NextResponse.json(
+      { error: "Lead update failed." },
+      { status: 500 },
+    );
+  }
+
   const resend = getResendClient();
   let emailSent = false;
+  let emailErrorMessage: string | null = null;
 
   if (resend) {
     const { error: emailError } = await resend.emails.send({
@@ -219,17 +279,15 @@ export async function POST(request: NextRequest) {
     });
 
     if (emailError) {
-      return NextResponse.json(
-        {
-          error: "Quiz result saved, but email delivery failed.",
-          emailError,
-        },
-        { status: 502 },
-      );
+      emailErrorMessage = emailError.message;
+    } else {
+      emailSent = true;
     }
-
-    emailSent = true;
   }
 
-  return NextResponse.json({ success: true, emailSent });
+  return NextResponse.json({
+    success: true,
+    emailSent,
+    emailError: emailErrorMessage,
+  });
 }

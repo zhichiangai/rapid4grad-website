@@ -16,10 +16,12 @@ const outcomes = [
 ];
 
 export default function CoursePage() {
-  const paymentLink =
-    process.env.STRIPE_PAYMENT_LINK_COURSE ||
-    "#stripe-payment-link-not-configured";
-  const isPaymentLinkConfigured = paymentLink.startsWith("http");
+  const configuredPaymentLink =
+    process.env.STRIPE_PAYMENT_LINK_COURSE?.trim() ?? "";
+  const isPaymentLinkConfigured = configuredPaymentLink.startsWith("https://");
+  const paymentLink = isPaymentLinkConfigured
+    ? configuredPaymentLink
+    : "#stripe-payment-link-not-configured";
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.24),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_48%,#020617_100%)] px-4 py-12 text-white">

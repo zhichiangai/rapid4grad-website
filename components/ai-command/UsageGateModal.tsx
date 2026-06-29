@@ -2,13 +2,24 @@
 
 import { useState } from "react";
 
+type UsageGateReason = "verification_required" | "quota_exceeded";
+
+type ApiResponse = {
+  success?: boolean;
+  token?: string;
+  error?: string;
+};
+
 interface UsageGateModalProps {
   isOpen: boolean;
-  reason?: "verification_required" | "quota_exceeded" | null;
+  reason?: UsageGateReason | null;
   message?: string;
   onVerified: (email: string) => void;
   onClose: () => void;
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PIN_PATTERN = /^\d{6}$/;
 
 export function UsageGateModal({
   isOpen,
@@ -19,40 +30,110 @@ export function UsageGateModal({
 }: UsageGateModalProps) {
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const [sentCode, setSentCode] = useState("");
+  const [verificationToken, setVerificationToken] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
   const [localMessage, setLocalMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
   if (!isOpen) {
     return null;
   }
 
-  const handleSendCode = () => {
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setLocalMessage("請輸入有效的 Email。");
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const handleSendCode = async () => {
+    setErrorMessage("");
+    setLocalMessage("");
+
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setErrorMessage("請輸入有效的 Email。");
       return;
     }
 
-    // Phase 1 placeholder: replace with real email OTP workflow later.
-    setSentCode("123456");
-    setLocalMessage("驗證碼已送出。Phase 1 測試碼為 123456。");
+    setIsSending(true);
+
+    try {
+      const response = await fetch("/api/email/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "send",
+          email: normalizedEmail,
+        }),
+      });
+
+      const result = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !result.success || !result.token) {
+        setErrorMessage(result.error || "驗證碼發送失敗，請稍後再試。");
+        return;
+      }
+
+      setVerificationToken(result.token);
+      setLocalMessage("驗證碼已發送至你的信箱，請於 10 分鐘內輸入。");
+    } catch {
+      setErrorMessage("無法連線到 Email 驗證服務，請稍後再試。");
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  const handleVerify = () => {
-    if (!sentCode) {
-      setLocalMessage("請先發送驗證碼。");
-      return;
-    }
-
-    if (verificationCode.trim() !== sentCode) {
-      setLocalMessage("驗證碼不正確，請重新輸入。");
-      return;
-    }
-
-    onVerified(email.trim().toLowerCase());
-    setEmail("");
-    setVerificationCode("");
-    setSentCode("");
+  const handleVerify = async () => {
+    setErrorMessage("");
     setLocalMessage("");
+
+    if (!EMAIL_PATTERN.test(normalizedEmail)) {
+      setErrorMessage("請輸入有效的 Email。");
+      return;
+    }
+
+    if (!verificationToken) {
+      setErrorMessage("請先發送驗證碼。");
+      return;
+    }
+
+    if (!PIN_PATTERN.test(verificationCode.trim())) {
+      setErrorMessage("請輸入 6 位數驗證碼。");
+      return;
+    }
+
+    setIsVerifying(true);
+
+    try {
+      const response = await fetch("/api/email/verify", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "verify",
+          email: normalizedEmail,
+          token: verificationToken,
+          pin: verificationCode.trim(),
+        }),
+      });
+
+      const result = (await response.json()) as ApiResponse;
+
+      if (!response.ok || !result.success) {
+        setErrorMessage(result.error || "驗證碼錯誤或已過期。");
+        return;
+      }
+
+      onVerified(normalizedEmail);
+      setEmail("");
+      setVerificationCode("");
+      setVerificationToken("");
+      setLocalMessage("");
+      setErrorMessage("");
+    } catch {
+      setErrorMessage("無法完成驗證，請稍後再試。");
+    } finally {
+      setIsVerifying(false);
+    }
   };
 
   return (
@@ -99,15 +180,17 @@ export function UsageGateModal({
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-300/50"
+                  disabled={isSending || isVerifying}
+                  className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-300/50 disabled:cursor-not-allowed disabled:opacity-70"
                   placeholder="you@example.com"
                 />
                 <button
                   type="button"
                   onClick={handleSendCode}
-                  className="shrink-0 rounded-2xl border border-blue-300/20 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-100 transition hover:bg-blue-500/20"
+                  disabled={isSending || isVerifying}
+                  className="shrink-0 rounded-2xl border border-blue-300/20 bg-blue-500/10 px-4 py-3 text-sm font-semibold text-blue-100 transition hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  發送驗證碼
+                  {isSending ? "發送中..." : "發送驗證碼"}
                 </button>
               </div>
             </label>
@@ -119,7 +202,10 @@ export function UsageGateModal({
               <input
                 value={verificationCode}
                 onChange={(event) => setVerificationCode(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-300/50"
+                disabled={isSending || isVerifying}
+                inputMode="numeric"
+                maxLength={6}
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-blue-300/50 disabled:cursor-not-allowed disabled:opacity-70"
                 placeholder="輸入 6 位數驗證碼"
               />
             </label>
@@ -127,16 +213,23 @@ export function UsageGateModal({
             <button
               type="button"
               onClick={handleVerify}
-              className="w-full rounded-2xl bg-blue-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
+              disabled={isSending || isVerifying}
+              className="w-full rounded-2xl bg-blue-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              驗證並解鎖生成
+              {isVerifying ? "驗證中..." : "驗證並解鎖生成"}
             </button>
           </div>
         )}
 
         {localMessage ? (
-          <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm leading-6 text-slate-300">
+          <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3 text-sm leading-6 text-emerald-100">
             {localMessage}
+          </p>
+        ) : null}
+
+        {errorMessage ? (
+          <p className="mt-4 rounded-2xl border border-red-300/20 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-100">
+            {errorMessage}
           </p>
         ) : null}
       </div>

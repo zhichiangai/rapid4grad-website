@@ -4,6 +4,10 @@ import { createAdminClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
+type CoursePlanType = "course_plus_6mo_tool" | "tool_renewal_6mo";
+
+const DEFAULT_PLAN_TYPE: CoursePlanType = "course_plus_6mo_tool";
+
 type StripeCheckoutSession = {
   id?: string;
   object?: string;
@@ -28,6 +32,13 @@ type StripeWebhookEvent = {
   data?: {
     object?: StripeCheckoutSession;
   };
+};
+
+type ExistingPayment = {
+  id: string;
+  user_id: string | null;
+  status: string;
+  paid_at: string | null;
 };
 
 function parseStripeSignature(signatureHeader: string) {
@@ -97,6 +108,22 @@ function addMonths(date: Date, months: number) {
   return nextDate;
 }
 
+function normalizePlanType(value: string | null | undefined): CoursePlanType {
+  if (value === "course_plus_6mo_tool" || value === "tool_renewal_6mo") {
+    return value;
+  }
+
+  return DEFAULT_PLAN_TYPE;
+}
+
+function getSessionEmail(session: StripeCheckoutSession) {
+  return (
+    session.customer_details?.email?.trim().toLowerCase() ||
+    session.customer_email?.trim().toLowerCase() ||
+    undefined
+  );
+}
+
 export async function POST(request: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -147,8 +174,7 @@ export async function POST(request: NextRequest) {
 
   const session = event.data?.object;
   const stripeSessionId = session?.id;
-  const email =
-    session?.customer_details?.email || session?.customer_email || undefined;
+  const email = session ? getSessionEmail(session) : undefined;
 
   if (!session || !stripeSessionId || !email) {
     return NextResponse.json(
@@ -157,16 +183,19 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const planType = session.metadata?.plan_type || "course_plus_6mo_tool";
+  const planType = normalizePlanType(session.metadata?.plan_type);
   const paidAt = new Date();
-  const expiresAt = addMonths(paidAt, 6);
   const supabase = createAdminClient();
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("email", email)
-    .maybeSingle();
+  const [{ data: profile, error: profileError }, { data: existingPayment }] =
+    await Promise.all([
+      supabase.from("profiles").select("id").eq("email", email).maybeSingle(),
+      supabase
+        .from("payments")
+        .select("id,user_id,status,paid_at")
+        .eq("stripe_session_id", stripeSessionId)
+        .maybeSingle<ExistingPayment>(),
+    ]);
 
   if (profileError) {
     return NextResponse.json(
@@ -175,10 +204,30 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: payment, error: paymentError } = await supabase
-    .from("payments")
-    .upsert(
-      {
+  let paymentId = existingPayment?.id;
+  const paymentPaidAt = existingPayment?.paid_at
+    ? new Date(existingPayment.paid_at)
+    : paidAt;
+  const expiresAt = addMonths(paymentPaidAt, 6);
+
+  if (existingPayment && profile && !existingPayment.user_id) {
+    const { error: linkPaymentError } = await supabase
+      .from("payments")
+      .update({ user_id: profile.id })
+      .eq("id", existingPayment.id);
+
+    if (linkPaymentError) {
+      return NextResponse.json(
+        { error: linkPaymentError.message },
+        { status: 500 },
+      );
+    }
+  }
+
+  if (!existingPayment) {
+    const { data: payment, error: paymentError } = await supabase
+      .from("payments")
+      .insert({
         user_id: profile?.id ?? null,
         email,
         stripe_session_id: stripeSessionId,
@@ -190,15 +239,23 @@ export async function POST(request: NextRequest) {
         status: "completed",
         paid_at: paidAt.toISOString(),
         raw_webhook_payload: event,
-      },
-      { onConflict: "stripe_session_id" },
-    )
-    .select("id")
-    .single();
+      })
+      .select("id")
+      .single();
 
-  if (paymentError) {
+    if (paymentError) {
+      return NextResponse.json(
+        { error: paymentError.message },
+        { status: 500 },
+      );
+    }
+
+    paymentId = payment.id;
+  }
+
+  if (!paymentId) {
     return NextResponse.json(
-      { error: paymentError.message },
+      { error: "Payment could not be recorded." },
       { status: 500 },
     );
   }
@@ -206,7 +263,7 @@ export async function POST(request: NextRequest) {
   if (!profile) {
     return NextResponse.json({
       received: true,
-      paymentId: payment.id,
+      paymentId,
       profileLinked: false,
       message:
         "Payment recorded, but no profile exists for this email. Course access was not granted.",
@@ -215,8 +272,8 @@ export async function POST(request: NextRequest) {
 
   const { data: existingAccess, error: existingAccessError } = await supabase
     .from("course_access")
-    .select("id")
-    .eq("payment_id", payment.id)
+    .select("id,expires_at")
+    .eq("payment_id", paymentId)
     .maybeSingle();
 
   if (existingAccessError) {
@@ -226,33 +283,42 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!existingAccess) {
-    const { error: accessError } = await supabase
-      .from("course_access")
-      .insert({
-        user_id: profile.id,
-        payment_id: payment.id,
-        plan_type: "course_plus_6mo_tool",
-        starts_at: paidAt.toISOString(),
-        expires_at: expiresAt.toISOString(),
-        is_active: true,
-        granted_by: "stripe_webhook",
-      });
+  if (existingAccess) {
+    return NextResponse.json({
+      received: true,
+      success: true,
+      duplicate: true,
+      paymentId,
+      accessExpiresAt: existingAccess.expires_at,
+    });
+  }
 
-    if (accessError) {
-      return NextResponse.json(
-        { error: accessError.message },
-        { status: 500 },
-      );
-    }
+  const accessStartsAt = paymentPaidAt.toISOString();
+  const accessExpiresAt = expiresAt.toISOString();
+
+  const { error: accessError } = await supabase.from("course_access").insert({
+    user_id: profile.id,
+    payment_id: paymentId,
+    plan_type: planType,
+    starts_at: accessStartsAt,
+    expires_at: accessExpiresAt,
+    is_active: true,
+    granted_by: "stripe_webhook",
+  });
+
+  if (accessError) {
+    return NextResponse.json(
+      { error: accessError.message },
+      { status: 500 },
+    );
   }
 
   const { error: profileUpdateError } = await supabase
     .from("profiles")
     .update({
       is_paid: true,
-      paid_at: paidAt.toISOString(),
-      course_expires_at: expiresAt.toISOString(),
+      paid_at: accessStartsAt,
+      course_expires_at: accessExpiresAt,
     })
     .eq("id", profile.id);
 
@@ -266,7 +332,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({
     received: true,
     success: true,
-    paymentId: payment.id,
-    accessExpiresAt: expiresAt.toISOString(),
+    paymentId,
+    accessExpiresAt,
   });
 }
