@@ -1,3 +1,5 @@
+import { CourseCheckoutButton } from "@/components/course/CourseCheckoutButton";
+
 const COURSE_PRICE = "NT$ 2,400";
 const RENEWAL_PRICE = "NT$ 890 / 6 個月";
 
@@ -15,30 +17,7 @@ const outcomes = [
   "降低被問倒、報告失焦、文獻讀完卻不會用的風險",
 ];
 
-function getPaymentLinkDiagnostics(paymentLink: string) {
-  return {
-    envName: "STRIPE_PAYMENT_LINK_COURSE",
-    hasValue: paymentLink.length > 0,
-    valueLength: paymentLink.length,
-    startsWithHttps: paymentLink.startsWith("https://"),
-    looksLikeStripeLink:
-      paymentLink.startsWith("https://") &&
-      (paymentLink.includes("stripe.com") ||
-        paymentLink.includes("stripe.com/") ||
-        paymentLink.includes("buy.stripe.com")),
-  };
-}
-
 export default function CoursePage() {
-  const configuredPaymentLink =
-    process.env.STRIPE_PAYMENT_LINK_COURSE?.trim() ?? "";
-  const isPaymentLinkConfigured = configuredPaymentLink.startsWith("https://");
-  const paymentLinkDiagnostics =
-    getPaymentLinkDiagnostics(configuredPaymentLink);
-  const paymentLink = isPaymentLinkConfigured
-    ? configuredPaymentLink
-    : "#stripe-payment-link-not-configured";
-
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.24),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_48%,#020617_100%)] px-4 py-12 text-white">
       <section className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
@@ -99,40 +78,11 @@ export default function CoursePage() {
             ))}
           </ul>
 
-          <a
-            href={paymentLink}
-            target={isPaymentLinkConfigured ? "_blank" : undefined}
-            rel={isPaymentLinkConfigured ? "noopener noreferrer" : undefined}
-            aria-disabled={!isPaymentLinkConfigured}
-            className="mt-8 flex w-full items-center justify-center rounded-2xl bg-blue-500 px-5 py-4 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400 aria-disabled:pointer-events-none aria-disabled:bg-slate-700 aria-disabled:text-slate-300"
-          >
-            {isPaymentLinkConfigured ? "立即加入課程" : "Stripe 付款連結尚未設定"}
-          </a>
+          <CourseCheckoutButton />
 
           <p className="mt-4 text-center text-xs leading-5 text-slate-500">
-            付款成功後，系統將透過 Stripe Webhook 自動開通課程與工具權限。
+            付款成功後，系統將透過付款服務通知自動開通課程與工具權限。
           </p>
-
-          {!isPaymentLinkConfigured ? (
-            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-left text-xs leading-6 text-amber-100">
-              <p className="font-semibold text-amber-50">
-                Payment Link Debug（暫時）
-              </p>
-              <p>env：{paymentLinkDiagnostics.envName}</p>
-              <p>
-                hasValue：{paymentLinkDiagnostics.hasValue ? "true" : "false"}
-              </p>
-              <p>valueLength：{paymentLinkDiagnostics.valueLength}</p>
-              <p>
-                startsWithHttps：
-                {paymentLinkDiagnostics.startsWithHttps ? "true" : "false"}
-              </p>
-              <p>
-                looksLikeStripeLink：
-                {paymentLinkDiagnostics.looksLikeStripeLink ? "true" : "false"}
-              </p>
-            </div>
-          ) : null}
         </aside>
       </section>
 
@@ -140,7 +90,7 @@ export default function CoursePage() {
         {[
           ["適合誰", "正在準備組會、Meeting、口試或論文初稿的研究生。"],
           ["核心工具", "不是替你寫論文，而是幫你產生更嚴謹的外部 AI 分析指令。"],
-          ["開通方式", "Stripe 付款完成後，由 webhook 寫入權限，不需要人工手動開通。"],
+          ["開通方式", "付款完成後，由付款服務通知寫入權限，不需要人工手動開通。"],
         ].map(([title, body]) => (
           <div
             key={title}

@@ -23,6 +23,20 @@ export type PaymentStatus = "pending" | "completed" | "failed" | "refunded";
 
 export type CourseAccessGrantedBy = "stripe_webhook" | "admin_manual";
 
+export type PaymentProviderName = "ecpay" | "newebpay" | "tappay" | "stripe";
+
+export type OrderStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "cancelled"
+  | "expired"
+  | "refunded";
+
+export type EntitlementType = "course_access" | "tool_access" | "membership";
+
+export type EntitlementStatus = "active" | "expired" | "revoked";
+
 export type AiModel = "chatgpt" | "claude" | "gemini" | "grok";
 
 export type PromptTemplateTargetAi = AiModel | "all";
@@ -227,6 +241,64 @@ export type Database = {
           Database["public"]["Tables"]["prompt_templates"]["Insert"]
         >;
       };
+      products: {
+        Row: {
+          id: string;
+          slug: string;
+          name: string;
+          description: string | null;
+          amount: number;
+          currency: string;
+          duration_months: number | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          slug: string;
+          name: string;
+          description?: string | null;
+          amount: number;
+          currency?: string;
+          duration_months?: number | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
+      };
+      orders: {
+        Row: {
+          id: string;
+          user_id: string;
+          product_id: string;
+          amount: number;
+          currency: string;
+          status: OrderStatus;
+          provider: PaymentProviderName;
+          provider_order_id: string | null;
+          checkout_url: string | null;
+          raw_checkout_payload: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          product_id: string;
+          amount: number;
+          currency?: string;
+          status?: OrderStatus;
+          provider: PaymentProviderName;
+          provider_order_id?: string | null;
+          checkout_url?: string | null;
+          raw_checkout_payload?: Json | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
+      };
       course_access: {
         Row: {
           id: string;
@@ -259,6 +331,9 @@ export type Database = {
           id: string;
           user_id: string | null;
           email: string;
+          order_id: string | null;
+          provider: PaymentProviderName | null;
+          provider_payment_id: string | null;
           stripe_session_id: string | null;
           stripe_payment_intent: string | null;
           stripe_customer_id: string | null;
@@ -267,6 +342,7 @@ export type Database = {
           plan_type: CoursePlanType;
           status: PaymentStatus;
           paid_at: string | null;
+          raw_payload: Json | null;
           raw_webhook_payload: Json | null;
           created_at: string;
         };
@@ -274,6 +350,9 @@ export type Database = {
           id?: string;
           user_id?: string | null;
           email: string;
+          order_id?: string | null;
+          provider?: PaymentProviderName | null;
+          provider_payment_id?: string | null;
           stripe_session_id?: string | null;
           stripe_payment_intent?: string | null;
           stripe_customer_id?: string | null;
@@ -282,11 +361,47 @@ export type Database = {
           plan_type: CoursePlanType;
           status?: PaymentStatus;
           paid_at?: string | null;
+          raw_payload?: Json | null;
           raw_webhook_payload?: Json | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["payments"]["Insert"]>;
       };
+      entitlements: {
+        Row: {
+          id: string;
+          user_id: string;
+          product_id: string;
+          type: EntitlementType;
+          status: EntitlementStatus;
+          starts_at: string;
+          ends_at: string | null;
+          source_order_id: string | null;
+          source_payment_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          product_id: string;
+          type: EntitlementType;
+          status?: EntitlementStatus;
+          starts_at?: string;
+          ends_at?: string | null;
+          source_order_id?: string | null;
+          source_payment_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["entitlements"]["Insert"]
+        >;
+      };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 };
