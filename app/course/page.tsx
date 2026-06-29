@@ -15,10 +15,26 @@ const outcomes = [
   "降低被問倒、報告失焦、文獻讀完卻不會用的風險",
 ];
 
+function getPaymentLinkDiagnostics(paymentLink: string) {
+  return {
+    envName: "STRIPE_PAYMENT_LINK_COURSE",
+    hasValue: paymentLink.length > 0,
+    valueLength: paymentLink.length,
+    startsWithHttps: paymentLink.startsWith("https://"),
+    looksLikeStripeLink:
+      paymentLink.startsWith("https://") &&
+      (paymentLink.includes("stripe.com") ||
+        paymentLink.includes("stripe.com/") ||
+        paymentLink.includes("buy.stripe.com")),
+  };
+}
+
 export default function CoursePage() {
   const configuredPaymentLink =
     process.env.STRIPE_PAYMENT_LINK_COURSE?.trim() ?? "";
   const isPaymentLinkConfigured = configuredPaymentLink.startsWith("https://");
+  const paymentLinkDiagnostics =
+    getPaymentLinkDiagnostics(configuredPaymentLink);
   const paymentLink = isPaymentLinkConfigured
     ? configuredPaymentLink
     : "#stripe-payment-link-not-configured";
@@ -96,6 +112,27 @@ export default function CoursePage() {
           <p className="mt-4 text-center text-xs leading-5 text-slate-500">
             付款成功後，系統將透過 Stripe Webhook 自動開通課程與工具權限。
           </p>
+
+          {!isPaymentLinkConfigured ? (
+            <div className="mt-4 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-left text-xs leading-6 text-amber-100">
+              <p className="font-semibold text-amber-50">
+                Payment Link Debug（暫時）
+              </p>
+              <p>env：{paymentLinkDiagnostics.envName}</p>
+              <p>
+                hasValue：{paymentLinkDiagnostics.hasValue ? "true" : "false"}
+              </p>
+              <p>valueLength：{paymentLinkDiagnostics.valueLength}</p>
+              <p>
+                startsWithHttps：
+                {paymentLinkDiagnostics.startsWithHttps ? "true" : "false"}
+              </p>
+              <p>
+                looksLikeStripeLink：
+                {paymentLinkDiagnostics.looksLikeStripeLink ? "true" : "false"}
+              </p>
+            </div>
+          ) : null}
         </aside>
       </section>
 
