@@ -12,9 +12,14 @@ CREATE TABLE IF NOT EXISTS public.products (
   slug            TEXT UNIQUE NOT NULL,
   name            TEXT NOT NULL,
   description     TEXT,
+  product_type    TEXT NOT NULL DEFAULT 'course'
+                  CHECK (product_type IN (
+                    'course', 'ai_credits', 'subscription', 'consultation', 'bundle'
+                  )),
   amount          INTEGER NOT NULL,
   currency        TEXT NOT NULL DEFAULT 'twd',
   duration_months SMALLINT,
+  metadata        JSONB NOT NULL DEFAULT '{}',
   is_active       BOOLEAN NOT NULL DEFAULT TRUE,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -28,24 +33,28 @@ CREATE INDEX IF NOT EXISTS idx_products_slug ON public.products(slug);
 CREATE INDEX IF NOT EXISTS idx_products_is_active ON public.products(is_active);
 
 INSERT INTO public.products
-  (slug, name, description, amount, currency, duration_months, is_active)
+  (slug, name, description, product_type, amount, currency, duration_months, metadata, is_active)
 VALUES
   (
     'rapid4grad-course',
     '研究生畢業加速課程 + 6 個月研究報告 AI 指令產生器',
     'RAPID4GRAD Phase 1 main course bundle.',
+    'course',
     2400,
     'twd',
     6,
+    '{"includes":["course_access","tool_access"],"tool_duration_months":6}'::jsonb,
     TRUE
   )
 ON CONFLICT (slug) DO UPDATE
 SET
   name = EXCLUDED.name,
   description = EXCLUDED.description,
+  product_type = EXCLUDED.product_type,
   amount = EXCLUDED.amount,
   currency = EXCLUDED.currency,
   duration_months = EXCLUDED.duration_months,
+  metadata = EXCLUDED.metadata,
   is_active = EXCLUDED.is_active;
 
 -- ============================================================
@@ -59,13 +68,14 @@ CREATE TABLE IF NOT EXISTS public.orders (
   currency             TEXT NOT NULL DEFAULT 'twd',
   status               TEXT NOT NULL DEFAULT 'pending'
                        CHECK (status IN (
-                         'pending', 'paid', 'failed', 'cancelled', 'expired', 'refunded'
+                         'pending', 'processing', 'paid', 'failed', 'cancelled', 'expired', 'refunded'
                        )),
   provider             TEXT NOT NULL
                        CHECK (provider IN ('ecpay', 'newebpay', 'tappay', 'stripe')),
   provider_order_id    TEXT UNIQUE,
   checkout_url         TEXT,
   raw_checkout_payload JSONB DEFAULT '{}',
+  confirmation_email_sent_at TIMESTAMPTZ,
   created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -137,6 +147,10 @@ CREATE INDEX IF NOT EXISTS idx_entitlements_user_id ON public.entitlements(user_
 CREATE INDEX IF NOT EXISTS idx_entitlements_product_id ON public.entitlements(product_id);
 CREATE INDEX IF NOT EXISTS idx_entitlements_status ON public.entitlements(status);
 CREATE INDEX IF NOT EXISTS idx_entitlements_ends_at ON public.entitlements(ends_at);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_entitlements_unique_source_order
+  ON public.entitlements(user_id, product_id, source_order_id)
+  WHERE source_order_id IS NOT NULL;
 
 -- ============================================================
 -- 5. RLS

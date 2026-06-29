@@ -4,6 +4,7 @@ export type PaymentProviderName = "ecpay" | "newebpay" | "tappay" | "stripe";
 
 export type PaymentOrderStatus =
   | "pending"
+  | "processing"
   | "paid"
   | "failed"
   | "cancelled"
@@ -18,9 +19,11 @@ export type CheckoutProduct = {
   id: string;
   slug: string;
   name: string;
+  productType: ProductType;
   amount: number;
   currency: string;
   durationMonths: number | null;
+  metadata: Json;
 };
 
 export type CheckoutOrder = {
@@ -44,11 +47,31 @@ export type CreateCheckoutInput = {
   failUrl: string;
 };
 
-export type CreateCheckoutResult = {
+export type ProductType =
+  | "course"
+  | "ai_credits"
+  | "subscription"
+  | "consultation"
+  | "bundle";
+
+export type RedirectCheckoutResult = {
+  mode: "redirect";
   checkoutUrl: string;
   providerOrderId: string;
   rawPayload?: Json;
 };
+
+export type FormPostCheckoutResult = {
+  mode: "form_post";
+  actionUrl: string;
+  fields: Record<string, string>;
+  providerOrderId: string;
+  rawPayload?: Json;
+};
+
+export type CreateCheckoutResult =
+  | RedirectCheckoutResult
+  | FormPostCheckoutResult;
 
 export type VerifyWebhookInput = {
   headers: Headers;

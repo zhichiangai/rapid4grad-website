@@ -4,6 +4,7 @@ import { getPaymentProvider } from "@/lib/payments";
 import type {
   CheckoutOrder,
   CheckoutProduct,
+  CreateCheckoutResult,
   PaymentProviderName,
   ProductSlug,
 } from "@/lib/payments";
@@ -39,6 +40,10 @@ function getSiteUrl() {
   );
 }
 
+function getCheckoutUrl(checkout: CreateCheckoutResult) {
+  return checkout.mode === "redirect" ? checkout.checkoutUrl : checkout.actionUrl;
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
   const {
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
 
   const { data: productRow, error: productError } = await admin
     .from("products")
-    .select("id,slug,name,amount,currency,duration_months")
+    .select("id,slug,name,product_type,amount,currency,duration_months,metadata")
     .eq("slug", productSlug)
     .eq("is_active", true)
     .maybeSingle();
@@ -115,9 +120,11 @@ export async function POST(request: NextRequest) {
     id: productRow.id,
     slug: productRow.slug,
     name: productRow.name,
+    productType: productRow.product_type,
     amount: productRow.amount,
     currency: productRow.currency,
     durationMonths: productRow.duration_months,
+    metadata: productRow.metadata ?? {},
   };
 
   const order: CheckoutOrder = {
@@ -148,7 +155,8 @@ export async function POST(request: NextRequest) {
     const { error: checkoutUpdateError } = await admin
       .from("orders")
       .update({
-        checkout_url: checkout.checkoutUrl,
+        status: "processing",
+        checkout_url: getCheckoutUrl(checkout),
         provider_order_id: checkout.providerOrderId,
         raw_checkout_payload: checkout.rawPayload ?? {},
       })
@@ -163,7 +171,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       orderId: order.id,
-      checkoutUrl: checkout.checkoutUrl,
+      checkout:
+        checkout.mode === "redirect"
+          ? {
+              mode: checkout.mode,
+              checkoutUrl: checkout.checkoutUrl,
+            }
+          : {
+              mode: checkout.mode,
+              actionUrl: checkout.actionUrl,
+              fields: checkout.fields,
+            },
     });
   } catch (error) {
     const message =

@@ -27,11 +27,19 @@ export type PaymentProviderName = "ecpay" | "newebpay" | "tappay" | "stripe";
 
 export type OrderStatus =
   | "pending"
+  | "processing"
   | "paid"
   | "failed"
   | "cancelled"
   | "expired"
   | "refunded";
+
+export type ProductType =
+  | "course"
+  | "ai_credits"
+  | "subscription"
+  | "consultation"
+  | "bundle";
 
 export type EntitlementType = "course_access" | "tool_access" | "membership";
 
@@ -247,9 +255,11 @@ export type Database = {
           slug: string;
           name: string;
           description: string | null;
+          product_type: ProductType;
           amount: number;
           currency: string;
           duration_months: number | null;
+          metadata: Json;
           is_active: boolean;
           created_at: string;
           updated_at: string;
@@ -259,9 +269,11 @@ export type Database = {
           slug: string;
           name: string;
           description?: string | null;
+          product_type?: ProductType;
           amount: number;
           currency?: string;
           duration_months?: number | null;
+          metadata?: Json;
           is_active?: boolean;
           created_at?: string;
           updated_at?: string;
@@ -280,6 +292,7 @@ export type Database = {
           provider_order_id: string | null;
           checkout_url: string | null;
           raw_checkout_payload: Json | null;
+          confirmation_email_sent_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -294,6 +307,7 @@ export type Database = {
           provider_order_id?: string | null;
           checkout_url?: string | null;
           raw_checkout_payload?: Json | null;
+          confirmation_email_sent_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -4,9 +4,42 @@ import { useState } from "react";
 
 type CheckoutResponse = {
   success?: boolean;
-  checkoutUrl?: string;
+  checkout?:
+    | {
+        mode: "redirect";
+        checkoutUrl: string;
+      }
+    | {
+        mode: "form_post";
+        actionUrl: string;
+        fields: Record<string, string>;
+      };
   error?: string;
 };
+
+function submitFormPostCheckout({
+  actionUrl,
+  fields,
+}: {
+  actionUrl: string;
+  fields: Record<string, string>;
+}) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = actionUrl;
+  form.style.display = "none";
+
+  Object.entries(fields).forEach(([name, value]) => {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  });
+
+  document.body.appendChild(form);
+  form.submit();
+}
 
 export function CourseCheckoutButton() {
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +64,7 @@ export function CourseCheckoutButton() {
         return;
       }
 
-      if (!response.ok || !payload.success || !payload.checkoutUrl) {
+      if (!response.ok || !payload.success || !payload.checkout) {
         const errorMessage =
           payload.error === "Not implemented"
             ? "Payment provider not implemented."
@@ -40,7 +73,15 @@ export function CourseCheckoutButton() {
         return;
       }
 
-      window.location.href = payload.checkoutUrl;
+      if (payload.checkout.mode === "redirect") {
+        window.location.href = payload.checkout.checkoutUrl;
+        return;
+      }
+
+      submitFormPostCheckout({
+        actionUrl: payload.checkout.actionUrl,
+        fields: payload.checkout.fields,
+      });
     } catch {
       setMessage("Payment checkout failed.");
     } finally {
