@@ -24,6 +24,8 @@ export type PainPoint =
 
 export type AiModel = "chatgpt" | "claude" | "gemini" | "grok";
 
+export type PromptTemplateTargetAi = AiModel | "all";
+
 export type InstructionType =
   | "advisor_questions"
   | "logic_check"
@@ -43,4 +45,22 @@ export interface PromptParams {
   selectedAi: AiModel;
   instructionTypes: InstructionType[];
   advisorPrefs?: AdvisorPrefs;
+}
+
+export interface PromptTemplate {
+  id: string;
+  targetAi: PromptTemplateTargetAi;
+  templateType: InstructionType;
+  systemRole: string;
+  contextTemplate: string;
+  taskTemplate: string;
+  outputTemplate: string;
+  officialDocNotes?: string | null;
+  version: number;
+}
+
+export interface PromptTemplateBuildResult {
+  prompt: string;
+  usedCmsTemplates: boolean;
+  fallbackReason?: string;
 }

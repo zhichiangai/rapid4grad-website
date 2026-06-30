@@ -41,24 +41,60 @@ export async function POST(request: NextRequest) {
   const name = normalizeOptionalText(payload.name);
   const utmSource = normalizeOptionalText(payload.utmSource);
 
-  const { data, error } = await supabase
+  const { data: existingLead, error: readError } = await supabase
     .from("leads")
-    .upsert(
-      {
-        email,
-        name,
-        utm_source: utmSource,
-      },
-      {
-        onConflict: "email",
-      },
-    )
+    .select("id")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (readError) {
+    return NextResponse.json({ error: readError.message }, { status: 500 });
+  }
+
+  if (existingLead) {
+    const updates: { name?: string; utm_source?: string } = {};
+
+    if (name) {
+      updates.name = name;
+    }
+
+    if (utmSource) {
+      updates.utm_source = utmSource;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      const { error: updateError } = await supabase
+        .from("leads")
+        .update(updates)
+        .eq("id", existingLead.id);
+
+      if (updateError) {
+        return NextResponse.json(
+          { error: updateError.message },
+          { status: 500 },
+        );
+      }
+    }
+
+    return NextResponse.json({
+      leadId: existingLead.id,
+      mode: "existing",
+    });
+  }
+
+  const { data: lead, error: insertError } = await supabase
+    .from("leads")
+    .insert({
+      email,
+      name,
+      utm_source: utmSource,
+    })
     .select("id")
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (insertError) {
+    return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  return NextResponse.json({ leadId: data.id });
+  return NextResponse.json({ leadId: lead.id, mode: "created" });
 }

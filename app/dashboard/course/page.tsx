@@ -1,3 +1,6 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
 const modules = [
   {
     key: "Research",
@@ -31,7 +34,43 @@ const modules = [
   },
 ];
 
-export default function DashboardCoursePage() {
+export default async function DashboardCoursePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login?next=/dashboard/course");
+  }
+
+  const now = new Date().toISOString();
+  const [{ data: profile }, { data: activeAccess }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("is_paid,course_expires_at")
+      .eq("id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("course_access")
+      .select("id,expires_at")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .gt("expires_at", now)
+      .order("expires_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const profileHasAccess =
+    profile?.is_paid === true &&
+    Boolean(profile.course_expires_at) &&
+    new Date(profile.course_expires_at as string).getTime() > Date.now();
+
+  if (!profileHasAccess && !activeAccess) {
+    redirect("/course?reason=course-access-required");
+  }
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.22),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_100%)] px-4 py-10 text-white">
       <section className="mx-auto grid w-full max-w-7xl gap-6 lg:grid-cols-[20rem_1fr]">

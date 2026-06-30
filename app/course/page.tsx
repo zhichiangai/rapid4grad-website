@@ -1,3 +1,5 @@
+import { CourseCheckoutButton } from "@/components/course/CourseCheckoutButton";
+
 const COURSE_PRICE = "NT$ 2,400";
 const RENEWAL_PRICE = "NT$ 890 / 6 個月";
 
@@ -16,11 +18,6 @@ const outcomes = [
 ];
 
 export default function CoursePage() {
-  const paymentLink =
-    process.env.STRIPE_PAYMENT_LINK_COURSE ||
-    "#stripe-payment-link-not-configured";
-  const isPaymentLinkConfigured = paymentLink.startsWith("http");
-
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.24),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_48%,#020617_100%)] px-4 py-12 text-white">
       <section className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
@@ -81,18 +78,10 @@ export default function CoursePage() {
             ))}
           </ul>
 
-          <a
-            href={paymentLink}
-            target={isPaymentLinkConfigured ? "_blank" : undefined}
-            rel={isPaymentLinkConfigured ? "noopener noreferrer" : undefined}
-            aria-disabled={!isPaymentLinkConfigured}
-            className="mt-8 flex w-full items-center justify-center rounded-2xl bg-blue-500 px-5 py-4 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400 aria-disabled:pointer-events-none aria-disabled:bg-slate-700 aria-disabled:text-slate-300"
-          >
-            {isPaymentLinkConfigured ? "立即加入課程" : "Stripe 付款連結尚未設定"}
-          </a>
+          <CourseCheckoutButton />
 
           <p className="mt-4 text-center text-xs leading-5 text-slate-500">
-            付款成功後，系統將透過 Stripe Webhook 自動開通課程與工具權限。
+            付款成功後，系統將透過付款服務通知自動開通課程與工具權限。
           </p>
         </aside>
       </section>
@@ -101,7 +90,7 @@ export default function CoursePage() {
         {[
           ["適合誰", "正在準備組會、Meeting、口試或論文初稿的研究生。"],
           ["核心工具", "不是替你寫論文，而是幫你產生更嚴謹的外部 AI 分析指令。"],
-          ["開通方式", "Stripe 付款完成後，由 webhook 寫入權限，不需要人工手動開通。"],
+          ["開通方式", "付款完成後，由付款服務通知寫入權限，不需要人工手動開通。"],
         ].map(([title, body]) => (
           <div
             key={title}

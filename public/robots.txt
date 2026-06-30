@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /professor
+Disallow: /professor/
+Disallow: /api/
+
+Sitemap: https://www.rapid4grad.com/sitemap.xml

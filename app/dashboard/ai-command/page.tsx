@@ -1,6 +1,36 @@
+import { cookies } from "next/headers";
 import { AiCommandContainer } from "@/components/ai-command/AiCommandContainer";
+import { createClient } from "@/lib/supabase/server";
+import type { PromptTemplate } from "@/lib/prompt-builder/types";
 
-export default function AiCommandPage() {
+const ANONYMOUS_TRIAL_COOKIE = "rapid_anon_ai_trial_used";
+
+export default async function AiCommandPage() {
+  const cookieStore = await cookies();
+  const hasUsedAnonymousTrial =
+    cookieStore.get(ANONYMOUS_TRIAL_COOKIE)?.value === "true";
+  const supabase = await createClient();
+  const { data: promptTemplates, error: promptTemplateError } = await supabase
+    .from("prompt_templates")
+    .select(
+      "id,target_ai,template_type,system_role,context_template,task_template,output_template,official_doc_notes,version",
+    )
+    .eq("is_active", true);
+
+  const activePromptTemplates: PromptTemplate[] = (promptTemplates ?? []).map(
+    (template) => ({
+      id: template.id,
+      targetAi: template.target_ai,
+      templateType: template.template_type,
+      systemRole: template.system_role,
+      contextTemplate: template.context_template,
+      taskTemplate: template.task_template,
+      outputTemplate: template.output_template,
+      officialDocNotes: template.official_doc_notes,
+      version: template.version,
+    }),
+  );
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto w-full max-w-6xl px-4 py-10">
@@ -17,7 +47,12 @@ export default function AiCommandPage() {
         </header>
       </div>
 
-      <AiCommandContainer />
+      <AiCommandContainer
+        initialAnonymousTrialUsed={hasUsedAnonymousTrial}
+        isDashboardRoute
+        activePromptTemplates={activePromptTemplates}
+        promptTemplateLoadError={promptTemplateError?.message}
+      />
     </main>
   );
 }

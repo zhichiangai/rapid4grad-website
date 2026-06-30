@@ -1,15 +1,16 @@
-"use client";
+import { updateLeadStatus } from "../actions";
+import { createClient } from "@/lib/supabase/server";
+import type { LeadStatus, RiskLevel } from "@/types/database";
 
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-
-type LeadStatus = "new" | "contacted" | "consulted" | "purchased" | "not_fit";
+type AdminLeadsSearchParams = Promise<{
+  message?: string;
+}>;
 
 type LeadRow = {
   id: string;
   name: string | null;
   email: string;
-  quiz_result: "low" | "medium" | "high" | null;
+  quiz_result: RiskLevel | null;
   quiz_score: number | null;
   main_tags: string[] | null;
   lead_status: LeadStatus;
@@ -24,60 +25,50 @@ const leadStatuses: LeadStatus[] = [
   "not_fit",
 ];
 
-const riskLabels = {
+const riskLabels: Record<RiskLevel, string> = {
   low: "低",
   medium: "中",
   high: "高",
-} as const;
+};
 
-export default function AdminLeadsPage() {
-  const [leads, setLeads] = useState<LeadRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState("");
+const statusLabels: Record<LeadStatus, string> = {
+  new: "new",
+  contacted: "contacted",
+  consulted: "consulted",
+  purchased: "purchased",
+  not_fit: "not_fit",
+};
 
-  useEffect(() => {
-    async function loadLeads() {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("leads")
-        .select(
-          "id,name,email,quiz_result,quiz_score,main_tags,lead_status,created_at",
-        )
-        .order("created_at", { ascending: false });
+function resolveMessage(message?: string) {
+  if (!message) return "";
 
-      if (error) {
-        setMessage(`讀取失敗：${error.message}`);
-      } else {
-        setLeads((data ?? []) as LeadRow[]);
-      }
+  if (message === "lead-status-updated") {
+    return "Lead 狀態已更新。";
+  }
 
-      setIsLoading(false);
-    }
+  if (message === "invalid-lead-status") {
+    return "Lead ID 或狀態不合法。";
+  }
 
-    void loadLeads();
-  }, []);
+  return decodeURIComponent(message);
+}
 
-  const handleStatusChange = async (leadId: string, status: LeadStatus) => {
-    const supabase = createClient();
-    setMessage("");
+export default async function AdminLeadsPage({
+  searchParams,
+}: {
+  searchParams: AdminLeadsSearchParams;
+}) {
+  const params = await searchParams;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .select(
+      "id,name,email,quiz_result,quiz_score,main_tags,lead_status,created_at",
+    )
+    .order("created_at", { ascending: false });
 
-    const { error } = await supabase
-      .from("leads")
-      .update({ lead_status: status })
-      .eq("id", leadId);
-
-    if (error) {
-      setMessage(`更新失敗：${error.message}`);
-      return;
-    }
-
-    setLeads((current) =>
-      current.map((lead) =>
-        lead.id === leadId ? { ...lead, lead_status: status } : lead,
-      ),
-    );
-    setMessage("Lead 狀態已更新。");
-  };
+  const leads = (data ?? []) as LeadRow[];
+  const message = error?.message ?? resolveMessage(params.message);
 
   return (
     <section className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-blue-950/20">
@@ -88,9 +79,7 @@ export default function AdminLeadsPage() {
           </p>
           <h2 className="mt-2 text-2xl font-semibold">問卷名單管理</h2>
         </div>
-        <p className="text-sm text-slate-400">
-          {isLoading ? "讀取中..." : `${leads.length} 筆名單`}
-        </p>
+        <p className="text-sm text-slate-400">{leads.length} 筆名單</p>
       </div>
 
       {message ? (
@@ -100,7 +89,7 @@ export default function AdminLeadsPage() {
       ) : null}
 
       <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10">
-        <table className="w-full min-w-[900px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[980px] border-collapse text-left text-sm">
           <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.18em] text-slate-400">
             <tr>
               <th className="px-4 py-3">姓名</th>
@@ -109,55 +98,75 @@ export default function AdminLeadsPage() {
               <th className="px-4 py-3">分數</th>
               <th className="px-4 py-3">標籤</th>
               <th className="px-4 py-3">狀態</th>
+              <th className="px-4 py-3">建立時間</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-white/10">
-            {leads.map((lead) => (
-              <tr key={lead.id} className="align-top">
-                <td className="px-4 py-4 text-slate-200">
-                  {lead.name || "未填"}
-                </td>
-                <td className="px-4 py-4 font-mono text-xs text-blue-100">
-                  {lead.email}
-                </td>
-                <td className="px-4 py-4 text-slate-300">
-                  {lead.quiz_result ? riskLabels[lead.quiz_result] : "-"}
-                </td>
-                <td className="px-4 py-4 text-slate-300">
-                  {lead.quiz_score ?? "-"}
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex flex-wrap gap-2">
-                    {(lead.main_tags ?? []).map((tag) => (
-                      <span
-                        key={tag}
-                        className="rounded-full border border-blue-300/20 bg-blue-500/10 px-2 py-1 text-xs text-blue-100"
+            {leads.length ? (
+              leads.map((lead) => (
+                <tr key={lead.id} className="align-top">
+                  <td className="px-4 py-4 text-slate-200">
+                    {lead.name || "未填"}
+                  </td>
+                  <td className="px-4 py-4 font-mono text-xs text-blue-100">
+                    {lead.email}
+                  </td>
+                  <td className="px-4 py-4 text-slate-300">
+                    {lead.quiz_result ? riskLabels[lead.quiz_result] : "-"}
+                  </td>
+                  <td className="px-4 py-4 text-slate-300">
+                    {lead.quiz_score ?? "-"}
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex flex-wrap gap-2">
+                      {(lead.main_tags ?? []).length ? (
+                        (lead.main_tags ?? []).map((tag) => (
+                          <span
+                            key={tag}
+                            className="rounded-full border border-blue-300/20 bg-blue-500/10 px-2 py-1 text-xs text-blue-100"
+                          >
+                            {tag}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-slate-500">無標籤</span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-4 py-4">
+                    <form action={updateLeadStatus} className="flex gap-2">
+                      <input type="hidden" name="leadId" value={lead.id} />
+                      <select
+                        name="leadStatus"
+                        defaultValue={lead.lead_status}
+                        className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none"
                       >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <select
-                    value={lead.lead_status}
-                    onChange={(event) =>
-                      void handleStatusChange(
-                        lead.id,
-                        event.target.value as LeadStatus,
-                      )
-                    }
-                    className="rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none"
-                  >
-                    {leadStatuses.map((status) => (
-                      <option key={status} value={status}>
-                        {status}
-                      </option>
-                    ))}
-                  </select>
+                        {leadStatuses.map((status) => (
+                          <option key={status} value={status}>
+                            {statusLabels[status]}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="submit"
+                        className="rounded-xl bg-blue-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-400"
+                      >
+                        更新
+                      </button>
+                    </form>
+                  </td>
+                  <td className="px-4 py-4 text-xs text-slate-500">
+                    {new Date(lead.created_at).toLocaleString("zh-TW")}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center text-slate-400">
+                  目前沒有 Lead 資料。
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

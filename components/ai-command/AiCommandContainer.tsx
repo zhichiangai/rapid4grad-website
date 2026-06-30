@@ -9,6 +9,7 @@ import type {
   MeetingContext,
   PainPoint,
   PromptParams,
+  PromptTemplate,
   StudentStage,
 } from "@/lib/prompt-builder/types";
 import { AdvisorPrefsInput } from "./AdvisorPrefsInput";
@@ -20,6 +21,19 @@ import { PainPointSelector } from "./PainPointSelector";
 import { StudentStageSelector } from "./StudentStageSelector";
 import { UsageGateModal } from "./UsageGateModal";
 
+type UsageStatus =
+  | "allowed"
+  | "verification_required"
+  | "quota_exceeded"
+  | "error";
+
+interface AiCommandContainerProps {
+  initialAnonymousTrialUsed: boolean;
+  isDashboardRoute?: boolean;
+  activePromptTemplates?: PromptTemplate[];
+  promptTemplateLoadError?: string;
+}
+
 function splitLines(value: string) {
   return value
     .split("\n")
@@ -27,7 +41,12 @@ function splitLines(value: string) {
     .filter(Boolean);
 }
 
-export function AiCommandContainer() {
+export function AiCommandContainer({
+  initialAnonymousTrialUsed,
+  isDashboardRoute = false,
+  activePromptTemplates = [],
+  promptTemplateLoadError,
+}: AiCommandContainerProps) {
   const [studentStage, setStudentStage] = useState<StudentStage>("master_2");
   const [meetingContext, setMeetingContext] =
     useState<MeetingContext>("one_on_one");
@@ -47,6 +66,9 @@ export function AiCommandContainer() {
   const [error, setError] = useState<string | null>(null);
   const [verifiedEmail, setVerifiedEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [anonymousTrialUsed, setAnonymousTrialUsed] = useState(
+    initialAnonymousTrialUsed,
+  );
   const [usageGate, setUsageGate] = useState<{
     isOpen: boolean;
     reason: "verification_required" | "quota_exceeded" | null;
@@ -86,8 +108,17 @@ export function AiCommandContainer() {
     }
 
     const params = buildParams();
-    const prompt = buildPrompt(params);
+    const prompt = buildPrompt(params, activePromptTemplates);
     const normalizedEmail = email?.trim().toLowerCase() || verifiedEmail;
+
+    if (!normalizedEmail && anonymousTrialUsed) {
+      setUsageGate({
+        isOpen: true,
+        reason: "verification_required",
+        message: "免費試用已使用 1 次，請輸入 Email 驗證後繼續使用。",
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     setError(null);
@@ -112,17 +143,19 @@ export function AiCommandContainer() {
       });
 
       const result = (await response.json()) as {
-        status?: "allowed" | "verification_required" | "quota_exceeded" | "error";
+        status?: UsageStatus;
         message?: string;
+        isAnonymousTrial?: boolean;
       };
 
       if (result.status === "allowed") {
         if (normalizedEmail) {
           setVerifiedEmail(normalizedEmail);
+        } else if (result.isAnonymousTrial) {
+          setAnonymousTrialUsed(true);
         }
         setGeneratedPrompt(prompt);
         setError(null);
-        console.log(prompt);
         return;
       }
 
@@ -173,6 +206,24 @@ export function AiCommandContainer() {
           <p className="mt-3 text-sm leading-6 text-slate-400">
             第一版不需要在 RAPID 上傳 PDF，也不呼叫後端 LLM。你只需要選擇情境，系統會在前端產生可貼到外部 AI 的學術指令。
           </p>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs leading-5 text-slate-400">
+            {promptTemplateLoadError ? (
+              <span>
+                CMS 模板讀取失敗，將使用本地 fallback 模板：
+                {promptTemplateLoadError}
+              </span>
+            ) : activePromptTemplates.length ? (
+              <span>
+                已載入 {activePromptTemplates.length} 組 active CMS Prompt
+                Templates；後台修改會影響此工具生成結果。
+              </span>
+            ) : (
+              <span>
+                尚未載入 active CMS Prompt Templates，目前將使用本地 fallback
+                模板。
+              </span>
+            )}
+          </div>
 
           <div className="mt-7 space-y-7">
             <StudentStageSelector
@@ -217,6 +268,12 @@ export function AiCommandContainer() {
 
         <GeneratedPromptDisplay prompt={generatedPrompt} />
       </div>
+
+      {!isDashboardRoute ? (
+        <div className="mx-auto mt-6 w-full max-w-6xl rounded-[2rem] border border-blue-300/15 bg-blue-500/10 p-5 text-sm leading-6 text-blue-50">
+          免費試用入口：第一次可免登入生成。若你已購買課程，請使用 Google 登入後進入 Dashboard，即可使用付費權限。
+        </div>
+      ) : null}
 
       <UsageGateModal
         isOpen={usageGate.isOpen}

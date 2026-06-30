@@ -1,7 +1,10 @@
-"use client";
+import { unlockQuota } from "../actions";
+import { createClient } from "@/lib/supabase/server";
 
-import { FormEvent, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+type AdminQuotasSearchParams = Promise<{
+  email?: string;
+  message?: string;
+}>;
 
 type QuotaRow = {
   id: string;
@@ -15,27 +18,32 @@ type QuotaRow = {
   last_used_at: string | null;
 };
 
-export default function AdminQuotasPage() {
-  const [email, setEmail] = useState("");
-  const [quota, setQuota] = useState<QuotaRow | null>(null);
-  const [message, setMessage] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+function resolveMessage(message?: string) {
+  if (!message) return "";
 
-  const normalizedEmail = email.trim().toLowerCase();
+  if (message === "quota-unlocked") {
+    return "已將該 Email 設為管理者解鎖，並增加一次手動贈送紀錄。";
+  }
 
-  const handleSearch = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  if (message === "missing-email") {
+    return "請輸入 Email。";
+  }
 
-    if (!normalizedEmail) {
-      setMessage("請輸入 Email。");
-      return;
-    }
+  return decodeURIComponent(message);
+}
 
-    setIsLoading(true);
-    setMessage("");
-    setQuota(null);
+export default async function AdminQuotasPage({
+  searchParams,
+}: {
+  searchParams: AdminQuotasSearchParams;
+}) {
+  const params = await searchParams;
+  const normalizedEmail = params.email?.trim().toLowerCase() ?? "";
+  const supabase = await createClient();
+  let quota: QuotaRow | null = null;
+  let message = resolveMessage(params.message);
 
-    const supabase = createClient();
+  if (normalizedEmail) {
     const { data, error } = await supabase
       .from("free_usage_quotas")
       .select(
@@ -44,60 +52,16 @@ export default function AdminQuotasPage() {
       .eq("email", normalizedEmail)
       .maybeSingle();
 
-    setIsLoading(false);
-
     if (error) {
-      setMessage(`查詢失敗：${error.message}`);
-      return;
+      message = error.message;
+    } else {
+      quota = data as QuotaRow | null;
+      if (!quota && !message) {
+        message =
+          "找不到這個 Email 的免費額度紀錄，可直接按下方按鈕建立並解鎖。";
+      }
     }
-
-    if (!data) {
-      setMessage("找不到這個 Email 的免費額度紀錄，可直接按下方按鈕建立並解鎖。");
-      return;
-    }
-
-    setQuota(data as QuotaRow);
-  };
-
-  const handleUnlock = async () => {
-    if (!normalizedEmail) {
-      setMessage("請先輸入 Email。");
-      return;
-    }
-
-    setIsLoading(true);
-    setMessage("");
-
-    const supabase = createClient();
-    const nextUnlockedTotal = (quota?.admin_unlocked_total ?? 0) + 1;
-
-    const payload = {
-      email: normalizedEmail,
-      unlocked_by_admin: true,
-      admin_unlocked_total: nextUnlockedTotal,
-      admin_note: "Unlocked from RAPID admin quotas page.",
-      daily_limit: quota?.daily_limit ?? 2,
-      total_limit: quota?.total_limit ?? 3,
-    };
-
-    const { data, error } = await supabase
-      .from("free_usage_quotas")
-      .upsert(payload, { onConflict: "email" })
-      .select(
-        "id,email,daily_count,total_count,daily_limit,total_limit,unlocked_by_admin,admin_unlocked_total,last_used_at",
-      )
-      .single();
-
-    setIsLoading(false);
-
-    if (error) {
-      setMessage(`解鎖失敗：${error.message}`);
-      return;
-    }
-
-    setQuota(data as QuotaRow);
-    setMessage("已將該 Email 設為管理者解鎖，並增加一次手動贈送紀錄。");
-  };
+  }
 
   return (
     <section className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-blue-950/20">
@@ -106,26 +70,31 @@ export default function AdminQuotasPage() {
       </p>
       <h2 className="mt-2 text-2xl font-semibold">免費額度管理</h2>
 
-      <form onSubmit={handleSearch} className="mt-6 flex flex-col gap-3 sm:flex-row">
+      <form
+        action="/admin/quotas"
+        className="mt-6 flex flex-col gap-3 sm:flex-row"
+      >
         <input
           type="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          name="email"
+          defaultValue={normalizedEmail}
           className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-blue-300/50"
           placeholder="輸入使用者 Email"
         />
         <button
           type="submit"
-          disabled={isLoading}
-          className="rounded-2xl bg-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400 disabled:opacity-70"
+          className="rounded-2xl bg-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
         >
           搜尋
         </button>
+      </form>
+
+      <form action={unlockQuota} className="mt-3">
+        <input type="hidden" name="email" value={normalizedEmail} />
         <button
-          type="button"
-          onClick={handleUnlock}
-          disabled={isLoading}
-          className="rounded-2xl border border-cyan-300/20 bg-cyan-500/10 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20 disabled:opacity-70"
+          type="submit"
+          disabled={!normalizedEmail}
+          className="rounded-2xl border border-cyan-300/20 bg-cyan-500/10 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
           解鎖並增加次數
         </button>
@@ -148,6 +117,12 @@ export default function AdminQuotasPage() {
               quota.unlocked_by_admin
                 ? `true (+${quota.admin_unlocked_total})`
                 : "false",
+            ],
+            [
+              "Last Used",
+              quota.last_used_at
+                ? new Date(quota.last_used_at).toLocaleString("zh-TW")
+                : "-",
             ],
           ].map(([label, value]) => (
             <div

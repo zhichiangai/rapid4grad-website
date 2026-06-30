@@ -1,52 +1,14 @@
-import type {
-  AiModel,
-  InstructionType,
-  MeetingContext,
-  PainPoint,
-  PromptParams,
-  StudentStage,
-} from "./types";
-
-const STAGE_LABELS: Record<StudentStage, string> = {
-  master_1: "碩一新生",
-  master_2: "碩二衝刺生",
-  master_3_plus: "碩三以上（延畢邊緣）",
-  phd: "博士班研究生",
-  part_time: "在職專班研究生",
-};
-
-const CONTEXT_LABELS: Record<MeetingContext, string> = {
-  one_on_one: "一對一指導教授會議",
-  group_meeting: "實驗室進度組會",
-  defense_rehearsal: "口試前預演",
-  submission_check: "投稿前檢查",
-  draft_revision: "論文初稿修改",
-  other: "研究討論",
-};
-
-const PAIN_POINT_LABELS: Record<PainPoint, string> = {
-  find_gap: "找出研究缺口（Gap）",
-  logic_check: "檢查研究邏輯與實驗數據漏洞",
-  advisor_simulation: "模擬教授追問",
-  presentation_revision: "簡報架構修改",
-  english_polish: "學術英文句型修飾",
-  figure_check: "檢查圖表說明是否支撐結論",
-  other: "其他學術需求",
-};
-
-const AI_DISPLAY_NAMES: Record<AiModel, string> = {
-  chatgpt: "ChatGPT",
-  claude: "Claude",
-  gemini: "Gemini",
-  grok: "Grok",
-};
-
-const INSTRUCTION_TYPE_LABELS: Record<InstructionType, string> = {
-  advisor_questions: "教授追問版",
-  logic_check: "邏輯漏洞檢查版",
-  presentation_revision: "簡報修改版",
-  english_polish: "英文修飾版",
-};
+import type { AiModel, InstructionType, PromptParams, PromptTemplate } from "./types";
+import {
+  AI_DISPLAY_NAMES,
+  buildAdvisorPrefsSection,
+  buildPromptFromTemplates,
+  INSTRUCTION_TYPE_LABELS,
+  joinLabels,
+  PAIN_POINT_LABELS,
+  STAGE_LABELS,
+  CONTEXT_LABELS,
+} from "./templates";
 
 const AI_STRATEGIES: Record<AiModel, { role: string; note: string }> = {
   chatgpt: {
@@ -66,32 +28,6 @@ const AI_STRATEGIES: Record<AiModel, { role: string; note: string }> = {
     note: "請直接指出薄弱處，但保持專業目的：幫學生在真正 Meeting 或口試前先發現問題。",
   },
 };
-
-function joinLabels<T extends string>(values: T[], labels: Record<T, string>) {
-  return values.length
-    ? values.map((value) => labels[value]).join("、")
-    : "尚未指定";
-}
-
-function buildAdvisorPrefsSection(prefs?: PromptParams["advisorPrefs"]) {
-  if (!prefs) return "未提供特定指導教授偏好。";
-
-  const parts: string[] = [];
-
-  if (prefs.frequentQuestions?.length) {
-    parts.push(`指導教授常問問題：${prefs.frequentQuestions.join("；")}`);
-  }
-
-  if (prefs.preferredStyle?.trim()) {
-    parts.push(`教授偏好風格：${prefs.preferredStyle.trim()}`);
-  }
-
-  if (prefs.customNote?.trim()) {
-    parts.push(`其他自訂備忘：${prefs.customNote.trim()}`);
-  }
-
-  return parts.length ? parts.join("\n") : "未提供特定指導教授偏好。";
-}
 
 function buildTaskSection(types: InstructionType[]) {
   const tasks: Record<InstructionType, string> = {
@@ -144,7 +80,7 @@ function buildOutputSection(types: InstructionType[], model: AiModel) {
   return sections.map((section, index) => `${index + 1}. ${section}`).join("\n");
 }
 
-export function buildPrompt(params: PromptParams): string {
+export function buildLocalFallbackPrompt(params: PromptParams): string {
   const {
     studentStage,
     meetingContext,
@@ -188,8 +124,24 @@ ${buildTaskSection(instructionTypes)}
 ## Output
 ${buildOutputSection(instructionTypes, selectedAi)}
 
+## Template Source
+Local fallback template：CMS active templates 讀取失敗或選定指令類型缺漏時才使用。
+
 請避免只給籠統建議。請盡量指出「哪一段、哪一頁、哪一個圖表、哪一個論證」需要修改。如果無法定位，請明確說明你需要我補充什麼資訊。
 
 [請將上述指令複製，並連同你的論文/簡報 PDF 檔案，一起上傳至 ${aiName} 中進行分析]
 `.trim();
+}
+
+export function buildPrompt(
+  params: PromptParams,
+  templates: PromptTemplate[] = [],
+) {
+  const cmsResult = buildPromptFromTemplates({ params, templates });
+
+  if (cmsResult.usedCmsTemplates) {
+    return cmsResult.prompt;
+  }
+
+  return buildLocalFallbackPrompt(params);
 }

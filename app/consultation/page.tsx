@@ -2,9 +2,15 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 
 type FormState = "idle" | "submitting" | "success" | "error";
+
+type ConsultationResponse = {
+  success?: boolean;
+  leadId?: string;
+  mode?: "created" | "updated";
+  error?: string;
+};
 
 export default function ConsultationPage() {
   const [name, setName] = useState("");
@@ -26,30 +32,35 @@ export default function ConsultationPage() {
     setStatus("submitting");
     setMessage("");
 
-    const supabase = createClient();
-    const { error } = await supabase.from("leads").insert({
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      lead_status: "consulted",
-      utm_source: "consultation_page",
-      utm_medium: "owned_website",
-      utm_campaign: "one_on_one_consultation",
-      main_tags: ["tag_consultation_requested"],
-      current_year: `LINE: ${lineId.trim()} | 卡點: ${blocker.trim()}`,
+    const response = await fetch("/api/consultation", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        lineId: lineId.trim(),
+        blocker: blocker.trim(),
+      }),
     });
 
-    if (error) {
+    const data = (await response
+      .json()
+      .catch(() => ({}))) as ConsultationResponse;
+
+    if (!response.ok || !data.success) {
       setStatus("error");
-      setMessage(
-        error.code === "23505"
-          ? "這個 Email 已經留下過資料。若要補充卡點，請改用另一個 Email，或之後直接透過 LINE 聯繫。"
-          : "送出失敗，請稍後再試一次。",
-      );
+      setMessage(data.error ?? "送出失敗，請稍後再試一次。");
       return;
     }
 
     setStatus("success");
-    setMessage("已收到你的諮詢需求。請接著加入 LINE，方便後續確認研究卡點與適合的協助方式。");
+    setMessage(
+      data.mode === "updated"
+        ? "已更新你的諮詢需求。請接著加入 LINE，方便後續確認研究卡點與適合的協助方式。"
+        : "已收到你的諮詢需求。請接著加入 LINE，方便後續確認研究卡點與適合的協助方式。",
+    );
     setName("");
     setEmail("");
     setLineId("");
