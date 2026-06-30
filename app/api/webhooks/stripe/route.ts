@@ -1,38 +1,27 @@
-import { createHmac, timingSafeEqual } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
+import {
+  getBillingPlanByPriceId,
+  getInvoicePeriod,
+  retrieveStripeSubscription,
+  unixSecondsToIso,
+  verifyStripeSignature,
+  type StripeCheckoutSession,
+  type StripeEvent,
+  type StripeInvoice,
+  type StripeSubscription,
+} from "@/lib/stripe/server";
+import { getBillingPlan } from "@/lib/stripe/plans";
+import type {
+  CoursePlanType,
+  Json,
+  SubscriptionPlanKey,
+  SubscriptionStatus,
+} from "@/types/database";
 
 export const runtime = "nodejs";
 
-type CoursePlanType = "course_plus_6mo_tool" | "tool_renewal_6mo";
-
-const DEFAULT_PLAN_TYPE: CoursePlanType = "course_plus_6mo_tool";
-
-type StripeCheckoutSession = {
-  id?: string;
-  object?: string;
-  amount_total?: number | null;
-  currency?: string | null;
-  customer?: string | null;
-  customer_email?: string | null;
-  customer_details?: {
-    email?: string | null;
-  } | null;
-  metadata?: {
-    plan_type?: string;
-    [key: string]: string | undefined;
-  } | null;
-  payment_intent?: string | null;
-  payment_status?: string | null;
-};
-
-type StripeWebhookEvent = {
-  id?: string;
-  type?: string;
-  data?: {
-    object?: StripeCheckoutSession;
-  };
-};
+type SupabaseAdminClient = ReturnType<typeof createAdminClient>;
 
 type ExistingPayment = {
   id: string;
@@ -41,65 +30,21 @@ type ExistingPayment = {
   paid_at: string | null;
 };
 
-function parseStripeSignature(signatureHeader: string) {
-  return signatureHeader.split(",").reduce(
-    (acc, part) => {
-      const [key, value] = part.split("=");
-      if (key === "t") {
-        acc.timestamp = value;
-      }
-      if (key === "v1") {
-        acc.signatures.push(value);
-      }
-      return acc;
-    },
-    { timestamp: "", signatures: [] as string[] },
-  );
-}
+type ProfileLookup = {
+  id: string;
+  email: string;
+};
 
-function verifyStripeSignature({
-  payload,
-  signatureHeader,
-  webhookSecret,
-  toleranceInSeconds = 300,
-}: {
-  payload: string;
-  signatureHeader: string;
-  webhookSecret: string;
-  toleranceInSeconds?: number;
-}) {
-  const { timestamp, signatures } = parseStripeSignature(signatureHeader);
+type ExistingSubscription = {
+  id: string;
+  user_id: string;
+  current_period_end: string;
+};
 
-  if (!timestamp || signatures.length === 0) {
-    return false;
-  }
+const DEFAULT_PLAN_TYPE: CoursePlanType = "course_plus_6mo_tool";
 
-  const timestampInSeconds = Number(timestamp);
-  const currentTimestampInSeconds = Math.floor(Date.now() / 1000);
-
-  if (
-    !Number.isFinite(timestampInSeconds) ||
-    Math.abs(currentTimestampInSeconds - timestampInSeconds) >
-      toleranceInSeconds
-  ) {
-    return false;
-  }
-
-  const signedPayload = `${timestamp}.${payload}`;
-  const expectedSignature = createHmac("sha256", webhookSecret)
-    .update(signedPayload, "utf8")
-    .digest("hex");
-  const expectedBuffer = Buffer.from(expectedSignature, "hex");
-
-  return signatures.some((signature) => {
-    const receivedBuffer = Buffer.from(signature, "hex");
-
-    if (receivedBuffer.length !== expectedBuffer.length) {
-      return false;
-    }
-
-    return timingSafeEqual(receivedBuffer, expectedBuffer);
-  });
+function jsonError(message: string, status = 400) {
+  return NextResponse.json({ received: false, error: message }, { status });
 }
 
 function addMonths(date: Date, months: number) {
@@ -108,12 +53,43 @@ function addMonths(date: Date, months: number) {
   return nextDate;
 }
 
-function normalizePlanType(value: string | null | undefined): CoursePlanType {
+function normalizeCoursePlanType(
+  value: string | null | undefined,
+): CoursePlanType {
   if (value === "course_plus_6mo_tool" || value === "tool_renewal_6mo") {
     return value;
   }
 
   return DEFAULT_PLAN_TYPE;
+}
+
+function normalizeSubscriptionStatus(
+  value: string | null | undefined,
+): SubscriptionStatus {
+  if (
+    value === "active" ||
+    value === "trialing" ||
+    value === "past_due" ||
+    value === "canceled" ||
+    value === "unpaid"
+  ) {
+    return value;
+  }
+
+  return "unpaid";
+}
+
+function normalizePlanKey(
+  value: string | null | undefined,
+  priceId: string | null | undefined,
+): SubscriptionPlanKey | null {
+  const planFromMetadata = value ? getBillingPlan(value) : null;
+
+  if (planFromMetadata) {
+    return planFromMetadata.key;
+  }
+
+  return getBillingPlanByPriceId(priceId)?.key ?? null;
 }
 
 function getSessionEmail(session: StripeCheckoutSession) {
@@ -124,72 +100,139 @@ function getSessionEmail(session: StripeCheckoutSession) {
   );
 }
 
-export async function POST(request: NextRequest) {
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-  if (!webhookSecret) {
-    return NextResponse.json(
-      { error: "Stripe webhook secret is not configured." },
-      { status: 500 },
-    );
+function toRecord(value: Json): Record<string, Json> {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+    return value as Record<string, Json>;
   }
 
-  const rawBody = await request.text();
-  const signatureHeader = request.headers.get("stripe-signature");
+  return {};
+}
 
-  if (!signatureHeader) {
-    return NextResponse.json(
-      { error: "Missing stripe-signature header." },
-      { status: 400 },
-    );
-  }
+function asCheckoutSession(value: Json): StripeCheckoutSession {
+  return toRecord(value) as StripeCheckoutSession;
+}
 
-  const isValidSignature = verifyStripeSignature({
-    payload: rawBody,
-    signatureHeader,
-    webhookSecret,
+function asSubscription(value: Json): StripeSubscription {
+  return toRecord(value) as StripeSubscription;
+}
+
+function asInvoice(value: Json): StripeInvoice {
+  return toRecord(value) as StripeInvoice;
+}
+
+async function recordStripeEvent(
+  supabase: SupabaseAdminClient,
+  event: StripeEvent,
+) {
+  const { error } = await supabase.from("stripe_events").insert({
+    stripe_event_id: event.id,
+    event_type: event.type,
+    payload: event as unknown as Json,
   });
 
-  if (!isValidSignature) {
-    return NextResponse.json(
-      { error: "Invalid Stripe webhook signature." },
-      { status: 400 },
-    );
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function hasProcessedEvent(
+  supabase: SupabaseAdminClient,
+  stripeEventId: string,
+) {
+  const { data, error } = await supabase
+    .from("stripe_events")
+    .select("id")
+    .eq("stripe_event_id", stripeEventId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(error.message);
   }
 
-  let event: StripeWebhookEvent;
+  return Boolean(data);
+}
 
-  try {
-    event = JSON.parse(rawBody) as StripeWebhookEvent;
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid Stripe webhook payload." },
-      { status: 400 },
-    );
+async function grantCourseAccessForOneTimePayment({
+  supabase,
+  profile,
+  paymentId,
+  planType,
+  paymentPaidAt,
+}: {
+  supabase: SupabaseAdminClient;
+  profile: ProfileLookup;
+  paymentId: string;
+  planType: CoursePlanType;
+  paymentPaidAt: Date;
+}) {
+  const { data: existingAccess, error: existingAccessError } = await supabase
+    .from("course_access")
+    .select("id,expires_at")
+    .eq("payment_id", paymentId)
+    .maybeSingle();
+
+  if (existingAccessError) {
+    throw new Error(existingAccessError.message);
   }
 
-  if (event.type !== "checkout.session.completed") {
-    return NextResponse.json({ received: true, ignored: true });
+  if (existingAccess) {
+    return existingAccess.expires_at;
   }
 
-  const session = event.data?.object;
-  const stripeSessionId = session?.id;
-  const email = session ? getSessionEmail(session) : undefined;
+  const startsAt = paymentPaidAt.toISOString();
+  const expiresAt = addMonths(paymentPaidAt, 6).toISOString();
 
-  if (!session || !stripeSessionId || !email) {
-    return NextResponse.json(
-      { error: "Missing checkout session id or customer email." },
-      { status: 400 },
-    );
+  const { error: accessError } = await supabase.from("course_access").insert({
+    user_id: profile.id,
+    payment_id: paymentId,
+    plan_type: planType,
+    starts_at: startsAt,
+    expires_at: expiresAt,
+    is_active: true,
+    granted_by: "stripe_webhook",
+  });
+
+  if (accessError) {
+    throw new Error(accessError.message);
   }
 
-  const planType = normalizePlanType(session.metadata?.plan_type);
+  const { error: profileUpdateError } = await supabase
+    .from("profiles")
+    .update({
+      is_paid: true,
+      paid_at: startsAt,
+      course_expires_at: expiresAt,
+    })
+    .eq("id", profile.id);
+
+  if (profileUpdateError) {
+    throw new Error(profileUpdateError.message);
+  }
+
+  return expiresAt;
+}
+
+async function processOneTimeCheckoutSession(
+  supabase: SupabaseAdminClient,
+  event: StripeEvent,
+  session: StripeCheckoutSession,
+) {
+  const stripeSessionId = session.id;
+  const email = getSessionEmail(session);
+
+  if (!stripeSessionId || !email) {
+    throw new Error("Missing checkout session id or customer email.");
+  }
+
+  const planType = normalizeCoursePlanType(session.metadata?.plan_type);
   const paidAt = new Date();
-  const supabase = createAdminClient();
-
   const [{ data: profile, error: profileError }, { data: existingPayment }] =
     await Promise.all([
-      supabase.from("profiles").select("id").eq("email", email).maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("id,email")
+        .eq("email", email)
+        .maybeSingle<ProfileLookup>(),
       supabase
         .from("payments")
         .select("id,user_id,status,paid_at")
@@ -198,17 +241,13 @@ export async function POST(request: NextRequest) {
     ]);
 
   if (profileError) {
-    return NextResponse.json(
-      { error: profileError.message },
-      { status: 500 },
-    );
+    throw new Error(profileError.message);
   }
 
   let paymentId = existingPayment?.id;
   const paymentPaidAt = existingPayment?.paid_at
     ? new Date(existingPayment.paid_at)
     : paidAt;
-  const expiresAt = addMonths(paymentPaidAt, 6);
 
   if (existingPayment && profile && !existingPayment.user_id) {
     const { error: linkPaymentError } = await supabase
@@ -217,10 +256,7 @@ export async function POST(request: NextRequest) {
       .eq("id", existingPayment.id);
 
     if (linkPaymentError) {
-      return NextResponse.json(
-        { error: linkPaymentError.message },
-        { status: 500 },
-      );
+      throw new Error(linkPaymentError.message);
     }
   }
 
@@ -238,101 +274,402 @@ export async function POST(request: NextRequest) {
         plan_type: planType,
         status: "completed",
         paid_at: paidAt.toISOString(),
-        raw_webhook_payload: event,
+        raw_webhook_payload: event as unknown as Json,
       })
       .select("id")
       .single();
 
     if (paymentError) {
-      return NextResponse.json(
-        { error: paymentError.message },
-        { status: 500 },
-      );
+      throw new Error(paymentError.message);
     }
 
     paymentId = payment.id;
   }
 
-  if (!paymentId) {
-    return NextResponse.json(
-      { error: "Payment could not be recorded." },
-      { status: 500 },
+  if (!paymentId || !profile) {
+    return;
+  }
+
+  await grantCourseAccessForOneTimePayment({
+    supabase,
+    profile,
+    paymentId,
+    planType,
+    paymentPaidAt,
+  });
+}
+
+async function findUserIdForSubscription(
+  supabase: SupabaseAdminClient,
+  subscription: StripeSubscription,
+  fallbackUserId?: string | null,
+) {
+  if (fallbackUserId) {
+    return fallbackUserId;
+  }
+
+  const { data: existing, error } = await supabase
+    .from("subscriptions")
+    .select("user_id")
+    .eq("stripe_subscription_id", subscription.id)
+    .maybeSingle<{ user_id: string }>();
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return existing?.user_id ?? null;
+}
+
+async function upsertSubscriptionItems({
+  supabase,
+  localSubscriptionId,
+  subscription,
+}: {
+  supabase: SupabaseAdminClient;
+  localSubscriptionId: string;
+  subscription: StripeSubscription;
+}) {
+  const items = subscription.items?.data ?? [];
+
+  for (const item of items) {
+    if (!item.id || !item.price?.id) {
+      continue;
+    }
+
+    const { error } = await supabase.from("subscription_items").upsert(
+      {
+        subscription_id: localSubscriptionId,
+        stripe_subscription_item_id: item.id,
+        stripe_price_id: item.price.id,
+        quantity: item.quantity ?? 1,
+        plan_feature_key: "ai_audit",
+      },
+      { onConflict: "stripe_subscription_item_id" },
     );
-  }
 
-  if (!profile) {
-    return NextResponse.json({
-      received: true,
-      paymentId,
-      profileLinked: false,
-      message:
-        "Payment recorded, but no profile exists for this email. Course access was not granted.",
-    });
+    if (error) {
+      throw new Error(error.message);
+    }
   }
+}
 
-  const { data: existingAccess, error: existingAccessError } = await supabase
-    .from("course_access")
-    .select("id,expires_at")
-    .eq("payment_id", paymentId)
+async function ensureAiUsageCredits({
+  supabase,
+  userId,
+  localSubscriptionId,
+  planKey,
+  periodStart,
+  periodEnd,
+  shouldRestrict,
+}: {
+  supabase: SupabaseAdminClient;
+  userId: string;
+  localSubscriptionId: string;
+  planKey: SubscriptionPlanKey;
+  periodStart: string;
+  periodEnd: string;
+  shouldRestrict: boolean;
+}) {
+  const { data: existingCredit, error: existingCreditError } = await supabase
+    .from("ai_usage_credits")
+    .select("id")
+    .eq("subscription_id", localSubscriptionId)
+    .eq("period_start", periodStart)
+    .eq("period_end", periodEnd)
     .maybeSingle();
 
-  if (existingAccessError) {
-    return NextResponse.json(
-      { error: existingAccessError.message },
-      { status: 500 },
-    );
+  if (existingCreditError) {
+    throw new Error(existingCreditError.message);
   }
 
-  if (existingAccess) {
+  if (existingCredit) {
+    if (shouldRestrict) {
+      const { error } = await supabase
+        .from("ai_usage_credits")
+        .update({
+          monthly_credit_limit: 0,
+          pdf_audit_limit: 0,
+        })
+        .eq("id", existingCredit.id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    }
+
+    return;
+  }
+
+  const plan = getBillingPlan(planKey);
+  const { error } = await supabase.from("ai_usage_credits").insert({
+    user_id: userId,
+    subscription_id: localSubscriptionId,
+    period_start: periodStart,
+    period_end: periodEnd,
+    monthly_credit_limit: shouldRestrict ? 0 : (plan?.monthlyCreditLimit ?? 0),
+    credits_used: 0,
+    pdf_audit_limit: shouldRestrict ? 0 : (plan?.pdfAuditLimit ?? 0),
+    pdf_audit_used: 0,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+async function syncSubscriptionFromStripe({
+  supabase,
+  subscription,
+  fallbackUserId,
+  forceRestrictCredits = false,
+}: {
+  supabase: SupabaseAdminClient;
+  subscription: StripeSubscription;
+  fallbackUserId?: string | null;
+  forceRestrictCredits?: boolean;
+}) {
+  const priceId = subscription.items?.data?.[0]?.price?.id ?? null;
+  const planKey = normalizePlanKey(subscription.metadata?.plan_key, priceId);
+
+  if (!planKey || !subscription.customer || !priceId) {
+    return { skipped: true, reason: "Missing plan, customer, or price." };
+  }
+
+  const userId = await findUserIdForSubscription(
+    supabase,
+    subscription,
+    fallbackUserId,
+  );
+
+  if (!userId) {
+    return { skipped: true, reason: "No matching RAPID profile user." };
+  }
+
+  const currentPeriodStart = unixSecondsToIso(
+    subscription.current_period_start,
+  );
+  const currentPeriodEnd = unixSecondsToIso(subscription.current_period_end);
+  const incomingPeriodEndMs = new Date(currentPeriodEnd).getTime();
+
+  const { data: existingSubscription, error: existingSubscriptionError } =
+    await supabase
+      .from("subscriptions")
+      .select("id,user_id,current_period_end")
+      .eq("stripe_subscription_id", subscription.id)
+      .maybeSingle<ExistingSubscription>();
+
+  if (existingSubscriptionError) {
+    throw new Error(existingSubscriptionError.message);
+  }
+
+  if (
+    existingSubscription &&
+    incomingPeriodEndMs <=
+      new Date(existingSubscription.current_period_end).getTime()
+  ) {
+    return { skipped: true, reason: "Stale subscription event." };
+  }
+
+  const { data: localSubscription, error: subscriptionUpsertError } =
+    await supabase
+      .from("subscriptions")
+      .upsert(
+        {
+          user_id: userId,
+          stripe_customer_id: subscription.customer,
+          stripe_subscription_id: subscription.id,
+          status: normalizeSubscriptionStatus(subscription.status),
+          price_id: priceId,
+          plan_key: planKey,
+          current_period_start: currentPeriodStart,
+          current_period_end: currentPeriodEnd,
+          cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+        },
+        { onConflict: "stripe_subscription_id" },
+      )
+      .select("id")
+      .single();
+
+  if (subscriptionUpsertError) {
+    throw new Error(subscriptionUpsertError.message);
+  }
+
+  await upsertSubscriptionItems({
+    supabase,
+    localSubscriptionId: localSubscription.id,
+    subscription,
+  });
+
+  await ensureAiUsageCredits({
+    supabase,
+    userId,
+    localSubscriptionId: localSubscription.id,
+    planKey,
+    periodStart: currentPeriodStart,
+    periodEnd: currentPeriodEnd,
+    shouldRestrict:
+      forceRestrictCredits ||
+      normalizeSubscriptionStatus(subscription.status) === "past_due" ||
+      normalizeSubscriptionStatus(subscription.status) === "unpaid" ||
+      normalizeSubscriptionStatus(subscription.status) === "canceled",
+  });
+
+  return { skipped: false, subscriptionId: localSubscription.id };
+}
+
+async function handleCheckoutSessionCompleted(
+  supabase: SupabaseAdminClient,
+  event: StripeEvent,
+) {
+  const session = asCheckoutSession(event.data.object);
+
+  if (session.mode === "subscription" && session.subscription) {
+    const subscription = await retrieveStripeSubscription(session.subscription);
+    await syncSubscriptionFromStripe({
+      supabase,
+      subscription,
+      fallbackUserId: session.client_reference_id ?? session.metadata?.user_id,
+    });
+    return;
+  }
+
+  await processOneTimeCheckoutSession(supabase, event, session);
+}
+
+async function handleSubscriptionEvent(
+  supabase: SupabaseAdminClient,
+  event: StripeEvent,
+) {
+  const subscription = asSubscription(event.data.object);
+  await syncSubscriptionFromStripe({
+    supabase,
+    subscription,
+    forceRestrictCredits:
+      event.type === "customer.subscription.deleted" ||
+      normalizeSubscriptionStatus(subscription.status) === "past_due" ||
+      normalizeSubscriptionStatus(subscription.status) === "unpaid",
+  });
+}
+
+async function handleInvoiceEvent(
+  supabase: SupabaseAdminClient,
+  event: StripeEvent,
+) {
+  const invoice = asInvoice(event.data.object);
+
+  if (!invoice.subscription) {
+    return;
+  }
+
+  const subscription = await retrieveStripeSubscription(invoice.subscription);
+  const period = getInvoicePeriod(invoice);
+  const invoicePeriodEndMs = new Date(unixSecondsToIso(period.end)).getTime();
+  const subscriptionPeriodEndMs = new Date(
+    unixSecondsToIso(subscription.current_period_end),
+  ).getTime();
+
+  if (invoicePeriodEndMs > subscriptionPeriodEndMs) {
+    subscription.current_period_start = period.start;
+    subscription.current_period_end = period.end;
+  }
+
+  await syncSubscriptionFromStripe({
+    supabase,
+    subscription: {
+      ...subscription,
+      status:
+        event.type === "invoice.payment_failed"
+          ? "past_due"
+          : subscription.status,
+    },
+    forceRestrictCredits: event.type === "invoice.payment_failed",
+  });
+}
+
+async function processStripeEvent(
+  supabase: SupabaseAdminClient,
+  event: StripeEvent,
+) {
+  switch (event.type) {
+    case "checkout.session.completed":
+      await handleCheckoutSessionCompleted(supabase, event);
+      return { handled: true };
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted":
+      await handleSubscriptionEvent(supabase, event);
+      return { handled: true };
+    case "invoice.paid":
+    case "invoice.payment_failed":
+      await handleInvoiceEvent(supabase, event);
+      return { handled: true };
+    default:
+      return { handled: false };
+  }
+}
+
+export async function POST(request: NextRequest) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!webhookSecret) {
+    return jsonError("Stripe webhook secret is not configured.", 500);
+  }
+
+  const rawBody = await request.text();
+  const signatureHeader = request.headers.get("stripe-signature");
+
+  if (!signatureHeader) {
+    return jsonError("Missing stripe-signature header.", 400);
+  }
+
+  const isValidSignature = verifyStripeSignature({
+    payload: rawBody,
+    signatureHeader,
+    webhookSecret,
+  });
+
+  if (!isValidSignature) {
+    return jsonError("Invalid Stripe webhook signature.", 400);
+  }
+
+  let event: StripeEvent;
+
+  try {
+    event = JSON.parse(rawBody) as StripeEvent;
+  } catch {
+    return jsonError("Invalid Stripe webhook payload.", 400);
+  }
+
+  if (!event.id || !event.type || !event.data?.object) {
+    return jsonError("Stripe event is missing id, type, or data.object.", 400);
+  }
+
+  const supabase = createAdminClient();
+
+  try {
+    const duplicate = await hasProcessedEvent(supabase, event.id);
+
+    if (duplicate) {
+      return NextResponse.json({
+        received: true,
+        duplicate: true,
+        eventId: event.id,
+      });
+    }
+
+    const result = await processStripeEvent(supabase, event);
+    await recordStripeEvent(supabase, event);
+
     return NextResponse.json({
       received: true,
-      success: true,
-      duplicate: true,
-      paymentId,
-      accessExpiresAt: existingAccess.expires_at,
+      eventId: event.id,
+      eventType: event.type,
+      handled: result.handled,
     });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Stripe webhook failed.";
+    return jsonError(message, 500);
   }
-
-  const accessStartsAt = paymentPaidAt.toISOString();
-  const accessExpiresAt = expiresAt.toISOString();
-
-  const { error: accessError } = await supabase.from("course_access").insert({
-    user_id: profile.id,
-    payment_id: paymentId,
-    plan_type: planType,
-    starts_at: accessStartsAt,
-    expires_at: accessExpiresAt,
-    is_active: true,
-    granted_by: "stripe_webhook",
-  });
-
-  if (accessError) {
-    return NextResponse.json(
-      { error: accessError.message },
-      { status: 500 },
-    );
-  }
-
-  const { error: profileUpdateError } = await supabase
-    .from("profiles")
-    .update({
-      is_paid: true,
-      paid_at: accessStartsAt,
-      course_expires_at: accessExpiresAt,
-    })
-    .eq("id", profile.id);
-
-  if (profileUpdateError) {
-    return NextResponse.json(
-      { error: profileUpdateError.message },
-      { status: 500 },
-    );
-  }
-
-  return NextResponse.json({
-    received: true,
-    success: true,
-    paymentId,
-    accessExpiresAt,
-  });
 }

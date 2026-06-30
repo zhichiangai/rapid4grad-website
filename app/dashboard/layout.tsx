@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 const dashboardLinks = [
   { href: "/dashboard", label: "研究工作台" },
   { href: "/dashboard/ai-command", label: "AI 指令產生器" },
+  { href: "/dashboard/ai-audit", label: "PDF AI 稽核" },
+  { href: "/dashboard/ai-audit/history", label: "稽核歷史" },
+  { href: "/dashboard/lab-join", label: "加入 Lab" },
   { href: "/dashboard/course", label: "課程觀看" },
   { href: "/course", label: "課程方案" },
 ];

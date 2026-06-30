@@ -55,6 +55,51 @@ export type PromptTemplateType =
   | "presentation_revision"
   | "english_polish";
 
+export type DocumentType = "thesis" | "slides" | "draft" | "paper";
+
+export type DocumentUploadStatus =
+  | "uploaded"
+  | "processing"
+  | "ready"
+  | "failed";
+
+export type AiAuditType =
+  | "advisor_questions"
+  | "logic_check"
+  | "presentation_review"
+  | "english_polish"
+  | "full_review";
+
+export type AiAuditProvider = "openai" | "anthropic";
+
+export type AiAuditJobStatus =
+  | "queued"
+  | "streaming"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type LabRole = "professor" | "student" | "assistant";
+
+export type LabMembershipStatus = "active" | "removed" | "pending";
+
+export type SubscriptionStatus =
+  | "active"
+  | "trialing"
+  | "past_due"
+  | "canceled"
+  | "unpaid";
+
+export type SubscriptionPlanKey =
+  | "student_monthly"
+  | "student_semester"
+  | "professor_lab";
+
+export type SubscriptionItemFeatureKey =
+  | "ai_audit"
+  | "lab_seat"
+  | "course_access";
+
 export type Json =
   | string
   | number
@@ -412,9 +457,298 @@ export type Database = {
           Database["public"]["Tables"]["entitlements"]["Insert"]
         >;
       };
+      labs: {
+        Row: {
+          id: string;
+          owner_professor_id: string;
+          name: string;
+          institution: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_professor_id: string;
+          name: string;
+          institution?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["labs"]["Insert"]>;
+      };
+      lab_invite_codes: {
+        Row: {
+          id: string;
+          lab_id: string;
+          code_hash: string;
+          created_by: string;
+          expires_at: string;
+          max_uses: number | null;
+          used_count: number;
+          revoked_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          lab_id: string;
+          code_hash: string;
+          created_by: string;
+          expires_at: string;
+          max_uses?: number | null;
+          used_count?: number;
+          revoked_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["lab_invite_codes"]["Insert"]
+        >;
+      };
+      lab_memberships: {
+        Row: {
+          id: string;
+          lab_id: string;
+          user_id: string;
+          role: LabRole;
+          status: LabMembershipStatus;
+          joined_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lab_id: string;
+          user_id: string;
+          role: LabRole;
+          status?: LabMembershipStatus;
+          joined_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["lab_memberships"]["Insert"]
+        >;
+      };
+      student_documents: {
+        Row: {
+          id: string;
+          user_id: string;
+          lab_id: string | null;
+          storage_bucket: string;
+          storage_path: string;
+          original_filename: string;
+          mime_type: string;
+          file_size_bytes: number;
+          document_type: DocumentType;
+          upload_status: DocumentUploadStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          lab_id?: string | null;
+          storage_bucket?: string;
+          storage_path: string;
+          original_filename: string;
+          mime_type: string;
+          file_size_bytes: number;
+          document_type: DocumentType;
+          upload_status?: DocumentUploadStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["student_documents"]["Insert"]
+        >;
+      };
+      ai_audit_jobs: {
+        Row: {
+          id: string;
+          user_id: string;
+          document_id: string;
+          lab_id: string | null;
+          audit_type: AiAuditType;
+          provider: AiAuditProvider;
+          model: string;
+          status: AiAuditJobStatus;
+          input_prompt: string;
+          error_message: string | null;
+          created_at: string;
+          updated_at: string;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          document_id: string;
+          lab_id?: string | null;
+          audit_type: AiAuditType;
+          provider: AiAuditProvider;
+          model: string;
+          status?: AiAuditJobStatus;
+          input_prompt: string;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          completed_at?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["ai_audit_jobs"]["Insert"]
+        >;
+      };
+      ai_audit_results: {
+        Row: {
+          id: string;
+          job_id: string;
+          user_id: string;
+          summary: string;
+          result_markdown: string;
+          risk_level: RiskLevel | null;
+          issue_tags: string[];
+          token_input: number;
+          token_output: number;
+          cost_estimate_cents: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          job_id: string;
+          user_id: string;
+          summary: string;
+          result_markdown: string;
+          risk_level?: RiskLevel | null;
+          issue_tags?: string[];
+          token_input?: number;
+          token_output?: number;
+          cost_estimate_cents?: number;
+          created_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["ai_audit_results"]["Insert"]
+        >;
+      };
+      ai_usage_credits: {
+        Row: {
+          id: string;
+          user_id: string;
+          subscription_id: string | null;
+          period_start: string;
+          period_end: string;
+          monthly_credit_limit: number;
+          credits_used: number;
+          pdf_audit_limit: number;
+          pdf_audit_used: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subscription_id?: string | null;
+          period_start: string;
+          period_end: string;
+          monthly_credit_limit?: number;
+          credits_used?: number;
+          pdf_audit_limit?: number;
+          pdf_audit_used?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["ai_usage_credits"]["Insert"]
+        >;
+      };
+      subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          stripe_customer_id: string;
+          stripe_subscription_id: string;
+          status: SubscriptionStatus;
+          price_id: string;
+          plan_key: SubscriptionPlanKey;
+          current_period_start: string;
+          current_period_end: string;
+          cancel_at_period_end: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          stripe_customer_id: string;
+          stripe_subscription_id: string;
+          status: SubscriptionStatus;
+          price_id: string;
+          plan_key: SubscriptionPlanKey;
+          current_period_start: string;
+          current_period_end: string;
+          cancel_at_period_end?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["subscriptions"]["Insert"]
+        >;
+      };
+      subscription_items: {
+        Row: {
+          id: string;
+          subscription_id: string;
+          stripe_subscription_item_id: string;
+          stripe_price_id: string;
+          quantity: number;
+          plan_feature_key: SubscriptionItemFeatureKey;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          subscription_id: string;
+          stripe_subscription_item_id: string;
+          stripe_price_id: string;
+          quantity?: number;
+          plan_feature_key: SubscriptionItemFeatureKey;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["subscription_items"]["Insert"]
+        >;
+      };
+      stripe_events: {
+        Row: {
+          id: string;
+          stripe_event_id: string;
+          event_type: string;
+          processed_at: string;
+          payload: Json;
+        };
+        Insert: {
+          id?: string;
+          stripe_event_id: string;
+          event_type: string;
+          processed_at?: string;
+          payload: Json;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["stripe_events"]["Insert"]
+        >;
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      increment_invite_code_usage: {
+        Args: {
+          target_hash: string;
+        };
+        Returns: Database["public"]["Tables"]["lab_invite_codes"]["Row"];
+      };
+      increment_pdf_audit_usage: {
+        Args: {
+          target_credit_id: string;
+        };
+        Returns: Database["public"]["Tables"]["ai_usage_credits"]["Row"];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
