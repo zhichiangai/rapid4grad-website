@@ -69,7 +69,7 @@ lib/workspace/access.ts
 /login?next=...
 → /auth/login?next=...
 → Google OAuth
-→ /auth/callback?next=...
+→ /auth/callback
 → safe next 或 role fallback
 ```
 
@@ -80,6 +80,9 @@ lib/workspace/access.ts
 - 禁止：`https://evil.com`
 - 禁止：`//evil.com`
 - 判斷函式：`isSafeNextPath(value)`
+- `/auth/login` 會使用目前 request origin 組出精確 callback URL：`{origin}/auth/callback`。
+- `next` 不放進 Supabase OAuth `redirectTo` query，避免 Supabase Redirect URL allowlist 不匹配後 fallback 到 production Site URL。
+- safe `next` 會暫存在 httpOnly cookie `rapid_oauth_next`，由 `/auth/callback` 讀取後刪除。
 
 Preview / Production 規則：
 
@@ -147,7 +150,7 @@ Preview OAuth：
 → /login?next=/professor/dashboard
 → /auth/login?next=/professor/dashboard
 → Google
-→ Preview /auth/callback?next=/professor/dashboard
+→ Preview /auth/callback
 → Preview /professor/dashboard
 ```
 

@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSafeNextPath } from "@/lib/workspace/access";
 
+const OAUTH_NEXT_COOKIE = "rapid_oauth_next";
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const rawNextPath = requestUrl.searchParams.get("next");
   const nextPath = isSafeNextPath(rawNextPath) ? rawNextPath : null;
   const callbackUrl = new URL("/auth/callback", requestUrl.origin);
-
-  if (nextPath) {
-    callbackUrl.searchParams.set("next", nextPath);
-  }
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -31,5 +29,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.redirect(data.url);
+  const response = NextResponse.redirect(data.url);
+
+  if (nextPath) {
+    response.cookies.set(OAUTH_NEXT_COOKIE, nextPath, {
+      httpOnly: true,
+      maxAge: 60 * 10,
+      path: "/",
+      sameSite: "lax",
+      secure: true,
+    });
+  } else {
+    response.cookies.delete(OAUTH_NEXT_COOKIE);
+  }
+
+  return response;
 }
