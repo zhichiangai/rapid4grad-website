@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProfessorLabControls } from "@/components/professor/ProfessorLabControls";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { canAccessWorkspace } from "@/lib/workspace/access";
 
 type LabRow = {
   id: string;
@@ -89,7 +90,7 @@ async function requireProfessor() {
     throw new Error(error.message);
   }
 
-  if (!profile || !["professor", "admin"].includes(profile.role)) {
+  if (!canAccessWorkspace(profile?.role, "professor")) {
     redirect("/dashboard");
   }
 

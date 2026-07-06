@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { canAccessWorkspace } from "@/lib/workspace/access";
 
 const adminLinks = [
   { href: "/admin/leads", label: "Leads" },
@@ -28,7 +29,7 @@ export default async function AdminLayout({
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.role !== "admin") {
+  if (!canAccessWorkspace(profile?.role, "admin")) {
     redirect("/dashboard");
   }
 

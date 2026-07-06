@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-function getSafeNextPath(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return null;
-  }
-
-  return value;
-}
+import { isSafeNextPath } from "@/lib/workspace/access";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -18,9 +11,8 @@ export default function LoginPage() {
     setIsLoading(true);
     setErrorMessage("");
 
-    const nextPath = getSafeNextPath(
-      new URLSearchParams(window.location.search).get("next"),
-    );
+    const rawNextPath = new URLSearchParams(window.location.search).get("next");
+    const nextPath = isSafeNextPath(rawNextPath) ? rawNextPath : null;
     const loginUrl = new URL("/auth/login", window.location.origin);
 
     if (nextPath) {

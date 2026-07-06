@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { canAccessWorkspace } from "@/lib/workspace/access";
 
 type StudentPageProps = {
   params: Promise<{
@@ -110,7 +111,7 @@ async function requireProfessor() {
     throw new Error(error.message);
   }
 
-  if (!profile || !["professor", "admin"].includes(profile.role)) {
+  if (!canAccessWorkspace(profile?.role, "professor")) {
     redirect("/dashboard");
   }
 

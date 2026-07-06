@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { canAccessWorkspace } from "@/lib/workspace/access";
 import type { LeadStatus } from "@/types/database";
 
 const LEAD_STATUSES: LeadStatus[] = [
@@ -37,7 +38,7 @@ async function requireAdminUser() {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error || profile?.role !== "admin") {
+  if (error || !canAccessWorkspace(profile?.role, "admin")) {
     redirect("/dashboard");
   }
 

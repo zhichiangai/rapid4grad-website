@@ -1,26 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-function getSafeNextPath(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return null;
-  }
-
-  return value;
-}
-
-function getFallbackPath(role: string | null | undefined) {
-  if (role === "professor" || role === "admin") {
-    return "/professor/dashboard";
-  }
-
-  return "/dashboard";
-}
+import {
+  getDefaultWorkspacePath,
+  isSafeNextPath,
+} from "@/lib/workspace/access";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const nextPath = getSafeNextPath(requestUrl.searchParams.get("next"));
+  const rawNextPath = requestUrl.searchParams.get("next");
+  const nextPath = isSafeNextPath(rawNextPath) ? rawNextPath : null;
   const origin = requestUrl.origin;
 
   if (!code) {
@@ -52,5 +41,7 @@ export async function GET(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle<{ role: string | null }>();
 
-  return NextResponse.redirect(`${origin}${getFallbackPath(profile?.role)}`);
+  return NextResponse.redirect(
+    `${origin}${getDefaultWorkspacePath(profile?.role)}`,
+  );
 }

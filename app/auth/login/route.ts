@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-function getSafeNextPath(value: string | null) {
-  if (!value || !value.startsWith("/") || value.startsWith("//")) {
-    return null;
-  }
-
-  return value;
-}
+import { isSafeNextPath } from "@/lib/workspace/access";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
-  const nextPath = getSafeNextPath(requestUrl.searchParams.get("next"));
+  const rawNextPath = requestUrl.searchParams.get("next");
+  const nextPath = isSafeNextPath(rawNextPath) ? rawNextPath : null;
   const callbackUrl = new URL("/auth/callback", requestUrl.origin);
 
   if (nextPath) {
