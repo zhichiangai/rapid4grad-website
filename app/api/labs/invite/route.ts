@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateInviteCode, hashInviteCode } from "@/lib/labs/invite-code";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { canAccessWorkspace } from "@/lib/workspace/access";
 import type { Json } from "@/types/database";
 
 export const runtime = "nodejs";
@@ -86,8 +87,11 @@ export async function POST(request: NextRequest) {
     return jsonError(profileError.message, 500);
   }
 
-  if (profile?.role !== "professor") {
-    return jsonError("Only professor accounts can create invite codes.", 403);
+  if (!canAccessWorkspace(profile?.role, "professor")) {
+    return jsonError(
+      "Only professor workspace accounts can create invite codes.",
+      403,
+    );
   }
 
   const { data: lab, error: labError } = await admin
@@ -183,8 +187,11 @@ export async function PATCH(request: NextRequest) {
     return jsonError(profileError.message, 500);
   }
 
-  if (profile?.role !== "professor") {
-    return jsonError("Only professor accounts can revoke invite codes.", 403);
+  if (!canAccessWorkspace(profile?.role, "professor")) {
+    return jsonError(
+      "Only professor workspace accounts can revoke invite codes.",
+      403,
+    );
   }
 
   const { data: ownershipRows, error: ownershipError } = await admin
