@@ -3,6 +3,14 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+function getSafeNextPath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+
+  return value;
+}
+
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -12,12 +20,19 @@ export default function LoginPage() {
     setErrorMessage("");
 
     const supabase = createClient();
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+    const nextPath = getSafeNextPath(
+      new URLSearchParams(window.location.search).get("next"),
+    );
+    const callbackUrl = new URL("/auth/callback", window.location.origin);
+
+    if (nextPath) {
+      callbackUrl.searchParams.set("next", nextPath);
+    }
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
+        redirectTo: callbackUrl.toString(),
       },
     });
 

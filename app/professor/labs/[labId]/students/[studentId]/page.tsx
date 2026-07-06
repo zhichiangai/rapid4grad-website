@@ -110,7 +110,7 @@ async function requireProfessor() {
     throw new Error(error.message);
   }
 
-  if (profile?.role !== "professor") {
+  if (!profile || !["professor", "admin"].includes(profile.role)) {
     redirect("/dashboard");
   }
 
