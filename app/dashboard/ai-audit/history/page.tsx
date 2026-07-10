@@ -200,7 +200,51 @@ export default async function AiAuditHistoryPage({
     .returns<AuditHistoryRow[]>();
 
   if (error) {
-    throw new Error(error.message);
+    console.error("[ai-audit-history] Supabase query failed", {
+      code: error.code,
+      message: error.message,
+    });
+
+    return (
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_32rem),linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)] px-4 py-10 text-white">
+        <section className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+          <header className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-7 shadow-2xl shadow-slate-950/40">
+            <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-300">
+              AI AUDIT HISTORY
+            </p>
+            <h1 className="mt-4 text-4xl font-semibold tracking-tight">
+              目前無法讀取稽核歷史
+            </h1>
+            <p className="mt-4 text-sm leading-7 text-slate-400">
+              系統已登入，但資料庫權限或查詢暫時無法完成。這通常與 Supabase RLS
+              policy 或關聯查詢權限有關，不代表你的稽核資料已遺失。
+            </p>
+          </header>
+
+          <section className="rounded-[2rem] border border-red-300/20 bg-red-400/10 p-6 text-sm leading-7 text-red-50">
+            <p className="font-semibold">資料讀取錯誤</p>
+            <p className="mt-2 text-red-50/85">
+              權限或資料庫規則暫時無法完成查詢，請稍後再試。如果問題持續發生，請通知管理員檢查 Supabase RLS 設定。
+            </p>
+          </section>
+
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/dashboard/ai-audit"
+              className="rounded-2xl border border-cyan-300/30 bg-cyan-400/10 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
+            >
+              回 PDF AI 稽核
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10"
+            >
+              回學生 Dashboard
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   const jobs = data ?? [];

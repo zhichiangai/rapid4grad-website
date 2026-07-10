@@ -468,3 +468,121 @@ rg "code_hash|lab_memberships|EXISTS" supabase app lib
 4. 用同帳號跑一次 `/dashboard/ai-audit` PDF upload → AI streaming。
 5. 建 professor 測試帳號，手動將 `profiles.role` 改為 `professor`，跑 `/professor/dashboard` → invite → student join → professor summary。
 6. 全部通過後再 merge main。
+
+---
+
+## 12. 2026-07-07 Supabase RLS Hotfix 紀錄
+
+### 問題
+
+Preview 測試 `/dashboard/ai-audit/history` 時出現 Next.js server-side exception：
+
+```text
+Application error: a server-side exception has occurred
+Digest: 1721378370
+```
+
+Vercel logs 展開後確認根因：
+
+```text
+Error: infinite recursion detected in policy for relation "lab_memberships"
+```
+
+判斷原因：
+
+```text
+ai_audit_jobs / ai_audit_results SELECT
+→ RLS 檢查 lab professor visibility
+→ 查 lab_memberships
+→ lab_memberships policy 間接查 labs
+→ labs policy 又查 lab_memberships
+→ RLS recursion
+```
+
+### 修補方式
+
+新增 migration：
+
+```text
+supabase/migrations/006_fix_lab_memberships_rls_recursion.sql
+```
+
+修補內容：
+
+- 建立自包含 role helper：
+  - `public.app_current_user_role()`
+  - `public.app_is_admin()`
+  - `public.app_is_professor()`
+- 建立 lab access helper：
+  - `public.app_can_manage_lab(target_lab_id uuid)`
+  - `public.app_can_access_lab(target_lab_id uuid)`
+  - `public.app_has_lab_role(target_lab_id uuid, allowed_roles text[])`
+- helper 使用 `SECURITY DEFINER` 與 `SET search_path = ''`。
+- `REVOKE ALL FROM PUBLIC`，只授權 `authenticated` 與 `service_role` 執行。
+- 重建會造成遞迴的 policies：
+  - `labs`
+  - `lab_invite_codes`
+  - `lab_memberships`
+  - `student_documents`
+  - `ai_audit_jobs`
+  - `ai_audit_results`
+
+### 執行狀態
+
+此 hotfix 已由 Supabase SQL Editor 手動執行成功：
+
+```text
+Success. No rows returned
+```
+
+注意：
+
+- 由 SQL Editor 手動執行的 SQL 會實際修改 remote database。
+- 但不一定會出現在 Supabase CLI migration history 的 Remote 欄位。
+- 後續若使用 `supabase db push`，必須先確認 remote migration 狀態，避免重複套用或誤判 drift。
+
+### Supabase CLI 狀態
+
+本機 Supabase CLI 已登入，並可讀取 project：
+
+```text
+project name: rapid4grad
+project ref: qrfbshncmakvcfjraxiu
+region: ap-northeast-1
+status: ACTIVE_HEALTHY
+linked: true
+```
+
+已執行只讀檢查：
+
+```bash
+supabase projects list
+supabase migration list
+```
+
+### UI 防線
+
+本機已修改：
+
+```text
+app/dashboard/ai-audit/history/page.tsx
+```
+
+修補內容：
+
+- 原本 Supabase query error 會 `throw new Error(error.message)`，造成整頁黑畫面。
+- 已改成顯示「目前無法讀取稽核歷史」的 graceful error UI。
+
+注意：
+
+- 本次 `fix(supabase): resolve lab membership rls recursion` commit 會納入此 UI 修補與 006 migration。
+- 本次 commit 後仍需 push 至 `oauth-preview-hotfix` 並等待新的 Preview deployment；在此之前，Preview 尚未包含 graceful error UI。
+- 006 已由 SQL Editor 手動套用成功；本次只將相同 migration 納入 Git schema 歷史，不會重新執行 remote SQL。
+
+### 驗收建議
+
+1. 重新整理 `/dashboard/ai-audit/history`。
+2. 預期不再看到 `Application error`。
+3. 若該帳號沒有任何稽核紀錄，應看到 empty state。
+4. 若仍有權限錯誤，部署 graceful error UI 後應顯示可讀錯誤，而不是黑畫面。
+5. Preview 驗收尚未完成；本輪 commit 後不得據此直接 merge main 或 deploy production。
