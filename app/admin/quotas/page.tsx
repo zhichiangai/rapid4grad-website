@@ -1,5 +1,5 @@
 import { unlockQuota } from "../actions";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 
 type AdminQuotasSearchParams = Promise<{
   email?: string;
@@ -39,7 +39,9 @@ export default async function AdminQuotasPage({
 }) {
   const params = await searchParams;
   const normalizedEmail = params.email?.trim().toLowerCase() ?? "";
-  const supabase = await createClient();
+  // The admin layout has already verified the role. Quota rows are intentionally
+  // unavailable to browser/session clients and are read only on the server.
+  const supabase = createAdminClient();
   let quota: QuotaRow | null = null;
   let message = resolveMessage(params.message);
 
@@ -53,7 +55,8 @@ export default async function AdminQuotasPage({
       .maybeSingle();
 
     if (error) {
-      message = error.message;
+      console.error("[admin-quotas] Quota lookup failed", { code: error.code });
+      message = "目前無法讀取額度資料，請稍後再試。";
     } else {
       quota = data as QuotaRow | null;
       if (!quota && !message) {

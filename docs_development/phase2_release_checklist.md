@@ -38,6 +38,23 @@ Phase 1 fallback 必須保留：
 | Supabase RLS lab isolation | 通過靜態檢查 | Phase 2 migration 使用 `EXISTS` policies；另新增 profile visibility policy |
 | Phase 1 fallback 保護 | 通過靜態檢查 | `/dashboard/ai-command`、`/ai-command`、`/professor` 仍存在 |
 
+### 2.1 Security closure 工作分支
+
+- 本機分支：`security-hotfix`，基準為 `oauth-preview-hotfix` commit `84b670f`。
+- 本輪不 push、不部署、不執行 remote migration、不修改任何 Vercel / Supabase / Stripe / AI provider 雲端設定。
+- Audit history 分段查詢程式已完成；Preview app 層已確認可顯示 graceful error UI，但 remote 仍回 `42P17`，因此 Empty State 與真實歷史資料仍屬待人工驗收，不能標記完成。
+- Professor invite revoke API/UI 已完成，不重做。
+- Invite join 原子 transaction、AI audit reserve/settle/refund、profiles 敏感欄位、free quota、Email verification、PDF 真實檔案驗證、Stripe event ordering 仍依本文件後續紀錄逐項關閉。
+
+### 2.2 Profiles 與免費額度資料安全
+
+- 新增 local migration `20260710230403_protect_profile_and_quota_data.sql`，尚未套用 remote。
+- `profiles` 對 authenticated 僅授權更新基本資料欄位；`role`、`is_paid`、`paid_at`、`course_expires_at`、email 與時間戳等敏感欄位不可由一般 client 更新。
+- `free_usage_quotas` 移除公開 SELECT / INSERT / UPDATE policies，並撤銷 anon/authenticated table privileges。
+- `/admin/quotas` 改由已通過 admin layout role guard 的 Server Component 使用 server-only admin client 讀取；管理 action 原本即使用 admin client。
+- Migration 末端附有 RLS/column privilege 人工驗收 SQL，保持註解且不會自動執行。
+- 狀態：本機實作完成，remote migration 與 authenticated JWT 測試待醒來後人工驗收。
+
 ---
 
 ## 3. Phase 2 Flow 驗收
