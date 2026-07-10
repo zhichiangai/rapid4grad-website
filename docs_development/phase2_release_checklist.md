@@ -68,6 +68,16 @@ Phase 1 fallback 必須保留：
 - API 對外不再回傳 raw database error；詳細狀況僅以一般化 code/name 寫入 server log。
 - 狀態：本機 lint/build 通過；remote migration、Resend 寄信、cooldown、錯誤次數與 quota flow 待醒來後人工驗收。
 
+### 2.4 Lab invite atomic join
+
+- 新增 local migration `20260710231046_make_lab_invite_join_atomic.sql`，尚未套用 remote。
+- `join_lab_with_invite` 為 `SECURITY DEFINER` service-only RPC，固定空 `search_path`，並撤銷 PUBLIC/anon/authenticated execute。
+- RPC 在同一 transaction 內驗證 target profile 必須為 student、鎖定 invite row、檢查 revoked/expiry/max uses、鎖定既有 membership、建立或恢復 student membership，最後才將 used_count + 1。
+- 已 active 的重複加入回傳 `alreadyJoined=true` 且不增加 used_count；任何例外會回滾整個 function，不留下 membership 或使用次數。
+- `/api/labs/join` 只信任 Supabase session user id，以 server-only admin client 呼叫 RPC；request body 限制 2KB，invite code 有長度與字元 allowlist。
+- Admin/professor 不可透過 invite 取得 student membership；admin observation workspace 維持原設計。
+- 狀態：本機實作完成；remote migration、concurrency final-slot、撤銷/過期/額滿/重複加入待醒來後人工驗收。
+
 ---
 
 ## 3. Phase 2 Flow 驗收
