@@ -30,6 +30,27 @@ type AuditHistoryRow = {
     | null;
 };
 
+type AuditDocumentRow = {
+  id: string;
+  original_filename: string;
+  document_type: string;
+};
+
+type AuditResultRow = {
+  job_id: string;
+  summary: string;
+  result_markdown: string;
+  risk_level: "low" | "medium" | "high" | null;
+};
+
+type AuditJobRow = Omit<AuditHistoryRow, "student_documents" | "ai_audit_results"> & {
+  document_id: string;
+};
+
+type HistoryLoadResult =
+  | { ok: true; jobs: AuditHistoryRow[] }
+  | { ok: false };
+
 function formatDateTime(value: string | null | undefined) {
   if (!value) {
     return "尚未完成";
@@ -173,6 +194,97 @@ function renderMarkdownToHtml(markdown: string) {
   return blocks.join("");
 }
 
+async function loadAuditHistory(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<HistoryLoadResult> {
+  try {
+    const { data: jobData, error: jobError } = await supabase
+      .from("ai_audit_jobs")
+      .select(
+        "id,document_id,audit_type,model,status,error_message,created_at,completed_at",
+      )
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .returns<AuditJobRow[]>();
+
+    if (jobError) {
+      console.error("[ai-audit-history] Job query failed", {
+        code: jobError.code,
+      });
+      return { ok: false };
+    }
+
+    const jobs = jobData ?? [];
+    if (jobs.length === 0) {
+      return { ok: true, jobs: [] };
+    }
+
+    const documentIds = [...new Set(jobs.map((job) => job.document_id))];
+    const jobIds = jobs.map((job) => job.id);
+    const [documentsResponse, resultsResponse] = await Promise.all([
+      supabase
+        .from("student_documents")
+        .select("id,original_filename,document_type")
+        .in("id", documentIds)
+        .returns<AuditDocumentRow[]>(),
+      supabase
+        .from("ai_audit_results")
+        .select("job_id,summary,result_markdown,risk_level")
+        .in("job_id", jobIds)
+        .returns<AuditResultRow[]>(),
+    ]);
+
+    if (documentsResponse.error || resultsResponse.error) {
+      console.error("[ai-audit-history] Related data query failed", {
+        documentsCode: documentsResponse.error?.code,
+        resultsCode: resultsResponse.error?.code,
+      });
+      return { ok: false };
+    }
+
+    const documentsById = new Map(
+      (documentsResponse.data ?? []).map((document) => [document.id, document]),
+    );
+    const resultsByJobId = new Map(
+      (resultsResponse.data ?? []).map((result) => [result.job_id, result]),
+    );
+
+    return {
+      ok: true,
+      jobs: jobs.map(({ document_id: documentId, ...job }) => {
+        const document = documentsById.get(documentId);
+        const result = resultsByJobId.get(job.id);
+
+        return {
+          ...job,
+          student_documents: document
+            ? {
+                original_filename: document.original_filename,
+                document_type: document.document_type,
+              }
+            : null,
+          ai_audit_results: result
+            ? [
+                {
+                  summary: result.summary,
+                  result_markdown: result.result_markdown,
+                  risk_level: result.risk_level,
+                },
+              ]
+            : [],
+        };
+      }),
+    };
+  } catch (error) {
+    console.error("[ai-audit-history] Unexpected data loading failure", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return { ok: false };
+  }
+}
+
 export default async function AiAuditHistoryPage({
   searchParams,
 }: HistoryPageProps) {
@@ -189,22 +301,9 @@ export default async function AiAuditHistoryPage({
     redirect("/login?next=/dashboard/ai-audit/history");
   }
 
-  const { data, error } = await supabase
-    .from("ai_audit_jobs")
-    .select(
-      "id,audit_type,model,status,error_message,created_at,completed_at,student_documents(original_filename,document_type),ai_audit_results(summary,result_markdown,risk_level)",
-    )
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(20)
-    .returns<AuditHistoryRow[]>();
+  const history = await loadAuditHistory(supabase, user.id);
 
-  if (error) {
-    console.error("[ai-audit-history] Supabase query failed", {
-      code: error.code,
-      message: error.message,
-    });
-
+  if (!history.ok) {
     return (
       <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_32rem),linear-gradient(180deg,#020617_0%,#0f172a_55%,#020617_100%)] px-4 py-10 text-white">
         <section className="mx-auto flex w-full max-w-4xl flex-col gap-6">
@@ -247,7 +346,7 @@ export default async function AiAuditHistoryPage({
     );
   }
 
-  const jobs = data ?? [];
+  const jobs = history.jobs;
   const selectedJob =
     jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null;
   const selectedResult = selectedJob?.ai_audit_results?.[0] ?? null;

@@ -1,6 +1,6 @@
 # RAPID4GRAD — Phase 2 Release Checklist
 
-更新時間：2026-06-30 23:52 CST
+更新時間：2026-07-11 CST
 
 本文件記錄 Phase 2 整合驗收狀態。此輪僅做 release audit、靜態驗收與文件化，不執行 merge、不部署 production、不打真實付款、不呼叫真實 AI provider。
 
@@ -213,6 +213,17 @@ Phase 1 fallback 必須保留：
 - 真實 AI provider 需要 Vercel AI Gateway / provider credentials；本輪未呼叫真實模型。
 
 狀態：核心 streaming 防線靜態通過；學生 audit history route 與高併發 quota 原子性待補強。
+
+#### 2026-07-11 Preview history hotfix
+
+- `/dashboard/ai-audit/history` 已存在，並已隨 `006_fix_lab_memberships_rls_recursion.sql` 補上 RLS recursion 修正與 graceful error UI。
+- `006` 已由 Supabase SQL Editor 手動套用，repo 僅保留 migration 歷史，不得重複對 remote 執行。
+- Preview 實測 OAuth 登入成功，但原本的巢狀 PostgREST relation query 在 Server Component 資料載入階段仍可能造成未捕捉例外。
+- history 頁改為分段查詢：先讀當前 user 的最近 20 筆 `ai_audit_jobs`，再依 IDs 讀取 `student_documents` 與 `ai_audit_results`，最後在 server 端組合顯示資料。
+- 所有 Supabase query error 與非預期例外均轉為一般化 graceful error UI；server log 僅記錄錯誤類型或 code，不向畫面暴露 raw SQL、policy 名稱、欄位內容或資料庫錯誤訊息。
+- 若 user 沒有任何 job，必須直接顯示 Empty State，不執行額外關聯查詢。
+- 本 hotfix 不修改 OAuth、workspace role guard、RLS migration、Stripe、AI provider、Storage 或 Phase 1 fallback。
+- 狀態：程式修正完成後仍需重新部署 `oauth-preview-hotfix` Preview，並以 student 帳號驗收 Empty State、歷史資料與友善錯誤頁。
 
 ---
 
