@@ -64,7 +64,7 @@ export function AiCommandContainer({
   const [customNote, setCustomNote] = useState("");
   const [generatedPrompt, setGeneratedPrompt] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [hasVerifiedEmailSession, setHasVerifiedEmailSession] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [anonymousTrialUsed, setAnonymousTrialUsed] = useState(
     initialAnonymousTrialUsed,
@@ -96,7 +96,7 @@ export function AiCommandContainer({
     };
   };
 
-  const generateWithUsageCheck = async (email?: string) => {
+  const generateWithUsageCheck = async (verifiedSession = false) => {
     if (painPoints.length === 0) {
       setError("請至少選擇一個核心痛點 / 需求。");
       return;
@@ -109,9 +109,9 @@ export function AiCommandContainer({
 
     const params = buildParams();
     const prompt = buildPrompt(params, activePromptTemplates);
-    const normalizedEmail = email?.trim().toLowerCase() || verifiedEmail;
+    const canUseVerifiedSession = verifiedSession || hasVerifiedEmailSession;
 
-    if (!normalizedEmail && anonymousTrialUsed) {
+    if (!canUseVerifiedSession && anonymousTrialUsed) {
       setUsageGate({
         isOpen: true,
         reason: "verification_required",
@@ -130,8 +130,7 @@ export function AiCommandContainer({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: normalizedEmail || undefined,
-          isAnonymousTrial: !normalizedEmail,
+          isAnonymousTrial: !canUseVerifiedSession,
           studentStage: params.studentStage,
           meetingContext: params.meetingContext,
           painPoints: params.painPoints,
@@ -149,9 +148,7 @@ export function AiCommandContainer({
       };
 
       if (result.status === "allowed") {
-        if (normalizedEmail) {
-          setVerifiedEmail(normalizedEmail);
-        } else if (result.isAnonymousTrial) {
+        if (result.isAnonymousTrial) {
           setAnonymousTrialUsed(true);
         }
         setGeneratedPrompt(prompt);
@@ -183,14 +180,14 @@ export function AiCommandContainer({
     void generateWithUsageCheck();
   };
 
-  const handleUsageVerified = (email: string) => {
-    setVerifiedEmail(email);
+  const handleUsageVerified = () => {
+    setHasVerifiedEmailSession(true);
     setUsageGate({
       isOpen: false,
       reason: null,
       message: "",
     });
-    void generateWithUsageCheck(email);
+    void generateWithUsageCheck(true);
   };
 
   return (

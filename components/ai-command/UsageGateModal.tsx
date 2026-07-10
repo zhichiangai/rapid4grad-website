@@ -6,7 +6,6 @@ type UsageGateReason = "verification_required" | "quota_exceeded";
 
 type ApiResponse = {
   success?: boolean;
-  token?: string;
   error?: string;
 };
 
@@ -14,7 +13,7 @@ interface UsageGateModalProps {
   isOpen: boolean;
   reason?: UsageGateReason | null;
   message?: string;
-  onVerified: (email: string) => void;
+  onVerified: () => void;
   onClose: () => void;
 }
 
@@ -30,7 +29,7 @@ export function UsageGateModal({
 }: UsageGateModalProps) {
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
-  const [verificationToken, setVerificationToken] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [localMessage, setLocalMessage] = useState("");
@@ -67,12 +66,12 @@ export function UsageGateModal({
 
       const result = (await response.json()) as ApiResponse;
 
-      if (!response.ok || !result.success || !result.token) {
+      if (!response.ok || !result.success) {
         setErrorMessage(result.error || "驗證碼發送失敗，請稍後再試。");
         return;
       }
 
-      setVerificationToken(result.token);
+      setCodeSent(true);
       setLocalMessage("驗證碼已發送至你的信箱，請於 10 分鐘內輸入。");
     } catch {
       setErrorMessage("無法連線到 Email 驗證服務，請稍後再試。");
@@ -90,7 +89,7 @@ export function UsageGateModal({
       return;
     }
 
-    if (!verificationToken) {
+    if (!codeSent) {
       setErrorMessage("請先發送驗證碼。");
       return;
     }
@@ -111,7 +110,6 @@ export function UsageGateModal({
         body: JSON.stringify({
           action: "verify",
           email: normalizedEmail,
-          token: verificationToken,
           pin: verificationCode.trim(),
         }),
       });
@@ -123,10 +121,10 @@ export function UsageGateModal({
         return;
       }
 
-      onVerified(normalizedEmail);
+      onVerified();
       setEmail("");
       setVerificationCode("");
-      setVerificationToken("");
+      setCodeSent(false);
       setLocalMessage("");
       setErrorMessage("");
     } catch {

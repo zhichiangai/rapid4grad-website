@@ -55,6 +55,19 @@ Phase 1 fallback 必須保留：
 - Migration 末端附有 RLS/column privilege 人工驗收 SQL，保持註解且不會自動執行。
 - 狀態：本機實作完成，remote migration 與 authenticated JWT 測試待醒來後人工驗收。
 
+### 2.3 Email verification session
+
+- 新增 local migration `20260710230611_harden_email_verification_sessions.sql`，尚未套用 remote。
+- 驗證 challenge 只保存 HMAC email hash、HMAC PIN hash、不可逆 HMAC IP hash、嘗試次數與到期時間；table 對 anon/authenticated 完全不可讀寫。
+- `verify_email_challenge` 使用 row lock 原子增加錯誤嘗試次數，僅授權 `service_role` 執行。
+- `/api/email/verify` 不再把可重用 token 回傳 React；challenge id 與驗證成功 session 均使用 HttpOnly、Secure（production）、SameSite=Lax cookie。
+- 驗證成功 session 為 10 分鐘短效 HMAC token，`/api/ai-usage` 仍會向 service-only challenge table確認 verified/expiry/email hash，不能只信任 cookie payload。
+- 加入 4KB request body、Email 254 字元、PIN 格式、每 Email cooldown、15 分鐘 Email/IP 發送上限與最多五次 PIN 嘗試。
+- `/api/ai-usage` 不再接受 client email 作為授權來源；只使用 Supabase authenticated user email 或 server 驗證 session email，並加入 24KB body 與所有情境欄位長度/allowlist 驗證。
+- 前端僅保存「本次 UI 已驗證」布林值以控制互動；實際授權完全由 HttpOnly cookie 與 server DB challenge 決定。
+- API 對外不再回傳 raw database error；詳細狀況僅以一般化 code/name 寫入 server log。
+- 狀態：本機 lint/build 通過；remote migration、Resend 寄信、cooldown、錯誤次數與 quota flow 待醒來後人工驗收。
+
 ---
 
 ## 3. Phase 2 Flow 驗收
