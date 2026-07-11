@@ -92,6 +92,19 @@ Phase 1 fallback 必須保留：
 - PDF 仍以 server-side Base64、AI SDK v6 `mediaType: "application/pdf"` 多模態 file part 傳入；沒有新增或呼叫任何真實 provider credential。
 - 狀態：本機 lint/build 通過；remote migration、private Storage 真實 PDF、quota concurrency、stream complete/error/abort 待醒來後人工驗收。
 
+### 2.6 Stripe event ordering 與 idempotency
+
+- 新增 local migration `20260711071234_harden_stripe_event_ordering.sql`，尚未套用 remote。
+- `subscriptions` 新增 `last_stripe_event_created_at` / `last_stripe_event_id`；subscription 狀態更新改以 Stripe event created time 判斷新舊，不再將相同 `current_period_end` 一律視為 stale。
+- `cancel_at_period_end`、`past_due`、`unpaid` 與 `customer.subscription.deleted` 可在 period 不變時套用；deleted event 強制正規化為 canceled。
+- `stripe_events` 改為 processing / processed / failed 兩階段狀態，包含 processing timeout reclaim、attempts 與一般化 failure message。
+- `claim_stripe_event` 使用 unique event id 與 row lock，避免兩個 webhook worker 同時處理；processed event 永不重跑，failed 或超過 10 分鐘的 processing event可安全重試。
+- Restrict 狀態會將當期 credit limits 收斂至已用量，避免違反 `used <= limit` constraint；恢復 active/trialing 時可還原 plan limits。實際授權仍先檢查 subscription status。
+- 新增 `lib/stripe/event-ordering.ts` 與 `tests/stripe-event-ordering.test.ts`；離線 fixtures 覆蓋 older/equal/newer event、same-period newer update、past_due/unpaid/canceled/deleted restriction。
+- 新增 `npm test`（tsx + Node test runner）；四項 fixtures 全數通過，沒有送出任何真實 Stripe request。
+- npm install audit 顯示 2 個 moderate dependency advisories；未執行破壞性 `npm audit fix --force`，列為 dependency review 待辦。
+- 狀態：本機 test/lint/build 通過；remote migration、Stripe Test Mode signature、event resend、payment_failed/cancel/deleted 真實 webhook 待醒來後人工驗收。
+
 ---
 
 ## 3. Phase 2 Flow 驗收

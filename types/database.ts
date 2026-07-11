@@ -676,6 +676,8 @@ export type Database = {
           current_period_start: string;
           current_period_end: string;
           cancel_at_period_end: boolean;
+          last_stripe_event_created_at: string | null;
+          last_stripe_event_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -690,6 +692,8 @@ export type Database = {
           current_period_start: string;
           current_period_end: string;
           cancel_at_period_end?: boolean;
+          last_stripe_event_created_at?: string | null;
+          last_stripe_event_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -727,15 +731,25 @@ export type Database = {
           id: string;
           stripe_event_id: string;
           event_type: string;
-          processed_at: string;
+          processed_at: string | null;
           payload: Json;
+          status: "processing" | "processed" | "failed";
+          processing_started_at: string | null;
+          error_message: string | null;
+          event_created_at: string | null;
+          attempts: number;
         };
         Insert: {
           id?: string;
           stripe_event_id: string;
           event_type: string;
-          processed_at?: string;
+          processed_at?: string | null;
           payload: Json;
+          status?: "processing" | "processed" | "failed";
+          processing_started_at?: string | null;
+          error_message?: string | null;
+          event_created_at?: string | null;
+          attempts?: number;
         };
         Update: Partial<
           Database["public"]["Tables"]["stripe_events"]["Insert"]
@@ -775,6 +789,23 @@ export type Database = {
       };
       fail_ai_audit_job: {
         Args: { target_job_id: string; failure_message: string };
+        Returns: boolean;
+      };
+      claim_stripe_event: {
+        Args: {
+          target_event_id: string;
+          target_event_type: string;
+          target_event_created_at: string;
+          target_payload: Json;
+        };
+        Returns: boolean;
+      };
+      finish_stripe_event: {
+        Args: {
+          target_event_id: string;
+          succeeded: boolean;
+          failure_message?: string | null;
+        };
         Returns: boolean;
       };
     };
