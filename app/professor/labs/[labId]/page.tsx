@@ -29,11 +29,14 @@ type ProfileRow = {
 
 type AuditJobRow = {
   id: string;
+  document_id: string;
   user_id: string;
   status: string;
   updated_at: string;
   completed_at: string | null;
 };
+
+type ConsentRow = { document_id: string; student_user_id: string };
 
 type AuditResultRow = {
   job_id: string;
@@ -143,12 +146,23 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
     throw new Error(profilesError.message);
   }
 
+  const { data: consentData, error: consentError } = studentIds.length
+    ? await admin
+        .from("audit_summary_shares")
+        .select("document_id,student_user_id")
+        .eq("lab_id", lab.id)
+        .in("student_user_id", studentIds)
+        .is("revoked_at", null)
+        .returns<ConsentRow[]>()
+    : { data: [], error: null };
+  if (consentError) throw new Error(consentError.message);
+  const sharedDocumentIds = (consentData ?? []).map((share) => share.document_id);
   const { data: jobsData, error: jobsError } =
-    studentIds.length > 0
+    sharedDocumentIds.length > 0
       ? await admin
           .from("ai_audit_jobs")
-          .select("id,user_id,status,updated_at,completed_at")
-          .eq("lab_id", lab.id)
+          .select("id,document_id,user_id,status,updated_at,completed_at")
+          .in("document_id", sharedDocumentIds)
           .in("user_id", studentIds)
           .order("updated_at", { ascending: false })
           .returns<AuditJobRow[]>()
@@ -180,8 +194,12 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
     (resultsData ?? []).map((result) => [result.job_id, result]),
   );
   const latestJobByStudent = new Map<string, AuditJobRow>();
+  const consentStudentByDocument = new Map(
+    (consentData ?? []).map((share) => [share.document_id, share.student_user_id]),
+  );
 
   for (const job of jobs) {
+    if (consentStudentByDocument.get(job.document_id) !== job.user_id) continue;
     if (!latestJobByStudent.has(job.user_id)) {
       latestJobByStudent.set(job.user_id, job);
     }

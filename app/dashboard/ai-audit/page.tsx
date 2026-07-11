@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AuditStreamingPanel } from "@/components/ai-audit/AuditStreamingPanel";
+import { AuditSummarySharing } from "@/components/ai-audit/AuditSummarySharing";
 import { DocumentUploadForm } from "@/components/ai-audit/DocumentUploadForm";
 import { createClient } from "@/lib/supabase/server";
 
@@ -24,6 +25,9 @@ type AuditDocument = {
   document_type: string;
   created_at: string;
 };
+
+type LabOption = { id: string; name: string };
+type ShareRow = { document_id: string; lab_id: string; revoked_at: string | null };
 
 function isActivePeriod(start: string, end: string) {
   const now = Date.now();
@@ -107,6 +111,25 @@ export default async function AiAuditPage() {
     .limit(10)
     .returns<AuditDocument[]>();
 
+  const { data: memberships } = await supabase
+    .from("lab_memberships")
+    .select("lab_id")
+    .eq("user_id", user.id)
+    .eq("role", "student")
+    .eq("status", "active");
+  const labIds = (memberships ?? []).map((membership) => membership.lab_id);
+  const { data: labs } = labIds.length
+    ? await supabase.from("labs").select("id,name").in("id", labIds).returns<LabOption[]>()
+    : { data: [] as LabOption[] };
+  const documentIds = (documents ?? []).map((document) => document.id);
+  const { data: shareRows } = documentIds.length
+    ? await supabase
+        .from("audit_summary_shares")
+        .select("document_id,lab_id,revoked_at")
+        .in("document_id", documentIds)
+        .returns<ShareRow[]>()
+    : { data: [] as ShareRow[] };
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.16),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_48%,#020617_100%)] px-4 py-12 text-white">
       <section className="mx-auto w-full max-w-6xl space-y-6">
@@ -174,6 +197,19 @@ export default async function AiAuditPage() {
         <AuditStreamingPanel
           canAudit={canUpload}
           documents={documents ?? []}
+        />
+
+        <AuditSummarySharing
+          documents={(documents ?? []).map((document) => ({
+            id: document.id,
+            original_filename: document.original_filename,
+          }))}
+          labs={labs ?? []}
+          initialShares={(shareRows ?? []).map((share) => ({
+            documentId: share.document_id,
+            labId: share.lab_id,
+            shared: share.revoked_at === null,
+          }))}
         />
       </section>
     </main>

@@ -633,6 +633,32 @@ export type Database = {
           Database["public"]["Tables"]["ai_audit_results"]["Insert"]
         >;
       };
+      audit_summary_shares: {
+        Row: {
+          id: string;
+          document_id: string;
+          student_user_id: string;
+          lab_id: string;
+          consented_at: string;
+          revoked_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          document_id: string;
+          student_user_id: string;
+          lab_id: string;
+          consented_at?: string;
+          revoked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["audit_summary_shares"]["Insert"]
+        >;
+        Relationships: [];
+      };
       ai_usage_credits: {
         Row: {
           id: string;

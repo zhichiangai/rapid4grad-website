@@ -28,15 +28,6 @@ type ProfileRow = {
   advisor_style: string | null;
 };
 
-type DocumentRow = {
-  id: string;
-  original_filename: string;
-  document_type: string;
-  upload_status: string;
-  file_size_bytes: number;
-  created_at: string;
-};
-
 type AuditJobRow = {
   id: string;
   document_id: string;
@@ -53,12 +44,8 @@ type AuditJobRow = {
 type AuditResultRow = {
   job_id: string;
   summary: string;
-  result_markdown: string;
   risk_level: "low" | "medium" | "high" | null;
   issue_tags: string[];
-  token_input: number;
-  token_output: number;
-  cost_estimate_cents: number;
   created_at: string;
 };
 
@@ -68,14 +55,6 @@ function formatDate(value: string | null | undefined) {
   }
 
   return new Date(value).toLocaleString("zh-TW");
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024 * 1024) {
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function riskClass(riskLevel: string | null | undefined) {
@@ -170,27 +149,27 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
     redirect(`/professor/labs/${lab.id}`);
   }
 
-  const { data: documentsData, error: documentsError } = await admin
-    .from("student_documents")
-    .select("id,original_filename,document_type,upload_status,file_size_bytes,created_at")
+  const { data: consentData, error: consentError } = await admin
+    .from("audit_summary_shares")
+    .select("document_id")
     .eq("lab_id", lab.id)
-    .eq("user_id", student.id)
-    .order("created_at", { ascending: false })
-    .returns<DocumentRow[]>();
+    .eq("student_user_id", student.id)
+    .is("revoked_at", null)
+    .returns<Array<{ document_id: string }>>();
+  if (consentError) throw new Error(consentError.message);
+  const sharedDocumentIds = (consentData ?? []).map((share) => share.document_id);
 
-  if (documentsError) {
-    throw new Error(documentsError.message);
-  }
-
-  const { data: jobsData, error: jobsError } = await admin
-    .from("ai_audit_jobs")
-    .select(
-      "id,document_id,audit_type,provider,model,status,error_message,created_at,updated_at,completed_at",
-    )
-    .eq("lab_id", lab.id)
-    .eq("user_id", student.id)
-    .order("updated_at", { ascending: false })
-    .returns<AuditJobRow[]>();
+  const { data: jobsData, error: jobsError } = sharedDocumentIds.length
+    ? await admin
+        .from("ai_audit_jobs")
+        .select(
+          "id,document_id,audit_type,provider,model,status,error_message,created_at,updated_at,completed_at",
+        )
+        .in("document_id", sharedDocumentIds)
+        .eq("user_id", student.id)
+        .order("updated_at", { ascending: false })
+        .returns<AuditJobRow[]>()
+    : { data: [], error: null };
 
   if (jobsError) {
     throw new Error(jobsError.message);
@@ -203,7 +182,7 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
       ? await admin
           .from("ai_audit_results")
           .select(
-            "job_id,summary,result_markdown,risk_level,issue_tags,token_input,token_output,cost_estimate_cents,created_at",
+            "job_id,summary,risk_level,issue_tags,created_at",
           )
           .in("job_id", jobIds)
           .returns<AuditResultRow[]>()
@@ -215,9 +194,6 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
 
   const resultsByJobId = new Map(
     (resultsData ?? []).map((result) => [result.job_id, result]),
-  );
-  const documentsById = new Map(
-    (documentsData ?? []).map((document) => [document.id, document]),
   );
 
   return (
@@ -269,11 +245,11 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
             </dl>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-            <h2 className="text-lg font-semibold">文件數</h2>
+            <h2 className="text-lg font-semibold">已分享摘要來源</h2>
             <p className="mt-4 text-4xl font-semibold text-cyan-100">
-              {(documentsData ?? []).length}
+              {sharedDocumentIds.length}
             </p>
-            <p className="mt-2 text-sm text-slate-400">此 Lab 內上傳的研究文件</p>
+            <p className="mt-2 text-sm text-slate-400">不包含 PDF 本文或檔案 metadata</p>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <h2 className="text-lg font-semibold">AI 稽核數</h2>
@@ -294,8 +270,6 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
             ) : (
               jobs.map((job) => {
                 const result = resultsByJobId.get(job.id);
-                const document = documentsById.get(job.document_id);
-
                 return (
                   <article
                     key={job.id}
@@ -307,14 +281,10 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
                           {job.audit_type} · {job.provider}/{job.model}
                         </p>
                         <h3 className="mt-2 text-lg font-semibold text-white">
-                          {document?.original_filename ?? "未知文件"}
+                          已授權的 AI 稽核摘要
                         </h3>
                         <p className="mt-1 text-sm text-slate-400">
-                          {document
-                            ? `${document.document_type} · ${formatFileSize(
-                                document.file_size_bytes,
-                              )} · ${document.upload_status}`
-                            : "文件 metadata 不存在"}
+                          PDF 本文、檔名與 Storage metadata 維持私人
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -346,14 +316,6 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
                             </span>
                           ))}
                         </div>
-                        <div className="mt-4 rounded-2xl border border-white/10 bg-black/30 p-4 text-sm leading-6 text-slate-300">
-                          {result.result_markdown}
-                        </div>
-                        <p className="mt-3 text-xs text-slate-500">
-                          token input {result.token_input} · output{" "}
-                          {result.token_output} · estimated cost{" "}
-                          {result.cost_estimate_cents} cents
-                        </p>
                       </div>
                     ) : (
                       <p className="mt-4 text-sm text-slate-400">

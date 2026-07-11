@@ -28,12 +28,14 @@ type ProfileRow = {
 
 type AuditJobRow = {
   id: string;
-  lab_id: string | null;
+  document_id: string;
   user_id: string;
   status: string;
   updated_at: string;
   completed_at: string | null;
 };
+
+type ConsentRow = { document_id: string; student_user_id: string; lab_id: string };
 
 type AuditResultRow = {
   job_id: string;
@@ -155,12 +157,25 @@ export default async function ProfessorDashboardPage() {
     throw new Error(profilesError.message);
   }
 
-  const { data: jobsData, error: jobsError } =
+  const { data: consentData, error: consentError } =
     studentIds.length > 0 && labIds.length > 0
       ? await admin
-          .from("ai_audit_jobs")
-          .select("id,lab_id,user_id,status,updated_at,completed_at")
+          .from("audit_summary_shares")
+          .select("document_id,student_user_id,lab_id")
           .in("lab_id", labIds)
+          .in("student_user_id", studentIds)
+          .is("revoked_at", null)
+          .returns<ConsentRow[]>()
+      : { data: [], error: null };
+  if (consentError) throw new Error(consentError.message);
+  const consentRows = consentData ?? [];
+  const sharedDocumentIds = consentRows.map((share) => share.document_id);
+  const { data: jobsData, error: jobsError } =
+    sharedDocumentIds.length > 0
+      ? await admin
+          .from("ai_audit_jobs")
+          .select("id,document_id,user_id,status,updated_at,completed_at")
+          .in("document_id", sharedDocumentIds)
           .in("user_id", studentIds)
           .order("updated_at", { ascending: false })
           .returns<AuditJobRow[]>()
@@ -192,13 +207,14 @@ export default async function ProfessorDashboardPage() {
     (resultsData ?? []).map((result) => [result.job_id, result]),
   );
   const latestJobByLabStudent = new Map<string, AuditJobRow>();
+  const consentByDocument = new Map(
+    consentRows.map((share) => [share.document_id, share]),
+  );
 
   for (const job of jobs) {
-    if (!job.lab_id) {
-      continue;
-    }
-
-    const key = `${job.lab_id}:${job.user_id}`;
+    const consent = consentByDocument.get(job.document_id);
+    if (!consent || consent.student_user_id !== job.user_id) continue;
+    const key = `${consent.lab_id}:${job.user_id}`;
 
     if (!latestJobByLabStudent.has(key)) {
       latestJobByLabStudent.set(key, job);
