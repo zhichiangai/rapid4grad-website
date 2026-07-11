@@ -17,21 +17,29 @@ test("new subscription event applies when no local event timestamp exists", () =
     shouldApplySubscriptionEvent({
       existingEventCreatedAt: null,
       incomingEventCreatedAt: fixtures.newer,
+      existingStatus: null,
+      incomingStatus: "active",
+      existingCancelAtPeriodEnd: false,
+      incomingCancelAtPeriodEnd: false,
+      forceRestrict: false,
     }),
     true,
   );
 });
 
-test("older and equal Stripe events cannot overwrite newer local state", () => {
-  for (const incomingEventCreatedAt of [fixtures.older, fixtures.equal]) {
-    assert.equal(
-      shouldApplySubscriptionEvent({
-        existingEventCreatedAt: fixtures.existing,
-        incomingEventCreatedAt,
-      }),
-      false,
-    );
-  }
+test("older Stripe events cannot overwrite newer local state", () => {
+  assert.equal(
+    shouldApplySubscriptionEvent({
+      existingEventCreatedAt: fixtures.existing,
+      incomingEventCreatedAt: fixtures.older,
+      existingStatus: "active",
+      incomingStatus: "canceled",
+      existingCancelAtPeriodEnd: false,
+      incomingCancelAtPeriodEnd: false,
+      forceRestrict: true,
+    }),
+    false,
+  );
 });
 
 test("newer event applies even when subscription period end is unchanged", () => {
@@ -39,8 +47,70 @@ test("newer event applies even when subscription period end is unchanged", () =>
     shouldApplySubscriptionEvent({
       existingEventCreatedAt: fixtures.existing,
       incomingEventCreatedAt: fixtures.newer,
+      existingStatus: "canceled",
+      incomingStatus: "active",
+      existingCancelAtPeriodEnd: true,
+      incomingCancelAtPeriodEnd: false,
+      forceRestrict: false,
     }),
     true,
+  );
+});
+
+test("equal-second active to canceled applies the stricter state", () => {
+  assert.equal(
+    shouldApplySubscriptionEvent({
+      existingEventCreatedAt: fixtures.equal,
+      incomingEventCreatedAt: fixtures.equal,
+      existingStatus: "active",
+      incomingStatus: "canceled",
+      existingCancelAtPeriodEnd: false,
+      incomingCancelAtPeriodEnd: false,
+      forceRestrict: true,
+    }),
+    true,
+  );
+});
+
+test("equal-second canceled to active cannot restore entitlement", () => {
+  assert.equal(
+    shouldApplySubscriptionEvent({
+      existingEventCreatedAt: fixtures.equal,
+      incomingEventCreatedAt: fixtures.equal,
+      existingStatus: "canceled",
+      incomingStatus: "active",
+      existingCancelAtPeriodEnd: false,
+      incomingCancelAtPeriodEnd: false,
+      forceRestrict: false,
+    }),
+    false,
+  );
+});
+
+test("equal-second cancellation signal applies but duplicate state does not", () => {
+  assert.equal(
+    shouldApplySubscriptionEvent({
+      existingEventCreatedAt: fixtures.equal,
+      incomingEventCreatedAt: fixtures.equal,
+      existingStatus: "active",
+      incomingStatus: "active",
+      existingCancelAtPeriodEnd: false,
+      incomingCancelAtPeriodEnd: true,
+      forceRestrict: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldApplySubscriptionEvent({
+      existingEventCreatedAt: fixtures.equal,
+      incomingEventCreatedAt: fixtures.equal,
+      existingStatus: "past_due",
+      incomingStatus: "past_due",
+      existingCancelAtPeriodEnd: false,
+      incomingCancelAtPeriodEnd: false,
+      forceRestrict: true,
+    }),
+    false,
   );
 });
 

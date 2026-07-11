@@ -44,6 +44,8 @@ type ExistingSubscription = {
   user_id: string;
   current_period_end: string;
   last_stripe_event_created_at: string | null;
+  status: SubscriptionStatus;
+  cancel_at_period_end: boolean;
 };
 
 const DEFAULT_PLAN_TYPE: CoursePlanType = "course_plus_6mo_tool";
@@ -464,11 +466,13 @@ async function syncSubscriptionFromStripe({
   );
   const currentPeriodEnd = unixSecondsToIso(subscription.current_period_end);
   const incomingEventCreatedAt = stripeEventCreatedAt(event);
+  const incomingStatus = normalizeSubscriptionStatus(subscription.status);
+  const incomingCancelAtPeriodEnd = subscription.cancel_at_period_end ?? false;
 
   const { data: existingSubscription, error: existingSubscriptionError } =
     await supabase
       .from("subscriptions")
-      .select("id,user_id,current_period_end,last_stripe_event_created_at")
+      .select("id,user_id,current_period_end,last_stripe_event_created_at,status,cancel_at_period_end")
       .eq("stripe_subscription_id", subscription.id)
       .maybeSingle<ExistingSubscription>();
 
@@ -482,6 +486,11 @@ async function syncSubscriptionFromStripe({
       existingEventCreatedAt:
         existingSubscription.last_stripe_event_created_at,
       incomingEventCreatedAt,
+      existingStatus: existingSubscription.status,
+      incomingStatus,
+      existingCancelAtPeriodEnd: existingSubscription.cancel_at_period_end,
+      incomingCancelAtPeriodEnd,
+      forceRestrict: forceRestrictCredits,
     })
   ) {
     return { skipped: true, reason: "Stale subscription event." };
@@ -495,12 +504,12 @@ async function syncSubscriptionFromStripe({
           user_id: userId,
           stripe_customer_id: subscription.customer,
           stripe_subscription_id: subscription.id,
-          status: normalizeSubscriptionStatus(subscription.status),
+          status: incomingStatus,
           price_id: priceId,
           plan_key: planKey,
           current_period_start: currentPeriodStart,
           current_period_end: currentPeriodEnd,
-          cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+          cancel_at_period_end: incomingCancelAtPeriodEnd,
           last_stripe_event_created_at: incomingEventCreatedAt,
           last_stripe_event_id: event.id,
         },
@@ -527,7 +536,7 @@ async function syncSubscriptionFromStripe({
     periodStart: currentPeriodStart,
     periodEnd: currentPeriodEnd,
     shouldRestrict: shouldRestrictSubscription(
-      normalizeSubscriptionStatus(subscription.status),
+      incomingStatus,
       forceRestrictCredits,
     ),
   });
