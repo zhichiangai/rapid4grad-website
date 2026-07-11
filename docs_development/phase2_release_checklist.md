@@ -701,3 +701,59 @@ app/dashboard/ai-audit/history/page.tsx
 3. 若該帳號沒有任何稽核紀錄，應看到 empty state。
 4. 若仍有權限錯誤，部署 graceful error UI 後應顯示可讀錯誤，而不是黑畫面。
 5. Preview 驗收尚未完成；本輪 commit 後不得據此直接 merge main 或 deploy production。
+
+---
+
+## 13. 2026-07-12 Local Integration / Preview Preflight
+
+### 13.1 Git 與 migration 基線
+
+- Branch：`security-hotfix`。
+- Merge base：`origin/oauth-preview-hotfix` commit `84b670f`。
+- `006_fix_lab_memberships_rls_recursion.sql` 已由 SQL Editor 手動套用 remote，不可再次執行。
+- `supabase migration list --linked` 本輪只停在 `Initialising login role...`，未取得可採信的 remote migration history；因此 remote history 狀態標記為「本機無法確認」，不可據此執行 `db push`。
+- 9 份 timestamp security migrations 仍按以下 local 順序保存：
+  1. `20260710230403_protect_profile_and_quota_data.sql`
+  2. `20260710230611_harden_email_verification_sessions.sql`
+  3. `20260710231046_make_lab_invite_join_atomic.sql`
+  4. `20260710231313_reserve_and_settle_ai_audit_credits.sql`
+  5. `20260711071234_harden_stripe_event_ordering.sql`
+  6. `20260711071816_fix_ai_audit_rls_recursion.sql`
+  7. `20260711074505_add_audit_summary_sharing_consent.sql`
+  8. `20260711074936_make_email_challenge_limits_atomic.sql`
+  9. `20260711153412_restrict_shared_audit_access_to_summaries.sql`
+
+### 13.2 Local Supabase 阻塞
+
+- `docker info`：失敗，`DOCKER_DAEMON=unavailable`。
+- 因 Docker daemon 未啟動，未執行 `supabase start`、migration replay、測試資料建立或任何 local SQL。
+- 最小解除步驟：開啟 Docker Desktop，等待 Docker Engine 顯示 Running，再執行 `docker info` 與 `supabase start`。
+- 本輪沒有用 Preview 或 remote database 取代 local integration test。
+
+### 13.3 DB integration 驗收狀態
+
+以下項目全部為「本機無法驗證」，不是通過：
+
+- profiles 敏感欄位 column privileges。
+- free quota anon/authenticated direct access denial。
+- Email challenge cooldown 與同 Email/IP concurrency。
+- Invite final-slot concurrency。
+- AI audit reserve / complete / fail / refund idempotency。
+- owner、same-Lab professor、cross-Lab professor、assistant、admin RLS。
+- summary RPC 固定七欄、consent/revoke 即時性與 raw audit table denial。
+- Professor Storage object denial。
+- Stripe claim / finish / retry RPC。
+
+### 13.4 不依賴 DB 的本機 preflight
+
+- `npm test`：10/10 通過。
+- `npm run lint`：通過。
+- `npx tsc --noEmit --incremental false`：通過。
+- `npm run build`：Next.js 15.5.19 production build 通過，共 46 routes。
+
+### 13.5 Gate 判斷
+
+- 程式編譯與離線 contract/unit tests 通過。
+- Local Supabase migration replay、RLS、RPC concurrency 與 Storage integration 尚未執行。
+- 結論：目前**不可**宣告已安全進入 Preview Supabase migration 套用；必須先啟動 Docker Desktop 並完成本節 DB integration 驗收。
+- 本輪未 push、merge、deploy、執行 remote SQL、`supabase db push` 或修改任何雲端設定。
