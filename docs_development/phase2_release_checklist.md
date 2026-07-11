@@ -723,26 +723,31 @@ app/dashboard/ai-audit/history/page.tsx
   8. `20260711074936_make_email_challenge_limits_atomic.sql`
   9. `20260711153412_restrict_shared_audit_access_to_summaries.sql`
 
-### 13.2 Local Supabase 阻塞
+### 13.2 Local Supabase migration replay
 
-- `docker info`：失敗，`DOCKER_DAEMON=unavailable`。
-- 因 Docker daemon 未啟動，未執行 `supabase start`、migration replay、測試資料建立或任何 local SQL。
-- 最小解除步驟：開啟 Docker Desktop，等待 Docker Engine 顯示 Running，再執行 `docker info` 與 `supabase start`。
-- 本輪沒有用 Preview 或 remote database 取代 local integration test。
+- Docker Engine `29.6.1`、Postgres、Auth、REST、Storage 與 Kong 均正常。
+- 從空白 local database 完整重播 baseline 與全部 security migrations 成功。
+- Repo 保留既有兩份 `002_*` migration 原檔名；Supabase CLI 無法接受重複 migration version，因此 local replay 在 `/tmp` 驗收副本將 `002_payment_service_foundation.sql` 映射為測試版本 `007`。此映射不修改 Git 歷史，也不得直接套用 remote。
+- 新增三份 local-only migration：
+  1. `20260711203753_grant_authenticated_profile_reads.sql`：補 authenticated profile SELECT 與 service-role CRUD，不放寬 authenticated UPDATE。
+  2. `20260711204203_grant_phase2_rls_table_access.sql`：補 Phase 2 RLS 所需 table-level SELECT 與 server-only CRUD grants。
+  3. `20260711204357_fix_email_challenge_timestamp_type.sql`：避免 `current_time` 與 PostgreSQL 內建名稱衝突，維持 challenge 比較為 TIMESTAMPTZ。
+- 本輪沒有執行 remote SQL、`supabase db push` 或使用 Preview 取代 local integration。
 
 ### 13.3 DB integration 驗收狀態
 
-以下項目全部為「本機無法驗證」，不是通過：
+以下項目已在 disposable local database 實際通過：
 
-- profiles 敏感欄位 column privileges。
-- free quota anon/authenticated direct access denial。
-- Email challenge cooldown 與同 Email/IP concurrency。
-- Invite final-slot concurrency。
-- AI audit reserve / complete / fail / refund idempotency。
-- owner、same-Lab professor、cross-Lab professor、assistant、admin RLS。
-- summary RPC 固定七欄、consent/revoke 即時性與 raw audit table denial。
-- Professor Storage object denial。
-- Stripe claim / finish / retry RPC。
+- student owner 只能讀自己的 profile；其他 student profile 為 0 rows。
+- student 可更新 `full_name`，但 `role`、`is_paid` 等敏感欄位沒有 UPDATE privilege。
+- `free_usage_quotas` 對 anon/authenticated 無 SELECT/INSERT/UPDATE privilege。
+- Email challenge 同 Email/IP 雙連線併發結果為一個 `created`、一個 `cooldown`，資料列總數為 1。
+- Invite 最後名額雙連線競爭只有一位 student 成功，`used_count=1` 且只建立一筆 active membership。
+- AI audit reserve 重送不重複扣額度；failed 重送只退款一次；completed 重送只保留一筆 result；completed job 不可退款。
+- same-Lab professor/assistant 直接讀 raw audit jobs/results 為 0 rows，只能由 summary RPC 取得固定七欄。
+- cross-Lab professor、inactive/revoked consent 查詢為 0 rows；student owner 與 admin observation 符合設計。
+- professor 無法讀取 student private Storage object。
+- Stripe event first claim、processing duplicate、failed retry、processed duplicate 與 attempts 計數符合 idempotency 設計。
 
 ### 13.4 不依賴 DB 的本機 preflight
 
@@ -753,7 +758,7 @@ app/dashboard/ai-audit/history/page.tsx
 
 ### 13.5 Gate 判斷
 
-- 程式編譯與離線 contract/unit tests 通過。
-- Local Supabase migration replay、RLS、RPC concurrency 與 Storage integration 尚未執行。
-- 結論：目前**不可**宣告已安全進入 Preview Supabase migration 套用；必須先啟動 Docker Desktop 並完成本節 DB integration 驗收。
+- 程式編譯、離線 contract/unit tests 與 local Supabase migration/RLS/RPC/Storage integration 均已通過。
+- 三份新增 migration 仍為 local-only，remote migration history 尚未取得可採信結果；`006` 已由 SQL Editor 手動套用，不可重複執行。
+- 結論：repo 已具備進入「Preview Supabase migration 人工審核」的本機條件；在確認 remote history、解決既有重複 `002` version 映射並逐份審核 SQL 前，不可執行 `db push`。
 - 本輪未 push、merge、deploy、執行 remote SQL、`supabase db push` 或修改任何雲端設定。
