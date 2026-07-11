@@ -15,7 +15,8 @@ import {
   checkAiAuditQuota,
   estimateCostCents,
   extractUsageTokens,
-  incrementPdfAuditUsage,
+  refundPdfAuditUsage,
+  reservePdfAuditUsage,
 } from "@/lib/ai/quota";
 import { STUDENT_DOCUMENTS_BUCKET } from "@/lib/documents/validation";
 import type { Json } from "@/types/database";
@@ -125,7 +126,6 @@ async function persistAuditResult(input: {
   job: AuditJob;
   text: string;
   usage: unknown;
-  creditId: string | null;
   providerCost: {
     estimatedInputCostCentsPer1k: number;
     estimatedOutputCostCentsPer1k: number;
@@ -141,31 +141,18 @@ async function persistAuditResult(input: {
     outputCostPer1k: input.providerCost.estimatedOutputCostCentsPer1k,
   });
 
-  const { error: resultError } = await supabase.from("ai_audit_results").insert({
-    job_id: input.job.id,
-    user_id: input.job.user_id,
-    summary: parsed.summary,
+  const { error } = await supabase.rpc("complete_ai_audit_job", {
+    target_job_id: input.job.id,
+    result_summary: parsed.summary,
     result_markdown: input.text,
-    risk_level: parsed.riskLevel,
-    issue_tags: parsed.issueTags,
-    token_input: inputTokens,
-    token_output: outputTokens,
-    cost_estimate_cents: costEstimateCents,
+    result_risk_level: parsed.riskLevel,
+    result_issue_tags: parsed.issueTags,
+    result_token_input: inputTokens,
+    result_token_output: outputTokens,
+    result_cost_estimate_cents: costEstimateCents,
   });
 
-  if (resultError) {
-    throw new Error(resultError.message);
-  }
-
-  await updateJobStatus({
-    supabase,
-    jobId: input.job.id,
-    status: "completed",
-  });
-
-  if (input.creditId) {
-    await incrementPdfAuditUsage(supabase, input.creditId);
-  }
+  if (error) throw new Error(error.message);
 }
 
 export async function POST(request: NextRequest) {
@@ -184,6 +171,9 @@ export async function POST(request: NextRequest) {
   }
 
   let body: AuditRequestBody;
+
+  let activeJob: AuditJob | null = null;
+  let quotaReserved = false;
 
   try {
     body = (await request.json()) as AuditRequestBody;
@@ -263,8 +253,18 @@ export async function POST(request: NextRequest) {
       .single<AuditJob>();
 
     if (jobError) {
-      return jsonError(jobError.message, 500);
+      console.error("[ai-audit] Job insert failed", { code: jobError.code });
+      return jsonError("目前無法建立 AI 稽核任務。", 500);
     }
+
+    activeJob = job;
+
+    if (!quota.creditId) {
+      return jsonError("目前沒有可使用的 AI 稽核額度。", 403);
+    }
+
+    await reservePdfAuditUsage(admin, quota.creditId, job.id);
+    quotaReserved = true;
 
     await updateJobStatus({
       supabase: admin,
@@ -297,32 +297,55 @@ export async function POST(request: NextRequest) {
           ],
         },
       ],
-      onFinish({ text, usage }) {
-        void persistAuditResult({
-          job,
-          text,
-          usage,
-          creditId: quota.creditId,
-          providerCost: {
-            estimatedInputCostCentsPer1k:
-              provider.estimatedInputCostCentsPer1k,
-            estimatedOutputCostCentsPer1k:
-              provider.estimatedOutputCostCentsPer1k,
-          },
-        }).catch((error: unknown) => {
-          console.error("RAPID4GRAD audit persistence failed", error);
-        });
+      async onFinish({ text, usage }) {
+        try {
+          await persistAuditResult({
+            job,
+            text,
+            usage,
+            providerCost: {
+              estimatedInputCostCentsPer1k:
+                provider.estimatedInputCostCentsPer1k,
+              estimatedOutputCostCentsPer1k:
+                provider.estimatedOutputCostCentsPer1k,
+            },
+          });
+        } catch (error) {
+          console.error("[ai-audit] Completion persistence failed", {
+            name: error instanceof Error ? error.name : "UnknownError",
+          });
+          await refundPdfAuditUsage(
+            createAdminClient(),
+            job.id,
+            "AI audit result persistence failed.",
+          );
+        }
       },
-      onError({ error }) {
-        void updateJobStatus({
-          supabase: createAdminClient(),
-          jobId: job.id,
-          status: "failed",
-          errorMessage:
+      async onError({ error }) {
+        try {
+          await refundPdfAuditUsage(
+            createAdminClient(),
+            job.id,
             error instanceof Error ? error.message : "AI audit stream failed.",
-        }).catch((updateError: unknown) => {
-          console.error("RAPID4GRAD audit failure persistence failed", updateError);
-        });
+          );
+        } catch (updateError) {
+          console.error("[ai-audit] Failure refund failed", {
+            name: updateError instanceof Error ? updateError.name : "UnknownError",
+          });
+        }
+      },
+      async onAbort() {
+        try {
+          await refundPdfAuditUsage(
+            createAdminClient(),
+            job.id,
+            "AI audit stream was aborted.",
+          );
+        } catch (updateError) {
+          console.error("[ai-audit] Abort refund failed", {
+            name: updateError instanceof Error ? updateError.name : "UnknownError",
+          });
+        }
       },
     });
 
@@ -334,8 +357,22 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "AI audit request failed.";
-    return jsonError(message, 500);
+    if (activeJob && quotaReserved) {
+      try {
+        await refundPdfAuditUsage(
+          createAdminClient(),
+          activeJob.id,
+          "AI audit setup failed.",
+        );
+      } catch (refundError) {
+        console.error("[ai-audit] Setup refund failed", {
+          name: refundError instanceof Error ? refundError.name : "UnknownError",
+        });
+      }
+    }
+    console.error("[ai-audit] Request failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("目前無法啟動 AI 稽核，請稍後再試。", 500);
   }
 }

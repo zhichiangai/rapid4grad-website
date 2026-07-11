@@ -571,6 +571,10 @@ export type Database = {
           status: AiAuditJobStatus;
           input_prompt: string;
           error_message: string | null;
+          credit_id: string | null;
+          quota_reserved_at: string | null;
+          quota_settled_at: string | null;
+          quota_refunded_at: string | null;
           created_at: string;
           updated_at: string;
           completed_at: string | null;
@@ -586,6 +590,10 @@ export type Database = {
           status?: AiAuditJobStatus;
           input_prompt: string;
           error_message?: string | null;
+          credit_id?: string | null;
+          quota_reserved_at?: string | null;
+          quota_settled_at?: string | null;
+          quota_refunded_at?: string | null;
           created_at?: string;
           updated_at?: string;
           completed_at?: string | null;
@@ -747,6 +755,27 @@ export type Database = {
           target_credit_id: string;
         };
         Returns: Database["public"]["Tables"]["ai_usage_credits"]["Row"];
+      };
+      reserve_pdf_audit_credit: {
+        Args: { target_credit_id: string; target_job_id: string };
+        Returns: boolean;
+      };
+      complete_ai_audit_job: {
+        Args: {
+          target_job_id: string;
+          result_summary: string;
+          result_markdown: string;
+          result_risk_level: string;
+          result_issue_tags: string[];
+          result_token_input: number;
+          result_token_output: number;
+          result_cost_estimate_cents: number;
+        };
+        Returns: boolean;
+      };
+      fail_ai_audit_job: {
+        Args: { target_job_id: string; failure_message: string };
+        Returns: boolean;
       };
     };
     Enums: Record<string, never>;

@@ -170,12 +170,8 @@ export function DocumentUploadForm({
         },
         body: JSON.stringify({
           documentId: uploadUrlPayload.documentId,
-          filename: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
           documentType,
           objectPath: uploadUrlPayload.objectPath,
-          storagePath: uploadUrlPayload.storagePath,
         }),
       });
       const completePayload =
@@ -235,7 +231,7 @@ export function DocumentUploadForm({
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
             檔案會存入 Supabase private bucket。RAPID 不會把 PDF
             直接丟給模型；後續 AI audit route 會在 server 端讀取 PDF、轉成
-            Base64，並用 <span className="text-cyan-200">mimeType:
+            Base64，並用 <span className="text-cyan-200">mediaType:
             application/pdf</span> 封裝。
           </p>
         </div>

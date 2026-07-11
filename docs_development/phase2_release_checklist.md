@@ -78,6 +78,20 @@ Phase 1 fallback 必須保留：
 - Admin/professor 不可透過 invite 取得 student membership；admin observation workspace 維持原設計。
 - 狀態：本機實作完成；remote migration、concurrency final-slot、撤銷/過期/額滿/重複加入待醒來後人工驗收。
 
+### 2.5 PDF 真實檔案驗證與 AI audit quota lifecycle
+
+- 新增 local migration `20260710231313_reserve_and_settle_ai_audit_credits.sql`，尚未套用 remote。
+- `/api/documents/complete` 不再接受或相信 client 的 filename、MIME、size/storagePath；server 只接受 session-bound documentId、objectPath 與 allowlisted documentType。
+- Server 從 private `student-documents` bucket 下載真實 object，使用 Blob Content-Type、實際 byte length 與前五 bytes `%PDF-` 驗證；超過 10MB、MIME 不符或 magic bytes 不符時會刪除 object。
+- 寫入 `student_documents` 的 filename 來自實際 storage object path，MIME 與 size 來自下載 object；錯誤回應一般化，詳細 validation boolean 僅留 server log。
+- `ai_audit_jobs` 新增 credit id 與 reserved/settled/refunded timestamps，形成可稽核 quota lifecycle。
+- `reserve_pdf_audit_credit` 在模型呼叫前鎖定 job/credit 並原子增加 `pdf_audit_used`；最後一份額度的並行請求只允許一筆成功。
+- `complete_ai_audit_job` 在單一 transaction 內 upsert result、寫 token/cost、標記 job completed 與 reservation settled。
+- `fail_ai_audit_job` 對 setup error、stream error 或 abort 原子退款並標記 failed；重複呼叫最多退款一次，completed job 不可退款。
+- `streamText.onFinish/onError/onAbort` 全部使用 async awaited persistence，不再用 `void` 將唯一資料寫入留在 response 結束後的未追蹤 Promise。
+- PDF 仍以 server-side Base64、AI SDK v6 `mediaType: "application/pdf"` 多模態 file part 傳入；沒有新增或呼叫任何真實 provider credential。
+- 狀態：本機 lint/build 通過；remote migration、private Storage 真實 PDF、quota concurrency、stream complete/error/abort 待醒來後人工驗收。
+
 ---
 
 ## 3. Phase 2 Flow 驗收

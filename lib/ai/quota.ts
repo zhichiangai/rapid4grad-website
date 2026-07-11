@@ -110,12 +110,29 @@ export async function checkAiAuditQuota(
   };
 }
 
-export async function incrementPdfAuditUsage(
+export async function reservePdfAuditUsage(
   supabase: SupabaseClient,
   creditId: string,
+  jobId: string,
 ) {
-  const { error } = await supabase.rpc("increment_pdf_audit_usage", {
+  const { error } = await supabase.rpc("reserve_pdf_audit_credit", {
     target_credit_id: creditId,
+    target_job_id: jobId,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+}
+
+export async function refundPdfAuditUsage(
+  supabase: SupabaseClient,
+  jobId: string,
+  message: string,
+) {
+  const { error } = await supabase.rpc("fail_ai_audit_job", {
+    target_job_id: jobId,
+    failure_message: message.slice(0, 500),
   });
 
   if (error) {
