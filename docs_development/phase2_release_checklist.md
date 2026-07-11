@@ -105,6 +105,14 @@ Phase 1 fallback 必須保留：
 - npm install audit 顯示 2 個 moderate dependency advisories；未執行破壞性 `npm audit fix --force`，列為 dependency review 待辦。
 - 狀態：本機 test/lint/build 通過；remote migration、Stripe Test Mode signature、event resend、payment_failed/cancel/deleted 真實 webhook 待醒來後人工驗收。
 
+### 2.7 AI audit SELECT RLS recursion closure
+
+- Preview 曾在 `ai_audit_jobs` owner history query 實際回傳 PostgreSQL `42P17`；因此 `006` 不足以證明 audit SELECT chain 已閉環。
+- 新增 local migration `20260711071816_fix_ai_audit_rls_recursion.sql`，尚未套用 remote，且不修改已執行的 `001` 至 `006`。
+- Student document 與 audit job/result SELECT policies 收斂為單一 scalar authorization helper；helper 只針對傳入 UUID 與當前 `auth.uid()` 回傳 boolean，不回傳資料列。
+- Helper 使用固定空 `search_path`、撤銷 PUBLIC/anon execute，只授權 authenticated/service_role；student owner、同 Lab active professor/assistant、admin observation 三種範圍明確分離。
+- 狀態：本機 migration 完成；remote 套用後需以 student/professor/跨 Lab/admin 四角色及 `42P17` 回歸測試人工驗收。
+
 ---
 
 ## 3. Phase 2 Flow 驗收
