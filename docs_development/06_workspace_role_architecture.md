@@ -1,6 +1,6 @@
 # RAPID4GRAD — Workspace / Role Architecture
 
-更新時間：2026-07-07
+更新時間：2026-07-11
 
 ## 1. 現況問題
 
@@ -103,6 +103,13 @@ admin workspace 的用途：
 - 觀察系統資料與營運狀態。
 
 admin 不是一般 professor，也不是一般 student。admin 可以進 professor workspace 是為了驗收與內部觀察，不代表 admin 是 Lab 的正式教授角色。
+
+安全邊界補充：
+
+- Lab invite 只允許 `student` role 兌換；admin 不可透過 invite 取得 student membership。
+- Professor / assistant 的資料可見範圍必須由資料庫 RLS 與目前 active Lab membership 決定，不可只靠頁面 filtering。
+- Admin observation access 使用獨立 policy / server guard，不得與 professor policy 混寫成一般 Lab 身份。
+- Phase 2 不支援同一帳號同時持有多個產品身份；若未來需要多身份，必須先完成 Phase 3 權限模型決策。
 
 ## 6. 未來長期架構
 

@@ -190,14 +190,15 @@ Phase 1 fallback 必須保留：
   - `customer.subscription.deleted`
   - `invoice.paid`
   - `invoice.payment_failed`
-- `syncSubscriptionFromStripe()` 會比較 incoming `current_period_end` 與 DB 既有 `subscriptions.current_period_end`。
-- 若 incoming period end 較舊或相等，回傳 stale，不覆蓋 `subscriptions`，不補額度。
-- `invoice.payment_failed` 會用 `forceRestrictCredits` 將高成本 AI 額度限制為 0。
+- Subscription mutation 以 Stripe event `created` timestamp 與 event id 判斷順序，不再把相同 `current_period_end` 一律視為 stale。
+- `cancel_at_period_end`、`past_due`、`unpaid`、`deleted` 即使 period 不變，只要事件較新仍會更新狀態並限制 entitlement。
+- Webhook 先以 `claim_stripe_event` 將事件標記 processing，完成後標記 processed；failed 或逾時 processing event 可重試。
 - Phase 1 one-time checkout fallback 仍保留 `payments` / `course_access` / `profiles.is_paid` 更新邏輯。
 
-風險：
+本機驗證：
 
-- `stripe_events` 是在 `processStripeEvent()` 完成後才 insert。若處理過程中 DB 寫入部分成功但最後拋錯，Stripe 重送時可能重跑部分邏輯。現有邏輯大多以 upsert / existing check 降低重複風險，但仍建議未來升級為「先記錄 processing event，再標記 processed」的兩階段 idempotency。
+- 離線 fixture 測試已覆蓋 older/equal/newer event、same-period cancellation、past_due、unpaid 與 deleted restriction。
+- 真實 Stripe signature、Dashboard resend 與 Customer Portal 仍需 Preview 人工驗收。
 
 真實環境待驗收：
 
@@ -269,7 +270,7 @@ Phase 1 fallback 必須保留：
   - `filename`
 - 注意：規格文字寫 `mimeType: "application/pdf"`；AI SDK v6 實際 file part 欄位為 `mediaType`。本實作使用 AI SDK v6 正確欄位，語義上即 MIME type。
 - `streamText()` 以 streaming response 回傳。
-- `onFinish({ text, usage })` 後非阻塞寫入：
+- `onFinish({ text, usage })` 內 await 原子完成：
   - `ai_audit_results.summary`
   - `ai_audit_results.result_markdown`
   - `risk_level`
@@ -277,17 +278,17 @@ Phase 1 fallback 必須保留：
   - `token_input`
   - `token_output`
   - `cost_estimate_cents`
-- `onFinish` 後更新 job 為 `completed`，並遞增 PDF audit usage。
-- `onError` 更新 job 為 `failed`。
+- 模型呼叫前先以 RPC 原子 reserve 額度；`onFinish` settle，`onError` / `onAbort` fail + refund。
+- persistence callback 使用 async/await，不再依賴未追蹤的 `void` Promise。
 - 前端提供 Phase 1 fallback link `/dashboard/ai-command`。
 
-風險：
+待人工驗收：
 
-- `/dashboard/ai-audit/history` 獨立 history route 尚未存在。現有頁面只列出可選 PDF 與即時 streaming panel；教授端頁面可看 audit summary，但學生端沒有獨立歷史頁。
-- `incrementPdfAuditUsage()` 是 read-then-update，若同一 user 高併發啟動多個 audit，可能有 race condition。正式大量使用前建議改為 SQL RPC 原子遞增或 update expression。
+- `/dashboard/ai-audit/history` 已完成，但新的 audit SELECT RLS migration 尚未套用 remote。
 - 真實 AI provider 需要 Vercel AI Gateway / provider credentials；本輪未呼叫真實模型。
+- 需在 Preview 驗證 stream complete/error/abort 的 settle/refund 與 history persistence。
 
-狀態：核心 streaming 防線靜態通過；學生 audit history route 與高併發 quota 原子性待補強。
+狀態：本機 streaming、history 與原子 quota lifecycle 完成；remote migrations 與真實 provider 流程待人工驗收。
 
 #### 2026-07-11 Preview history hotfix
 
@@ -330,17 +331,17 @@ Phase 1 fallback 必須保留：
   - `used_count`
   - `revoked_at`
 - `/dashboard/lab-join` 讓學生輸入 invite code。
-- `/api/labs/join` 驗證 code hash、expiry、revoked、usage limit。
-- 學生加入後建立 `lab_memberships`。
+- `/api/labs/join` 驗證 session 後呼叫 service-only `join_lab_with_invite` RPC，由單一 transaction 鎖定、驗證、建立 membership 與遞增 used_count。
+- 只有 student role 可兌換 invite；重複 active membership 不增加 used_count。
 - Professor dashboard 顯示 lab students、最近 AI audit summary、risk level、issue tags、更新時間。
 - hidden demo `/professor` 保留，正式入口為 `/professor/dashboard`。
 
-風險：
+已完成補強：
 
-- `used_count` increment 為 read-then-update，極端併發使用同一 invite code 時可能超過 max uses。正式大量發碼前建議改為 SQL RPC 原子驗證與遞增。
-- 目前沒有 UI revoke invite code；schema 支援 `revoked_at`，但管理操作尚未做。
+- Invite revoke API/UI 已存在，撤銷後立即更新前端狀態。
+- Invite join 已改為原子 RPC；remote migration 後仍需測撤銷、過期、額滿、重複加入與 final-slot concurrency。
 
-狀態：核心 flow 靜態通過，revoke UI 與 invite atomic increment 待補強。
+狀態：本機 flow、revoke 與原子 join 完成；remote migration 與跨租戶人工驗收待執行。
 
 ---
 
@@ -465,13 +466,13 @@ rg "cookies\(|headers\(|params|searchParams" app lib middleware.ts
    - AI SDK route can access `openai/gpt-5.4`
    - AI SDK route can access `anthropic/claude-sonnet-4.6`
 
-### P1 — 功能補強
+### P1 — 後續人工驗收與營運補強
 
-1. 建立學生端 audit history route，例如 `/dashboard/ai-audit/history`。
-2. 將 invite `used_count` 改為 SQL RPC 原子驗證與遞增。
-3. 將 `ai_usage_credits.pdf_audit_used` 改為 SQL RPC 原子遞增。
-4. 增加 revoke invite code UI。
-5. Stripe webhook idempotency 可升級為 processing / processed 兩階段紀錄。
+1. 使用 Preview 真實角色驗證 owner / same-lab / cross-lab / admin RLS。
+2. 使用並行請求驗證 invite final slot 與 AI audit 最後一份額度。
+3. 使用 Stripe Test Mode fixtures / resend 驗證 processing / processed / failed recovery。
+4. 建立依賴套件 moderate advisories 的非破壞性升級計畫。
+5. 建立文件分享 consent、分享時間與撤回機制後，才允許教授讀取學生 PDF 本文。
 
 ---
 
