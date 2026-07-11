@@ -57,44 +57,35 @@ async function sendChallenge(request: NextRequest, email: string) {
   const emailHash = keyedHash("email", email);
   const ipHash = keyedHash("ip", requestIp(request));
   const now = Date.now();
-  const windowStart = new Date(now - RATE_WINDOW_MS).toISOString();
-  const cooldownStart = new Date(now - SEND_COOLDOWN_MS).toISOString();
-
-  const [{ count: emailCount, error: emailRateError }, { count: ipCount, error: ipRateError }, { count: cooldownCount, error: cooldownError }] =
-    await Promise.all([
-      supabase.from("email_verification_challenges").select("id", { count: "exact", head: true }).eq("email_hash", emailHash).gte("created_at", windowStart),
-      supabase.from("email_verification_challenges").select("id", { count: "exact", head: true }).eq("ip_hash", ipHash).gte("created_at", windowStart),
-      supabase.from("email_verification_challenges").select("id", { count: "exact", head: true }).eq("email_hash", emailHash).gte("created_at", cooldownStart),
-    ]);
-
-  if (emailRateError || ipRateError || cooldownError) {
-    console.error("[email-verify] Rate limit lookup failed", {
-      emailCode: emailRateError?.code,
-      ipCode: ipRateError?.code,
-      cooldownCode: cooldownError?.code,
-    });
-    return jsonError("目前無法發送驗證碼，請稍後再試。", 503);
-  }
-
-  if ((cooldownCount ?? 0) > 0) return jsonError("請稍候一分鐘再重新發送驗證碼。", 429);
-  if ((emailCount ?? 0) >= MAX_EMAIL_SENDS || (ipCount ?? 0) >= MAX_IP_SENDS) {
-    return jsonError("驗證碼請求過於頻繁，請稍後再試。", 429);
-  }
-
   const challengeId = randomUUID();
   const pin = randomInt(0, 1_000_000).toString().padStart(6, "0");
   const expiresAt = new Date(now + CHALLENGE_TTL_MS).toISOString();
-  const { error: insertError } = await supabase.from("email_verification_challenges").insert({
-    id: challengeId,
-    email_hash: emailHash,
-    pin_hash: keyedHash("pin", `${challengeId}:${pin}`),
-    ip_hash: ipHash,
-    expires_at: expiresAt,
-  });
+  const { data: createStatus, error: createError } = await supabase.rpc(
+    "create_email_verification_challenge",
+    {
+      target_id: challengeId,
+      target_email_hash: emailHash,
+      target_pin_hash: keyedHash("pin", `${challengeId}:${pin}`),
+      target_ip_hash: ipHash,
+      target_expires_at: expiresAt,
+      target_cooldown_seconds: SEND_COOLDOWN_MS / 1000,
+      target_window_seconds: RATE_WINDOW_MS / 1000,
+      target_max_email_sends: MAX_EMAIL_SENDS,
+      target_max_ip_sends: MAX_IP_SENDS,
+    },
+  );
 
-  if (insertError) {
-    console.error("[email-verify] Challenge insert failed", { code: insertError.code });
+  if (createError) {
+    console.error("[email-verify] Atomic challenge creation failed", {
+      code: createError.code,
+    });
     return jsonError("目前無法發送驗證碼，請稍後再試。", 503);
+  }
+  if (createStatus === "cooldown") {
+    return jsonError("請稍候一分鐘再重新發送驗證碼。", 429);
+  }
+  if (createStatus !== "created") {
+    return jsonError("驗證碼請求過於頻繁，請稍後再試。", 429);
   }
 
   const apiKey = process.env.RESEND_API_KEY;

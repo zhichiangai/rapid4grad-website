@@ -834,6 +834,20 @@ export type Database = {
         };
         Returns: boolean;
       };
+      create_email_verification_challenge: {
+        Args: {
+          target_id: string;
+          target_email_hash: string;
+          target_pin_hash: string;
+          target_ip_hash: string;
+          target_expires_at: string;
+          target_cooldown_seconds?: number;
+          target_window_seconds?: number;
+          target_max_email_sends?: number;
+          target_max_ip_sends?: number;
+        };
+        Returns: string;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
