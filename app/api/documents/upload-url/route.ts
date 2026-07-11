@@ -167,7 +167,8 @@ export async function POST(request: NextRequest) {
       .createSignedUploadUrl(objectPath);
 
     if (error) {
-      return jsonError(error.message, 500);
+      console.error("Signed upload URL creation failed", { code: error.name });
+      return jsonError("Upload could not be prepared.", 500);
     }
 
     return NextResponse.json({
@@ -181,8 +182,9 @@ export async function POST(request: NextRequest) {
       expiresInSeconds: 7200,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Upload URL creation failed.";
-    return jsonError(message, 500);
+    console.error("Upload URL request failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("Upload could not be prepared.", 500);
   }
 }

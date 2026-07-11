@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (userError) {
-    return jsonError(userError.message, 401);
+    console.error("Billing checkout auth failed", { code: userError.code });
+    return jsonError("Unable to verify the current session.", 401);
   }
 
   if (!user?.email) {
@@ -58,9 +59,10 @@ export async function POST(request: NextRequest) {
   try {
     priceId = getBillingPlanPriceId(plan);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Stripe price is not configured.";
-    return jsonError(message, 500);
+    console.error("Billing price configuration failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("Subscription checkout is currently unavailable.", 503);
   }
 
   const admin = createAdminClient();
@@ -74,7 +76,10 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
   if (existingSubscriptionError) {
-    return jsonError(existingSubscriptionError.message, 500);
+    console.error("Billing subscription lookup failed", {
+      code: existingSubscriptionError.code,
+    });
+    return jsonError("Subscription checkout is currently unavailable.", 503);
   }
 
   try {
@@ -96,10 +101,9 @@ export async function POST(request: NextRequest) {
       sessionId: session.id,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Stripe subscription checkout failed.";
-    return jsonError(message, 500);
+    console.error("Stripe subscription checkout failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("Subscription checkout could not be started.", 502);
   }
 }

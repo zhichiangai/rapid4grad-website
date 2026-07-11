@@ -163,7 +163,11 @@ export async function POST(request: NextRequest) {
       .eq("id", order.id);
 
     if (checkoutUpdateError) {
-      return jsonError(checkoutUpdateError.message, 500, {
+      console.error("Payment checkout order update failed", {
+        code: checkoutUpdateError.code,
+        orderId: order.id,
+      });
+      return jsonError("Payment checkout could not be prepared.", 500, {
         orderId: order.id,
       });
     }
@@ -184,12 +188,22 @@ export async function POST(request: NextRequest) {
             },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Payment provider failed.";
-
-    return jsonError(message, message === "Not implemented" ? 501 : 500, {
+    const isNotImplemented =
+      error instanceof Error && error.message === "Not implemented";
+    console.error("Payment provider checkout failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      provider: provider.name,
+      orderId: order.id,
+    });
+    return jsonError(
+      isNotImplemented
+        ? "Payment provider not implemented."
+        : "Payment checkout could not be started.",
+      isNotImplemented ? 501 : 500,
+      {
       orderId: order.id,
       provider: provider.name,
-    });
+      },
+    );
   }
 }

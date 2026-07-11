@@ -62,7 +62,8 @@ export async function updateLeadStatus(formData: FormData) {
     .eq("id", leadId);
 
   if (error) {
-    redirect(`/admin/leads?message=${encodeURIComponent(error.message)}`);
+    console.error("Admin lead update failed", { code: error.code });
+    redirect("/admin/leads?message=lead-update-failed");
   }
 
   revalidatePath("/admin/leads");
@@ -88,7 +89,8 @@ export async function unlockQuota(formData: FormData) {
     .maybeSingle();
 
   if (readError) {
-    redirect(`/admin/quotas?email=${email}&message=${encodeURIComponent(readError.message)}`);
+    console.error("Admin quota lookup failed", { code: readError.code });
+    redirect(`/admin/quotas?email=${email}&message=quota-lookup-failed`);
   }
 
   const payload = {
@@ -111,7 +113,8 @@ export async function unlockQuota(formData: FormData) {
   const { error } = await query;
 
   if (error) {
-    redirect(`/admin/quotas?email=${email}&message=${encodeURIComponent(error.message)}`);
+    console.error("Admin quota update failed", { code: error.code });
+    redirect(`/admin/quotas?email=${email}&message=quota-update-failed`);
   }
 
   revalidatePath("/admin/quotas");
@@ -147,11 +150,10 @@ export async function savePromptTemplate(formData: FormData) {
     .maybeSingle();
 
   if (readError || !currentTemplate) {
-    redirect(
-      `/admin/templates?message=${encodeURIComponent(
-        readError?.message ?? "Active template not found.",
-      )}`,
-    );
+    if (readError) {
+      console.error("Admin template lookup failed", { code: readError.code });
+    }
+    redirect("/admin/templates?message=active-template-not-found");
   }
 
   const { error } = await supabase
@@ -168,7 +170,8 @@ export async function savePromptTemplate(formData: FormData) {
     .eq("id", templateId);
 
   if (error) {
-    redirect(`/admin/templates?selected=${templateId}&message=${encodeURIComponent(error.message)}`);
+    console.error("Admin template update failed", { code: error.code });
+    redirect(`/admin/templates?selected=${templateId}&message=template-update-failed`);
   }
 
   revalidatePath("/admin/templates");

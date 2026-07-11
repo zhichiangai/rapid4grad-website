@@ -20,7 +20,8 @@ export async function POST() {
   } = await supabase.auth.getUser();
 
   if (userError) {
-    return jsonError(userError.message, 401);
+    console.error("Billing portal auth failed", { code: userError.code });
+    return jsonError("Unable to verify the current session.", 401);
   }
 
   if (!user) {
@@ -37,7 +38,10 @@ export async function POST() {
     .maybeSingle();
 
   if (subscriptionError) {
-    return jsonError(subscriptionError.message, 500);
+    console.error("Billing portal subscription lookup failed", {
+      code: subscriptionError.code,
+    });
+    return jsonError("Billing details are currently unavailable.", 503);
   }
 
   if (!subscription?.stripe_customer_id) {
@@ -55,10 +59,9 @@ export async function POST() {
       sessionId: portal.id,
     });
   } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Stripe Customer Portal session failed.";
-    return jsonError(message, 500);
+    console.error("Stripe customer portal creation failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("Billing portal could not be opened.", 502);
   }
 }
