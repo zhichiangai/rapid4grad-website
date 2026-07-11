@@ -66,7 +66,9 @@ Phase 1 fallback 必須保留：
 - `/api/ai-usage` 不再接受 client email 作為授權來源；只使用 Supabase authenticated user email 或 server 驗證 session email，並加入 24KB body 與所有情境欄位長度/allowlist 驗證。
 - 前端僅保存「本次 UI 已驗證」布林值以控制互動；實際授權完全由 HttpOnly cookie 與 server DB challenge 決定。
 - API 對外不再回傳 raw database error；詳細狀況僅以一般化 code/name 寫入 server log。
-- 狀態：本機 lint/build 通過；remote migration、Resend 寄信、cooldown、錯誤次數與 quota flow 待醒來後人工驗收。
+- 新增 local migration `20260711074936_make_email_challenge_limits_atomic.sql`；send challenge 改由 service-only RPC 使用 Email/IP hash transaction advisory locks，在同一 transaction 內檢查 cooldown/window limits 並 insert，關閉 count-then-insert race。
+- 原子 RPC 不保存 raw Email/IP，固定空 `search_path`，撤銷 PUBLIC/anon/authenticated execute，只授權 service_role。
+- 狀態：本機 typecheck/lint 通過；local Supabase 尚未完成 DB integration test。remote migration、Resend 寄信、同 Email/IP 並行 request 與 quota flow 待人工驗收。
 
 ### 2.4 Lab invite atomic join
 
@@ -97,11 +99,12 @@ Phase 1 fallback 必須保留：
 - 新增 local migration `20260711071234_harden_stripe_event_ordering.sql`，尚未套用 remote。
 - `subscriptions` 新增 `last_stripe_event_created_at` / `last_stripe_event_id`；subscription 狀態更新改以 Stripe event created time 判斷新舊，不再將相同 `current_period_end` 一律視為 stale。
 - `cancel_at_period_end`、`past_due`、`unpaid` 與 `customer.subscription.deleted` 可在 period 不變時套用；deleted event 強制正規化為 canceled。
+- Stripe `event.created` 為秒級；同秒事件採限制優先：restrictive status 或新增 `cancel_at_period_end` 可套用，但同秒較寬鬆狀態不可恢復 entitlement 或重補額度，也不使用 event id 字典序推測先後。
 - `stripe_events` 改為 processing / processed / failed 兩階段狀態，包含 processing timeout reclaim、attempts 與一般化 failure message。
 - `claim_stripe_event` 使用 unique event id 與 row lock，避免兩個 webhook worker 同時處理；processed event 永不重跑，failed 或超過 10 分鐘的 processing event可安全重試。
 - Restrict 狀態會將當期 credit limits 收斂至已用量，避免違反 `used <= limit` constraint；恢復 active/trialing 時可還原 plan limits。實際授權仍先檢查 subscription status。
-- 新增 `lib/stripe/event-ordering.ts` 與 `tests/stripe-event-ordering.test.ts`；離線 fixtures 覆蓋 older/equal/newer event、same-period newer update、past_due/unpaid/canceled/deleted restriction。
-- 新增 `npm test`（tsx + Node test runner）；四項 fixtures 全數通過，沒有送出任何真實 Stripe request。
+- 新增 `lib/stripe/event-ordering.ts` 與 `tests/stripe-event-ordering.test.ts`；離線 fixtures 覆蓋 older/newer、同秒 active→canceled、同秒 canceled→active 拒絕、cancel signal、duplicate restrictive state，以及 past_due/unpaid/canceled/deleted restriction。
+- `npm test`（tsx + Node test runner）目前七項 fixtures 全數通過，沒有送出任何真實 Stripe request；failed recovery 仍由 `claim_stripe_event` 的 failed/timeout reclaim 與 duplicate event id 保護。
 - npm install audit 顯示 2 個 moderate dependency advisories；未執行破壞性 `npm audit fix --force`，列為 dependency review 待辦。
 - 狀態：本機 test/lint/build 通過；remote migration、Stripe Test Mode signature、event resend、payment_failed/cancel/deleted 真實 webhook 待醒來後人工驗收。
 
@@ -112,6 +115,16 @@ Phase 1 fallback 必須保留：
 - Student document 與 audit job/result SELECT policies 收斂為單一 scalar authorization helper；helper 只針對傳入 UUID 與當前 `auth.uid()` 回傳 boolean，不回傳資料列。
 - Helper 使用固定空 `search_path`、撤銷 PUBLIC/anon execute，只授權 authenticated/service_role；student owner、同 Lab active professor/assistant、admin observation 三種範圍明確分離。
 - 狀態：本機 migration 完成；remote 套用後需以 student/professor/跨 Lab/admin 四角色及 `42P17` 回歸測試人工驗收。
+
+### 2.8 Audit summary explicit consent
+
+- 新增 local migration `20260711074505_add_audit_summary_sharing_consent.sql` 與 `audit_summary_shares`。
+- 預設沒有 consent row 即完全私人；student 只能把自己的文件摘要分享給自己 active 加入的 Lab，並可隨時寫入 `revoked_at` 撤回。
+- Professor/assistant 的 job/result SELECT 需同時具備 active Lab membership 與未撤回 consent；撤回後下一次查詢立即不可見。
+- Consent 只涵蓋 `summary`、`risk_level`、`issue_tags` 與必要 job 狀態。Professor UI 不顯示 `result_markdown`、token/cost、檔名、PDF metadata 或 Storage object。
+- `student_documents` 與 `storage.objects` 的 professor read policy 被移除；分享 summary 不會產生 signed URL，也不會授權 PDF 本文。
+- Admin observation 維持既有獨立權限。
+- 狀態：本機 typecheck/lint 通過；migration/RLS、grant/revoke 即時性、跨 Lab 與 admin observation 待 local 或 Preview DB integration test。
 
 ---
 
@@ -555,6 +568,18 @@ rg "code_hash|lab_memberships|EXISTS" supabase app lib
 4. 用同帳號跑一次 `/dashboard/ai-audit` PDF upload → AI streaming。
 5. 建 professor 測試帳號，手動將 `profiles.role` 改為 `professor`，跑 `/professor/dashboard` → invite → student join → professor summary。
 6. 全部通過後再 merge main。
+
+### 11.1 2026-07-11 最後本機驗證
+
+- Stripe 同秒事件限制優先規則完成，7 個離線 unit tests 通過。
+- Audit summary consent API/UI/RLS migration 完成；預設私人、可撤回、summary-only，不開放 PDF/Storage。
+- Email challenge send limit 改為 service-only 原子 RPC，關閉 count-then-insert race。
+- `npm test`：7/7 通過。
+- `npm run lint`：通過。
+- `npx tsc --noEmit --incremental false`：通過。
+- `npm run build`：Next.js 15.5.19 production build 通過，共 46 routes。
+- `supabase status`：未通過，原因是本機 Docker daemon 未啟動。因此 consent RLS、Email 並行 transaction 與 migration integration test 尚未在 local DB 實際執行，必須保留為人工驗收項目。
+- 本輪沒有 push、沒有執行 remote migration、沒有變更 Preview/Production 或任何雲端設定。
 
 ---
 

@@ -9,7 +9,7 @@
 - Student / professor / admin workspace 與 OAuth safe redirect。
 - Private PDF upload、真實檔案驗證與 AI audit streaming 架構。
 - AI audit reserve / settle / refund 額度生命週期。
-- Student audit history 與 graceful error UI。
+- Student audit history、graceful error UI，以及 Phase 2 最小 per-document/per-Lab audit summary consent。
 - Professor Lab、invite create/revoke 與 student atomic join。
 - Stripe subscription checkout、portal、webhook ordering 與兩階段 idempotency。
 - Profiles、free quota、Email verification session 與多租戶 RLS 安全修補。
@@ -38,17 +38,18 @@
 - 成本：高。
 - 優先順序：P2，只有出現真實多身份需求才啟動。
 
-### 3.2 學生文件分享 Consent
+### 3.2 完整學生文件分享 Consent
 
 - 使用者問題：教授需要查看指定文件，但學生必須知道分享對象、時間與可撤回狀態。
 - 目標角色：student、professor、assistant。
-- 最小 MVP：學生逐文件選擇指定 Lab 分享；記錄 consent time、revoked time；撤回後立即阻止新讀取。
+- Phase 2 基線：已提供逐文件、指定 Lab、可撤回的 audit summary consent，且不分享 PDF 本文。
+- 最小 MVP：在 Phase 2 summary consent 上擴充可理解的分享範圍、分享歷程、資料保留與撤回後 signed URL/cache 處理；只有再次取得明確同意才考慮 PDF 本文。
 - 不做範圍：公開分享連結、匿名下載、跨 Lab 批次分享、永久 URL。
-- Schema：需要獨立 document sharing/consent record，不沿用模糊的 `lab_id` 作永久同意。
+- Schema：沿用並評估擴充 `audit_summary_shares`；若分享 PDF 本文則需獨立 scope/purpose 欄位，不沿用模糊的 `lab_id` 作永久同意。
 - Phase 2 依賴：private Storage、document owner RLS、Lab membership 與 audit history 必須先驗收。
 - 主要風險：撤回後快取或既有 signed URL 尚有效、教授離開 Lab 後仍可見。
 - 成本：中。
-- 優先順序：P0，是正式教授讀取 PDF 本文前置條件。
+- 優先順序：P0，是任何教授讀取 PDF 本文的前置條件；Phase 2 summary-only flow 不因此阻塞。
 
 ### 3.3 AI Research Navigator
 

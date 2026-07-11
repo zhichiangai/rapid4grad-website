@@ -109,6 +109,7 @@ admin 不是一般 professor，也不是一般 student。admin 可以進 profess
 - Lab invite 只允許 `student` role 兌換；admin 不可透過 invite 取得 student membership。
 - Professor / assistant 的資料可見範圍必須由資料庫 RLS 與目前 active Lab membership 決定，不可只靠頁面 filtering。
 - Admin observation access 使用獨立 policy / server guard，不得與 professor policy 混寫成一般 Lab 身份。
+- 學生的 AI audit summary 預設私人；教授/assistant 只有在學生對指定 Lab 建立且未撤回 consent 時可讀 summary。此 consent 不包含 PDF 本文、檔名、Storage metadata 或下載權限。
 - Phase 2 不支援同一帳號同時持有多個產品身份；若未來需要多身份，必須先完成 Phase 3 權限模型決策。
 
 ## 6. 未來長期架構
