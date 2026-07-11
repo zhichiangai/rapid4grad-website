@@ -120,11 +120,14 @@ Phase 1 fallback 必須保留：
 
 - 新增 local migration `20260711074505_add_audit_summary_sharing_consent.sql` 與 `audit_summary_shares`。
 - 預設沒有 consent row 即完全私人；student 只能把自己的文件摘要分享給自己 active 加入的 Lab，並可隨時寫入 `revoked_at` 撤回。
-- Professor/assistant 的 job/result SELECT 需同時具備 active Lab membership 與未撤回 consent；撤回後下一次查詢立即不可見。
-- Consent 只涵蓋 `summary`、`risk_level`、`issue_tags` 與必要 job 狀態。Professor UI 不顯示 `result_markdown`、token/cost、檔名、PDF metadata 或 Storage object。
+- 後續 P0 審核發現：只靠 job/result row-level consent 仍可能讓 professor 透過 Data API 選取 `input_prompt`、`error_message`、`result_markdown` 與 token/cost，因此不能視為安全閉環。
+- 新增 local migration `20260711153412_restrict_shared_audit_access_to_summaries.sql`：professor/assistant 不再直接 SELECT 原始 `ai_audit_jobs` 或 `ai_audit_results`；owner 與 admin 維持完整讀取。
+- Professor/assistant 僅能呼叫 `get_shared_audit_summaries`，固定回傳 `job_id`、`student_user_id`、`summary`、`risk_level`、`issue_tags`、`completed_at`、`created_at` 七欄。
+- RPC 在資料庫內重新檢查指定 Lab、active professor/assistant membership、active consent 與 `revoked_at IS NULL`；撤回後下一次查詢立即不可見。
+- Professor 三個正式頁面已移除原始 audit table 查詢，只使用登入 session 呼叫 summary RPC。
 - `student_documents` 與 `storage.objects` 的 professor read policy 被移除；分享 summary 不會產生 signed URL，也不會授權 PDF 本文。
 - Admin observation 維持既有獨立權限。
-- 狀態：本機 typecheck/lint 通過；migration/RLS、grant/revoke 即時性、跨 Lab 與 admin observation 待 local 或 Preview DB integration test。
+- 狀態：10 個離線 tests、typecheck/lint 通過；其中 3 個 contract tests 驗證固定七欄、consent/membership/revoke 條件與 raw helper 僅 owner/admin。實際 migration/RLS、grant/revoke 即時性、跨 Lab 與 admin observation 仍待 local 或 Preview DB integration test，尚不可宣稱資料庫閉環已實測。
 
 ---
 
@@ -574,7 +577,7 @@ rg "code_hash|lab_memberships|EXISTS" supabase app lib
 - Stripe 同秒事件限制優先規則完成，7 個離線 unit tests 通過。
 - Audit summary consent API/UI/RLS migration 完成；預設私人、可撤回、summary-only，不開放 PDF/Storage。
 - Email challenge send limit 改為 service-only 原子 RPC，關閉 count-then-insert race。
-- `npm test`：7/7 通過。
+- `npm test`：10/10 通過（7 個 Stripe ordering + 3 個 summary RPC contract tests）。
 - `npm run lint`：通過。
 - `npx tsc --noEmit --incremental false`：通過。
 - `npm run build`：Next.js 15.5.19 production build 通過，共 46 routes。

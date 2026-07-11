@@ -848,6 +848,21 @@ export type Database = {
         };
         Returns: string;
       };
+      get_shared_audit_summaries: {
+        Args: {
+          target_lab_id: string;
+          target_student_user_id?: string | null;
+        };
+        Returns: Array<{
+          job_id: string;
+          student_user_id: string;
+          summary: string;
+          risk_level: string | null;
+          issue_tags: string[];
+          completed_at: string | null;
+          created_at: string;
+        }>;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

@@ -28,24 +28,13 @@ type ProfileRow = {
   advisor_style: string | null;
 };
 
-type AuditJobRow = {
-  id: string;
-  document_id: string;
-  audit_type: string;
-  provider: string;
-  model: string;
-  status: string;
-  error_message: string | null;
-  created_at: string;
-  updated_at: string;
-  completed_at: string | null;
-};
-
-type AuditResultRow = {
+type SharedAuditSummary = {
   job_id: string;
+  student_user_id: string;
   summary: string;
   risk_level: "low" | "medium" | "high" | null;
   issue_tags: string[];
+  completed_at: string | null;
   created_at: string;
 };
 
@@ -94,12 +83,12 @@ async function requireProfessor() {
     redirect("/dashboard");
   }
 
-  return { user, admin };
+  return { user, admin, supabase };
 }
 
 export default async function ProfessorStudentPage({ params }: StudentPageProps) {
   const { labId, studentId } = await params;
-  const { user, admin } = await requireProfessor();
+  const { user, admin, supabase } = await requireProfessor();
 
   const { data: lab, error: labError } = await admin
     .from("labs")
@@ -149,52 +138,15 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
     redirect(`/professor/labs/${lab.id}`);
   }
 
-  const { data: consentData, error: consentError } = await admin
-    .from("audit_summary_shares")
-    .select("document_id")
-    .eq("lab_id", lab.id)
-    .eq("student_user_id", student.id)
-    .is("revoked_at", null)
-    .returns<Array<{ document_id: string }>>();
-  if (consentError) throw new Error(consentError.message);
-  const sharedDocumentIds = (consentData ?? []).map((share) => share.document_id);
-
-  const { data: jobsData, error: jobsError } = sharedDocumentIds.length
-    ? await admin
-        .from("ai_audit_jobs")
-        .select(
-          "id,document_id,audit_type,provider,model,status,error_message,created_at,updated_at,completed_at",
-        )
-        .in("document_id", sharedDocumentIds)
-        .eq("user_id", student.id)
-        .order("updated_at", { ascending: false })
-        .returns<AuditJobRow[]>()
-    : { data: [], error: null };
-
-  if (jobsError) {
-    throw new Error(jobsError.message);
-  }
-
-  const jobs = jobsData ?? [];
-  const jobIds = jobs.map((job) => job.id);
-  const { data: resultsData, error: resultsError } =
-    jobIds.length > 0
-      ? await admin
-          .from("ai_audit_results")
-          .select(
-            "job_id,summary,risk_level,issue_tags,created_at",
-          )
-          .in("job_id", jobIds)
-          .returns<AuditResultRow[]>()
-      : { data: [], error: null };
-
-  if (resultsError) {
-    throw new Error(resultsError.message);
-  }
-
-  const resultsByJobId = new Map(
-    (resultsData ?? []).map((result) => [result.job_id, result]),
+  const { data: summariesData, error: summariesError } = await supabase.rpc(
+    "get_shared_audit_summaries",
+    {
+      target_lab_id: lab.id,
+      target_student_user_id: student.id,
+    },
   );
+  if (summariesError) throw new Error(summariesError.message);
+  const summaries = (summariesData ?? []) as SharedAuditSummary[];
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-10 text-white">
@@ -247,14 +199,14 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <h2 className="text-lg font-semibold">已分享摘要來源</h2>
             <p className="mt-4 text-4xl font-semibold text-cyan-100">
-              {sharedDocumentIds.length}
+              {summaries.length}
             </p>
             <p className="mt-2 text-sm text-slate-400">不包含 PDF 本文或檔案 metadata</p>
           </div>
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
             <h2 className="text-lg font-semibold">AI 稽核數</h2>
             <p className="mt-4 text-4xl font-semibold text-blue-100">
-              {jobs.length}
+              {summaries.length}
             </p>
             <p className="mt-2 text-sm text-slate-400">包含進行中與已完成稽核</p>
           </div>
@@ -263,22 +215,21 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
         <section className="mt-6 rounded-3xl border border-white/10 bg-white/[0.035] p-5">
           <h2 className="text-2xl font-semibold">AI Audit Timeline</h2>
           <div className="mt-5 space-y-4">
-            {jobs.length === 0 ? (
+            {summaries.length === 0 ? (
               <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-5 text-slate-400">
                 尚無 AI 稽核紀錄。
               </div>
             ) : (
-              jobs.map((job) => {
-                const result = resultsByJobId.get(job.id);
+              summaries.map((result) => {
                 return (
                   <article
-                    key={job.id}
+                    key={result.job_id}
                     className="rounded-2xl border border-white/10 bg-slate-950/70 p-5"
                   >
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-slate-500">
-                          {job.audit_type} · {job.provider}/{job.model}
+                          Shared audit summary
                         </p>
                         <h3 className="mt-2 text-lg font-semibold text-white">
                           已授權的 AI 稽核摘要
@@ -288,9 +239,6 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <span className="rounded-full border border-white/10 bg-white/[0.06] px-3 py-1 text-xs text-slate-200">
-                          {job.status}
-                        </span>
                         <span
                           className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskClass(
                             result?.risk_level,
@@ -301,8 +249,7 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
                       </div>
                     </div>
 
-                    {result ? (
-                      <div className="mt-4">
+                    <div className="mt-4">
                         <p className="text-sm leading-6 text-slate-200">
                           {result.summary}
                         </p>
@@ -316,13 +263,10 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
                             </span>
                           ))}
                         </div>
-                      </div>
-                    ) : (
-                      <p className="mt-4 text-sm text-slate-400">
-                        尚無完成結果。狀態更新：{formatDate(job.updated_at)}
-                        {job.error_message ? ` · ${job.error_message}` : ""}
+                      <p className="mt-3 text-xs text-slate-500">
+                        完成時間：{formatDate(result.completed_at ?? result.created_at)}
                       </p>
-                    )}
+                    </div>
                   </article>
                 );
               })

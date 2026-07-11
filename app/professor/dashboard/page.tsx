@@ -26,22 +26,13 @@ type ProfileRow = {
   research_area: string | null;
 };
 
-type AuditJobRow = {
-  id: string;
-  document_id: string;
-  user_id: string;
-  status: string;
-  updated_at: string;
-  completed_at: string | null;
-};
-
-type ConsentRow = { document_id: string; student_user_id: string; lab_id: string };
-
-type AuditResultRow = {
+type SharedAuditSummary = {
   job_id: string;
+  student_user_id: string;
   summary: string;
   risk_level: "low" | "medium" | "high" | null;
   issue_tags: string[];
+  completed_at: string | null;
   created_at: string;
 };
 
@@ -49,8 +40,7 @@ type StudentOverview = {
   labId: string;
   profile: ProfileRow;
   joinedAt: string;
-  latestJob: AuditJobRow | null;
-  latestResult: AuditResultRow | null;
+  latestSummary: SharedAuditSummary | null;
 };
 
 function riskBadgeClass(riskLevel: string | null | undefined) {
@@ -108,11 +98,11 @@ async function getProfessorUser() {
     redirect("/dashboard");
   }
 
-  return { user, profile, admin };
+  return { user, profile, admin, supabase };
 }
 
 export default async function ProfessorDashboardPage() {
-  const { user, profile, admin } = await getProfessorUser();
+  const { user, profile, admin, supabase } = await getProfessorUser();
 
   const { data: labsData, error: labsError } = await admin
     .from("labs")
@@ -157,69 +147,29 @@ export default async function ProfessorDashboardPage() {
     throw new Error(profilesError.message);
   }
 
-  const { data: consentData, error: consentError } =
-    studentIds.length > 0 && labIds.length > 0
-      ? await admin
-          .from("audit_summary_shares")
-          .select("document_id,student_user_id,lab_id")
-          .in("lab_id", labIds)
-          .in("student_user_id", studentIds)
-          .is("revoked_at", null)
-          .returns<ConsentRow[]>()
-      : { data: [], error: null };
-  if (consentError) throw new Error(consentError.message);
-  const consentRows = consentData ?? [];
-  const sharedDocumentIds = consentRows.map((share) => share.document_id);
-  const { data: jobsData, error: jobsError } =
-    sharedDocumentIds.length > 0
-      ? await admin
-          .from("ai_audit_jobs")
-          .select("id,document_id,user_id,status,updated_at,completed_at")
-          .in("document_id", sharedDocumentIds)
-          .in("user_id", studentIds)
-          .order("updated_at", { ascending: false })
-          .returns<AuditJobRow[]>()
-      : { data: [], error: null };
-
-  if (jobsError) {
-    throw new Error(jobsError.message);
-  }
-
-  const jobs = jobsData ?? [];
-  const jobIds = jobs.map((job) => job.id);
-  const { data: resultsData, error: resultsError } =
-    jobIds.length > 0
-      ? await admin
-          .from("ai_audit_results")
-          .select("job_id,summary,risk_level,issue_tags,created_at")
-          .in("job_id", jobIds)
-          .returns<AuditResultRow[]>()
-      : { data: [], error: null };
-
-  if (resultsError) {
-    throw new Error(resultsError.message);
-  }
+  const summaryResponses = await Promise.all(
+    labIds.map((labId) =>
+      supabase.rpc("get_shared_audit_summaries", {
+        target_lab_id: labId,
+      }),
+    ),
+  );
+  const summaryError = summaryResponses.find((response) => response.error)?.error;
+  if (summaryError) throw new Error(summaryError.message);
 
   const profilesById = new Map(
     (profilesData ?? []).map((studentProfile) => [studentProfile.id, studentProfile]),
   );
-  const resultsByJobId = new Map(
-    (resultsData ?? []).map((result) => [result.job_id, result]),
-  );
-  const latestJobByLabStudent = new Map<string, AuditJobRow>();
-  const consentByDocument = new Map(
-    consentRows.map((share) => [share.document_id, share]),
-  );
-
-  for (const job of jobs) {
-    const consent = consentByDocument.get(job.document_id);
-    if (!consent || consent.student_user_id !== job.user_id) continue;
-    const key = `${consent.lab_id}:${job.user_id}`;
-
-    if (!latestJobByLabStudent.has(key)) {
-      latestJobByLabStudent.set(key, job);
+  const latestSummaryByLabStudent = new Map<string, SharedAuditSummary>();
+  summaryResponses.forEach((response, index) => {
+    const labId = labIds[index];
+    for (const summary of (response.data ?? []) as SharedAuditSummary[]) {
+      const key = `${labId}:${summary.student_user_id}`;
+      if (!latestSummaryByLabStudent.has(key)) {
+        latestSummaryByLabStudent.set(key, summary);
+      }
     }
-  }
+  });
 
   const studentsByLabId = new Map<string, StudentOverview[]>();
 
@@ -230,15 +180,14 @@ export default async function ProfessorDashboardPage() {
       continue;
     }
 
-    const latestJob = latestJobByLabStudent.get(
+    const latestSummary = latestSummaryByLabStudent.get(
       `${membership.lab_id}:${membership.user_id}`,
     );
     const overview: StudentOverview = {
       labId: membership.lab_id,
       profile: studentProfile,
       joinedAt: membership.joined_at,
-      latestJob: latestJob ?? null,
-      latestResult: latestJob ? (resultsByJobId.get(latestJob.id) ?? null) : null,
+      latestSummary: latestSummary ?? null,
     };
     const current = studentsByLabId.get(membership.lab_id) ?? [];
     current.push(overview);
@@ -350,20 +299,20 @@ export default async function ProfessorDashboardPage() {
                                 </p>
                               </td>
                               <td className="max-w-xs px-4 py-4 text-slate-300">
-                                {student.latestResult?.summary ?? "尚無 AI 稽核摘要"}
+                                {student.latestSummary?.summary ?? "尚無 AI 稽核摘要"}
                               </td>
                               <td className="px-4 py-4">
                                 <span
                                   className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskBadgeClass(
-                                    student.latestResult?.risk_level,
+                                    student.latestSummary?.risk_level,
                                   )}`}
                                 >
-                                  {student.latestResult?.risk_level ?? "low"}
+                                  {student.latestSummary?.risk_level ?? "low"}
                                 </span>
                               </td>
                               <td className="px-4 py-4">
                                 <div className="flex flex-wrap gap-1">
-                                  {(student.latestResult?.issue_tags ?? [
+                                  {(student.latestSummary?.issue_tags ?? [
                                     "no_audit_yet",
                                   ]).map((tag) => (
                                     <span
@@ -377,8 +326,8 @@ export default async function ProfessorDashboardPage() {
                               </td>
                               <td className="px-4 py-4 text-slate-400">
                                 {formatDate(
-                                  student.latestJob?.completed_at ??
-                                    student.latestJob?.updated_at ??
+                                  student.latestSummary?.completed_at ??
+                                    student.latestSummary?.created_at ??
                                     student.joinedAt,
                                 )}
                               </td>
