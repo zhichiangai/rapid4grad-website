@@ -30,41 +30,6 @@ CREATE POLICY "audit_summary_shares: admin reads all consent"
   ON public.audit_summary_shares FOR SELECT TO authenticated
   USING (public.app_is_admin());
 
-CREATE OR REPLACE FUNCTION public.app_can_read_ai_audit_job(target_job_id UUID)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.ai_audit_jobs AS job
-    WHERE job.id = target_job_id
-      AND (
-        job.user_id = (SELECT auth.uid())
-        OR public.app_is_admin()
-        OR EXISTS (
-          SELECT 1
-          FROM public.audit_summary_shares AS share
-          JOIN public.lab_memberships AS viewer
-            ON viewer.lab_id = share.lab_id
-          WHERE share.document_id = job.document_id
-            AND share.student_user_id = job.user_id
-            AND share.revoked_at IS NULL
-            AND viewer.user_id = (SELECT auth.uid())
-            AND viewer.role IN ('professor', 'assistant')
-            AND viewer.status = 'active'
-        )
-      )
-  )
-$$;
-
-REVOKE ALL ON FUNCTION public.app_can_read_ai_audit_job(UUID)
-  FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.app_can_read_ai_audit_job(UUID)
-  TO authenticated, service_role;
-
 -- PDF metadata and Storage remain private to the student owner and admin.
 DROP POLICY IF EXISTS "student_documents: authorized current user can read"
   ON public.student_documents;
@@ -80,13 +45,16 @@ CREATE POLICY "student_documents: admin can read all"
 DROP POLICY IF EXISTS "storage student-documents: lab professor can read"
   ON storage.objects;
 
--- Existing job/result policies call app_can_read_ai_audit_job(), so revocation
--- takes effect on the next query without copying lab_id onto the document/job.
+-- This migration deliberately does not modify the raw audit authorization
+-- helper or raw table policies. Professor/assistant access remains denied until
+-- the later summary-only RPC migration is applied.
 
 -- Manual validation (do not execute automatically):
 -- 1. With no share row, same-Lab professor SELECT on job/result returns zero rows.
--- 2. Student grants an active membership Lab; same-Lab professor sees job/result summary.
+-- 2. Student grants an active membership Lab; same-Lab professor still receives
+--    zero rows from raw job/result tables.
 -- 3. Cross-Lab professor still sees zero rows.
--- 4. Set revoked_at = NOW(); the same professor immediately sees zero rows.
+-- 4. Set revoked_at = NOW(); the consent row is immediately inactive.
 -- 5. Professor SELECT on student_documents or storage.objects remains denied/zero rows.
--- 6. Admin can observe shares/jobs/results but consent never grants PDF Storage access.
+-- 6. Admin can observe shares/jobs/results, while consent never grants professor
+--    or assistant raw audit/PDF Storage access.

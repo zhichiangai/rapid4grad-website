@@ -18,20 +18,7 @@ AS $$
     WHERE document.id = target_document_id
       AND (
         document.user_id = (SELECT auth.uid())
-        OR EXISTS (
-          SELECT 1 FROM public.profiles AS profile
-          WHERE profile.id = (SELECT auth.uid()) AND profile.role = 'admin'
-        )
-        OR (
-          document.lab_id IS NOT NULL
-          AND EXISTS (
-            SELECT 1 FROM public.lab_memberships AS membership
-            WHERE membership.lab_id = document.lab_id
-              AND membership.user_id = (SELECT auth.uid())
-              AND membership.role IN ('professor', 'assistant')
-              AND membership.status = 'active'
-          )
-        )
+        OR public.app_is_admin()
       )
   )
 $$;
@@ -51,20 +38,7 @@ AS $$
     WHERE job.id = target_job_id
       AND (
         job.user_id = (SELECT auth.uid())
-        OR EXISTS (
-          SELECT 1 FROM public.profiles AS profile
-          WHERE profile.id = (SELECT auth.uid()) AND profile.role = 'admin'
-        )
-        OR (
-          job.lab_id IS NOT NULL
-          AND EXISTS (
-            SELECT 1 FROM public.lab_memberships AS membership
-            WHERE membership.lab_id = job.lab_id
-              AND membership.user_id = (SELECT auth.uid())
-              AND membership.role IN ('professor', 'assistant')
-              AND membership.status = 'active'
-          )
-        )
+        OR public.app_is_admin()
       )
   )
 $$;
@@ -104,7 +78,7 @@ CREATE POLICY "ai_audit_results: authorized current user can read"
 
 -- Manual validation (do not execute automatically):
 -- 1. Student owner can read only own documents/jobs/results.
--- 2. Active professor/assistant can read only records with the same lab_id.
--- 3. Professor from another lab receives zero rows.
--- 4. Admin can read all three tables.
+-- 2. Active professor/assistant receives zero rows from all three raw tables.
+-- 3. Professor from another lab also receives zero rows.
+-- 4. Admin can read all three raw tables.
 -- 5. SELECT from ai_audit_jobs no longer returns PostgreSQL 42P17.

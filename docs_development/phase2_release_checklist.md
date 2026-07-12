@@ -129,6 +129,13 @@ Phase 1 fallback 必須保留：
 - Admin observation 維持既有獨立權限。
 - 狀態：10 個離線 tests、typecheck/lint 通過；其中 3 個 contract tests 驗證固定七欄、consent/membership/revoke 條件與 raw helper 僅 owner/admin。實際 migration/RLS、grant/revoke 即時性、跨 Lab 與 admin observation 仍待 local 或 Preview DB integration test，尚不可宣稱資料庫閉環已實測。
 
+#### 2.8.1 Transient raw-access release gate closure
+
+- Preview 人工套用前審核發現，第 6 份 timestamp migration 原本允許同 Lab professor/assistant 直接 SELECT raw `student_documents`、`ai_audit_jobs` 與 `ai_audit_results`；第 7 份雖增加 consent，仍會透過覆寫 `app_can_read_ai_audit_job` 暫時開放完整 prompt、error、result markdown 與 token/cost rows，直到第 9 份才收斂。
+- 因第 6、第 7、第 9 份 timestamp migration 均尚未套用 Preview，本機直接修正尚未發布的 migration：第 6 份從套用完成當下即限制 raw rows 為 owner/admin；第 7 份只建立可撤回 consent 並維持 PDF/Storage 私有，不再覆寫 raw audit helper；第 9 份才建立固定七欄的 summary-only RPC。
+- 新增 migration-order contract tests，逐段鎖定第 6 份 owner/admin raw helper、第 7 份不得新增 raw policy/helper、第 8 份 Email migration 不得接觸 audit authorization，以及第 9 份固定七欄 RPC。
+- Timestamp migration 數量與順序維持 12 份；已套用的 `001` 至 `006` baseline 未修改。Preview 仍須逐份人工套用並以 student、same-Lab professor/assistant、cross-Lab、revoke、admin 與 private Storage 情境驗收。
+
 ---
 
 ## 3. Phase 2 Flow 驗收
@@ -712,7 +719,7 @@ app/dashboard/ai-audit/history/page.tsx
 - Merge base：`origin/oauth-preview-hotfix` commit `84b670f`。
 - `006_fix_lab_memberships_rls_recursion.sql` 已由 SQL Editor 手動套用 remote，不可再次執行。
 - `supabase migration list --linked` 本輪只停在 `Initialising login role...`，未取得可採信的 remote migration history；因此 remote history 狀態標記為「本機無法確認」，不可據此執行 `db push`。
-- 9 份 timestamp security migrations 仍按以下 local 順序保存：
+- 12 份 timestamp security migrations 仍按以下 local 順序保存：
   1. `20260710230403_protect_profile_and_quota_data.sql`
   2. `20260710230611_harden_email_verification_sessions.sql`
   3. `20260710231046_make_lab_invite_join_atomic.sql`
@@ -722,6 +729,9 @@ app/dashboard/ai-audit/history/page.tsx
   7. `20260711074505_add_audit_summary_sharing_consent.sql`
   8. `20260711074936_make_email_challenge_limits_atomic.sql`
   9. `20260711153412_restrict_shared_audit_access_to_summaries.sql`
+  10. `20260711203753_grant_authenticated_profile_reads.sql`
+  11. `20260711204203_grant_phase2_rls_table_access.sql`
+  12. `20260711204357_fix_email_challenge_timestamp_type.sql`
 
 ### 13.2 Local Supabase migration replay
 
@@ -748,10 +758,12 @@ app/dashboard/ai-audit/history/page.tsx
 - cross-Lab professor、inactive/revoked consent 查詢為 0 rows；student owner 與 admin observation 符合設計。
 - professor 無法讀取 student private Storage object。
 - Stripe event first claim、processing duplicate、failed retry、processed duplicate 與 attempts 計數符合 idempotency 設計。
+- Transient raw-access checkpoints 已分別從空白 DB replay 驗證：第 6 份完成後 professor/assistant 對 `student_documents`、`ai_audit_jobs`、`ai_audit_results` 與 private Storage 均為 0 rows；第 7 份加入 active consent 後仍為 0；第 8 份 Email migration 後仍為 0；第 9 份後 direct raw SELECT 仍為 0，且 summary RPC 才開始回傳固定七欄。
+- 第 9 份 checkpoint 與最終 12 份全量 replay 均確認：same-Lab professor/active assistant summary 各 1 row、cross-Lab 0 rows、removed assistant 0 rows、revoke 後立即 0 rows；student owner 對自己的 raw rows/Storage 各 1 row，admin 對 raw tables 各 1 row。
 
 ### 13.4 不依賴 DB 的本機 preflight
 
-- `npm test`：10/10 通過。
+- `npm test`：14/14 通過，包含 4 個 migration-order contract tests。
 - `npm run lint`：通過。
 - `npx tsc --noEmit --incremental false`：通過。
 - `npm run build`：Next.js 15.5.19 production build 通過，共 46 routes。
