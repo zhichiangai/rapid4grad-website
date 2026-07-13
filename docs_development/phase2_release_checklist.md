@@ -774,3 +774,59 @@ app/dashboard/ai-audit/history/page.tsx
 - 三份新增 migration 仍為 local-only，remote migration history 尚未取得可採信結果；`006` 已由 SQL Editor 手動套用，不可重複執行。
 - 結論：repo 已具備進入「Preview Supabase migration 人工審核」的本機條件；在確認 remote history、解決既有重複 `002` version 映射並逐份審核 SQL 前，不可執行 `db push`。
 - 本輪未 push、merge、deploy、執行 remote SQL、`supabase db push` 或修改任何雲端設定。
+
+---
+
+## 14. 2026-07-13 Local Final Release Readiness
+
+本節是 Phase 2 在「只使用本機 repo + Local Supabase/Docker」條件下的最終 release-readiness 稽核。基準為 `security-hotfix` commit `beebbd5`；本輪未 push、merge、deploy、執行 linked/remote SQL，亦未修改任何 Vercel、Supabase Dashboard、Stripe、Google OAuth 或 AI provider 設定。
+
+### 14.1 本機已驗證完成
+
+- Git 基準：branch `security-hotfix`，P0 migration/RLS 基準 commit `beebbd5 fix(rls): prevent transient raw audit exposure`。
+- Migration inventory：保留 `001` 至 `006` baseline 與 12 份 timestamp migrations；既有兩份 `002_*` 原檔名不變。因 Supabase CLI 不接受重複 version，本機 disposable replay 副本只將 payment foundation 映射為測試版 `007`，不修改 Git 或 remote history。
+- 從空白 Local Supabase database 完整 replay baseline、payment foundation 與 12 份 timestamp migrations成功。
+- 第 6、7、8、9 份 timestamp checkpoint均在同一空白 DB序列實測：same-Lab professor/assistant 對 `student_documents`、`ai_audit_jobs`、`ai_audit_results` 與 private PDF Storage始終為 0 rows；active consent不會暫時開放 raw rows；第 9 份完成後才可透過固定七欄 summary RPC讀取摘要。
+- Profile：student可更新 `full_name` 等基本欄位；實際更新 `role`、`is_paid` 被資料庫拒絕，authenticated沒有整表 UPDATE privilege。
+- Free quota：anon/authenticated沒有 `free_usage_quotas` SELECT/INSERT/UPDATE privilege，實際讀寫均被拒絕。
+- Email challenge：sequential cooldown為 `created` 後 `cooldown`；連續五次錯誤 PIN後狀態為 `locked`；雙連線同 Email/IP併發僅一筆 `created`、另一筆 `cooldown`，資料列總數為 1。
+- Lab invite：expired/revoked invite均失敗且不留下 membership；最後一個名額雙連線併發只有一位 student成功，另一位回 `invite_limit_reached`，`used_count=1` 且 active membership只有一筆。
+- AI audit quota：重複 reserve不重複扣除；failed重送只退款一次；complete重送只保留一筆 result；completed job不可退款，最終 `pdf_audit_used`與 job lifecycle一致。
+- Consent/RLS：same-Lab professor與 active assistant可由 RPC讀 summary；cross-Lab與 removed assistant為 0 rows；revoke後下一次查詢立即為 0；student owner與 admin raw access符合設計。
+- Summary RPC：輸出固定為 `job_id`、`student_user_id`、`summary`、`risk_level`、`issue_tags`、`completed_at`、`created_at` 七欄，不包含 prompt、error、markdown、token/cost或 PDF metadata。
+- Storage：professor/assistant對 private student PDF object為 0 rows；student owner可讀自己的 object。
+- Stripe DB lifecycle：first claim成功、processing duplicate拒絕、failed finish可 retry、processed duplicate拒絕，attempts最終為 2。純函數 fixtures亦驗證 older/newer、duplicate、同秒 restrictive ordering、past_due/unpaid/canceled/deleted限制規則。
+- OAuth/workspace純本機驗證：login使用 `window.location.origin`，OAuth route使用 `requestUrl.origin`，callback使用 `request.url`；auth flow沒有 `NEXT_PUBLIC_SITE_URL`或 production domain固定導向。`isSafeNextPath`接受站內 `/...`，拒絕 `https://...`、`//...`與 null。fallback為 student `/dashboard`、professor `/professor/dashboard`、admin `/admin`。
+- 程式驗證：`npm test` 14/14、`npm run lint`、`npx tsc --noEmit --incremental false`與 Next.js 15.5.19 production build（46 routes）全部通過。
+
+### 14.2 程式已完成但只能由外部服務驗收
+
+- Google OAuth真實 provider登入、cookie交換、Preview origin callback與各 workspace最終 redirect。
+- Resend真實寄送：Quiz結果信與 AI command Email OTP deliverability、寄件網域與退信行為。
+- Stripe Test Mode：subscription checkout、signature驗證、Dashboard webhook resend、payment_failed/cancel/deleted與 Customer Portal。
+- 真實 AI provider / Vercel AI Gateway：PDF streaming、provider response、`onFinish/onError/onAbort`在 Vercel runtime的 persistence與實際 token/cost。
+- Vercel Preview runtime：Server Components、middleware、environment scope、deployment protection與 function logs。
+- Supabase遠端環境：migration history、兩份 `002_*`的實際 schema對應，以及 `006`已由 SQL Editor手動套用但可能沒有 migration-history row的 drift判讀。
+
+### 14.3 明確 blocked 的外部項目
+
+- 目前 Supabase只有 Production `main`，沒有 staging/preview database；GitHub connection亦未建立。因此不得在 Production main用 timestamp migrations當測試環境。
+- 在建立隔離 Supabase staging/preview database前，Preview migration套用、遠端 RLS角色測試、真實 Storage/Auth整合均標記為 blocked。
+- 真實 AI provider credential尚未確認，因此 streaming E2E標記為 blocked；Phase 1 `/dashboard/ai-command` fallback仍應保留。
+- Stripe/Google OAuth/Resend/Vercel均需要外部服務設定與測試帳號；本機成功不等同外部 E2E完成。
+
+### 14.4 Production release 前必要人工步驟
+
+1. 建立獨立 Supabase staging/preview database；Production `main`不得作為 migration試跑環境。
+2. 在隔離資料庫以唯讀 SQL核對 migration history與實際 schema，特別處理兩份 `002_*`與已手動套用的 `006`；不可因 history缺列就重跑 baseline。
+3. 依審核順序逐份人工套用 12 份 timestamp migrations，每份完成後執行對應 RLS/RPC/grant驗收；任何錯誤立即停止。
+4. 將 Vercel Preview環境變數只指向隔離 Supabase；Production env保持不變，再重新部署 Preview。
+5. 以 student、professor、assistant、cross-Lab professor、admin測試 OAuth、workspace、Lab、consent、Storage與 audit history。
+6. 在 Stripe Test Mode、Resend測試寄送與真實 AI provider sandbox完成外部 E2E；未通過項目不可標記完成。
+7. 完成 Preview驗收與 release sign-off後，才決定是否 push/PR/merge及 Production migration/deploy。Production操作必須另行明確授權。
+
+### 14.5 Gate 判斷
+
+- 本機可解決的 Phase 2 schema、RLS、RPC、concurrency、Storage isolation、OAuth純邏輯與編譯工作已完成，未發現新的本機程式阻塞。
+- Repo可安全進入 GitHub push/PR候選階段，但本輪不 push。
+- Phase 2尚不可宣告 Production-ready；外部 E2E與隔離 Supabase migration驗收仍是 release gate。
