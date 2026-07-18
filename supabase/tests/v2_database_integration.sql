@@ -404,6 +404,7 @@ VALUES (
   2400, 'TWD', 'completed', timezone('utc', now())
 );
 SELECT public.grant_course_entitlement_for_order(:'order_one'::UUID, :'payment_one'::UUID);
+SELECT public.grant_course_entitlement_for_order(:'order_one'::UUID, :'payment_one'::UUID);
 SELECT pg_temp.assert_true(
   (SELECT count(*) = 1 AND bool_and(ends_at IS NULL) FROM public.entitlements WHERE user_id = :'student_owner'::UUID AND entitlement_type = 'course_full' AND status = 'active'),
   'course_full entitlement must be unique and permanent'
@@ -458,6 +459,40 @@ SELECT public.create_lab_invite(
   'student',
   timezone('utc', now()) + interval '1 day',
   2
+);
+
+SELECT public.create_lab_invite(
+  :'professor_one'::UUID,
+  :'lab_one'::UUID,
+  'v2-one-active-lab-race-one',
+  'student',
+  timezone('utc', now()) + interval '1 day',
+  1
+);
+
+SELECT public.create_lab_invite(
+  :'professor_two'::UUID,
+  :'lab_two'::UUID,
+  'v2-one-active-lab-race-two',
+  'student',
+  timezone('utc', now()) + interval '1 day',
+  1
+);
+
+SELECT public.record_admin_action(
+  :'admin_one'::UUID,
+  'baseline_validation',
+  'lab',
+  :'lab_one'::UUID,
+  'Local admin action validation',
+  NULL,
+  jsonb_build_object('validated', TRUE),
+  'v2-local-admin-action-1'
+);
+
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM public.admin_action_logs WHERE request_id = 'v2-local-admin-action-1'),
+  'admin mutation audit log must be persisted exactly once'
 );
 
 SELECT pg_temp.assert_true(

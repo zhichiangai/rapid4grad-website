@@ -113,12 +113,14 @@ V2 需要解決：
 - authenticated 只能更新 profile 基本欄位，不能更新 role 或付款相容欄位。
 - `free_usage_quotas` 對 anon/authenticated 無直接讀寫權限。
 - 每位 Professor 一個 active owned Lab、每位 student 一個 active Lab、每個 Lab 一筆當期 subscription。
+- 同一 student 被兩個不同 Lab 同時邀請時，只允許一筆 active membership，失敗 transaction 不增加 invite `used_count`。
 - Standard 方案兩個並行加入請求爭最後一席時，只允許一位成功，invite `used_count` 只增加一次。
 - PDF shared pool 的 reserve、settle、refund 皆具冪等結果，不重複扣額度。
 - Professor/assistant 對 private PDF metadata、Storage object、raw audit jobs/results 均不可讀。
 - 同 Lab 且 consent 有效時只能經七欄 summary RPC 讀取；cross-Lab 與 revoke 後回傳零筆。
 - Lab member removal 使用狀態轉換，並在同一 transaction 使舊 Lab summary consent 失效。
-- 永久 `course_full` entitlement 無到期日，且不因退出 Lab 而失效。
+- 永久 `course_full` entitlement 重送授權仍只有一筆、無到期日，且不因退出 Lab 而失效。
+- 受控 Admin mutation 會寫入 `admin_action_logs`，一般 client 無直接 mutation grant。
 
 驗收入口：
 
