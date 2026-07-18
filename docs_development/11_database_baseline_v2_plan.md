@@ -1,7 +1,8 @@
 # RAPID4GRAD — Database Baseline V2 Plan
 
-> 狀態：資料庫重建規劃文件，不是可直接執行的 migration。
-> 本輪只有書面規劃；不得依本文直接清除既有 Supabase Project、套用 SQL 或修改 Production。
+> 狀態：V2 Local baseline 已建立並通過空白 Local Supabase replay 與整合驗收。
+> 新 baseline 尚未套用任何遠端 Supabase Project；不得直接對既有 Production 執行。
+> 更新日期：2026-07-19
 
 ## 1. 重建目標
 
@@ -25,7 +26,10 @@ V2 需要解決：
 | `004_courses_lessons_and_progress.sql` | 課程、影片分級、觀看進度 |
 | `005_labs_subscriptions_and_seats.sql` | Lab、memberships、invite、教授方案與席位 |
 | `006_documents_ai_audit_and_consent.sql` | private PDF、audit、Lab credits、summary consent |
-| `007_rls_storage_grants_and_seed.sql` | RLS、Storage policies、grants、最小 seed |
+| `007_grants_rls_storage_and_seed.sql` | RLS、Storage policies、grants、最小 seed |
+
+實體 SQL 位於 `supabase/migrations/`。舊 Phase 1/2 migration 原檔完整保留於
+`supabase/migrations_legacy/`，只供歷史追蹤，不參與新 V2 空白資料庫 replay。
 
 ## 3. Source of Truth
 
@@ -54,15 +58,15 @@ V2 需要解決：
 
 ## 5. 重建流程
 
-1. 凍結並封存既有 migrations，不直接改名。
-2. 依最終產品規則撰寫 Baseline V2。
-3. 在空白 Local Supabase 重播 001–007。
-4. 執行角色、RLS、席位並行、PDF 隔離與 entitlement integration tests。
-5. 建立新的 Supabase Project。
-6. 套用 Baseline V2 並建立 private buckets。
-7. 設定 Auth、Google OAuth 與 Preview env。
-8. Preview 完整驗收後才切換 Production。
-9. 舊 Project 保留到回復期結束後再封存。
+1. **已完成**：凍結並封存既有 migrations，不直接改名。
+2. **已完成**：依最終產品規則撰寫 Baseline V2。
+3. **已完成**：在空白 Local Supabase 重播 001–007。
+4. **已完成**：執行角色、RLS、席位並行、PDF 隔離與 entitlement integration tests。
+5. **待人工決策**：建立新的 Supabase Project。
+6. **待明確授權**：套用 Baseline V2 並建立 private buckets。
+7. **待外部設定**：設定 Auth、Google OAuth 與 Preview env。
+8. **待驗收**：Preview 完整驗收後才切換 Production。
+9. **待未來處理**：舊 Project 保留到回復期結束後再封存。
 
 ## 6. 明確禁止
 
@@ -100,3 +104,28 @@ V2 需要解決：
 - 只有 active student 可建立新的 PDF audit job；Professor/assistant 不直接消耗 shared pool。
 - Professor subscription 失效後，寫入操作與新 PDF audit 停止，只允許既有安全資料唯讀。
 - Lab student 優惠只驗證付款當下的 active membership，不設定最低加入天數。
+
+## 9. Local 驗收紀錄（2026-07-19）
+
+已通過：
+
+- 空白 Local Supabase 依序 replay `001` 至 `007`。
+- authenticated 只能更新 profile 基本欄位，不能更新 role 或付款相容欄位。
+- `free_usage_quotas` 對 anon/authenticated 無直接讀寫權限。
+- 每位 Professor 一個 active owned Lab、每位 student 一個 active Lab、每個 Lab 一筆當期 subscription。
+- Standard 方案兩個並行加入請求爭最後一席時，只允許一位成功，invite `used_count` 只增加一次。
+- PDF shared pool 的 reserve、settle、refund 皆具冪等結果，不重複扣額度。
+- Professor/assistant 對 private PDF metadata、Storage object、raw audit jobs/results 均不可讀。
+- 同 Lab 且 consent 有效時只能經七欄 summary RPC 讀取；cross-Lab 與 revoke 後回傳零筆。
+- Lab member removal 使用狀態轉換，並在同一 transaction 使舊 Lab summary consent 失效。
+- 永久 `course_full` entitlement 無到期日，且不因退出 Lab 而失效。
+
+驗收入口：
+
+- SQL fixture：`supabase/tests/v2_database_integration.sql`
+- 本機執行器：`scripts/test-v2-database.sh`
+- 靜態安全 contract：`tests/v2-database-baseline-contract.test.ts`
+- 由 Local schema 產生的獨立型別：`types/database-v2.generated.ts`
+
+仍未完成：新 Supabase Project、遠端 migration、Auth/OAuth、Vercel Preview、付款 provider、
+真實 AI provider 與 Production 切換。以上不得因 Local 驗收通過而標記為已上線。

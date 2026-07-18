@@ -4,7 +4,7 @@ import test from "node:test";
 
 const migration = readFileSync(
   new URL(
-    "../supabase/migrations/20260711153412_restrict_shared_audit_access_to_summaries.sql",
+    "../supabase/migrations_legacy/20260711153412_restrict_shared_audit_access_to_summaries.sql",
     import.meta.url,
   ),
   "utf8",

@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 
 function readMigration(filename: string): string {
   return readFileSync(
-    fileURLToPath(new URL(`../supabase/migrations/${filename}`, import.meta.url)),
+    fileURLToPath(
+      new URL(`../supabase/migrations_legacy/${filename}`, import.meta.url),
+    ),
     "utf8",
   );
 }

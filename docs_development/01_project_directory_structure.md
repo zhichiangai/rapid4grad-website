@@ -143,7 +143,9 @@ build/
 ├── public/
 ├── supabase/
 │   ├── migrations/
-│   └── seed/
+│   ├── migrations_legacy/
+│   └── tests/
+├── scripts/
 ├── tests/
 ├── types/
 ├── middleware.ts
@@ -512,16 +514,18 @@ Subscription 失效後停止 mutations、Lab videos 與新 PDF audits；Professo
 
 ## 13. Database And Storage Boundaries
 
-目前 migration 目錄包含：
+目前資料庫分為兩個明確目錄：
 
-- Phase 1 core。
-- Payment foundation。
-- Phase 2 platform schema。
-- Lab/Profile RLS fixes。
-- Atomic operations。
-- Email verification、AI credits、Stripe ordering 與 audit consent security migrations。
+- `supabase/migrations/`：乾淨 V2 Baseline `001`–`007`，已通過空白 Local replay。
+- `supabase/migrations_legacy/`：原 Phase 1/2 migration 歷史，只供追蹤，不參與 V2 replay。
 
-這些 migration 代表目前程式歷史，不是乾淨 V2 Baseline。V2 目標 001–007 分工見 `11_database_baseline_v2_plan.md`。
+V2 baseline 的 table、RPC、RLS、Storage、grants 與 seed 分工見
+`11_database_baseline_v2_plan.md`。Local 真實整合測試位於
+`supabase/tests/v2_database_integration.sql`，由 `scripts/test-v2-database.sh` 執行。
+
+現有應用程式仍使用 `types/database.ts` 維持 Phase 1 fallback 編譯；新 V2 schema 的獨立
+generated types 位於 `types/database-v2.generated.ts`，後續 route 改造應逐步切換，不可在
+Task 2 直接覆蓋 legacy types。
 
 Storage：
 

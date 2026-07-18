@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+db_container="supabase_db_build"
+psql_cmd=(docker exec -i "$db_container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres)
+
+cd "$repo_root"
+supabase db reset
+"${psql_cmd[@]}" < supabase/tests/v2_database_integration.sql
+
+result_one="$(mktemp)"
+result_two="$(mktemp)"
+trap 'rm -f "$result_one" "$result_two"' EXIT
+
+set +e
+docker exec "$db_container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres -Atc \
+  "SELECT public.redeem_lab_invite('v2-final-seat-invite-hash', '10000000-0000-0000-0000-000000000015'::UUID);" \
+  >"$result_one" 2>&1 &
+pid_one=$!
+docker exec "$db_container" psql -v ON_ERROR_STOP=1 -U postgres -d postgres -Atc \
+  "SELECT public.redeem_lab_invite('v2-final-seat-invite-hash', '10000000-0000-0000-0000-000000000016'::UUID);" \
+  >"$result_two" 2>&1 &
+pid_two=$!
+wait "$pid_one"
+status_one=$?
+wait "$pid_two"
+status_two=$?
+set -e
+
+success_count=0
+[[ "$status_one" -eq 0 ]] && success_count=$((success_count + 1))
+[[ "$status_two" -eq 0 ]] && success_count=$((success_count + 1))
+
+if [[ "$success_count" -ne 1 ]]; then
+  printf 'Expected one final-seat success, got %s.\n' "$success_count" >&2
+  printf '%s\n' '--- contender one ---' >&2
+  cat "$result_one" >&2
+  printf '%s\n' '--- contender two ---' >&2
+  cat "$result_two" >&2
+  exit 1
+fi
+
+"${psql_cmd[@]}" <<'SQL'
+DO $$
+DECLARE
+  target_lab UUID;
+  active_students INTEGER;
+  joined_contenders INTEGER;
+  invite_uses INTEGER;
+BEGIN
+  SELECT id INTO target_lab
+  FROM public.labs
+  WHERE owner_professor_id = '20000000-0000-0000-0000-000000000001'::UUID;
+
+  SELECT count(*) INTO active_students
+  FROM public.lab_memberships
+  WHERE lab_id = target_lab
+    AND role = 'student'::public.lab_role
+    AND status = 'active'::public.lab_membership_status;
+
+  SELECT count(*) INTO joined_contenders
+  FROM public.lab_memberships
+  WHERE lab_id = target_lab
+    AND user_id IN (
+      '10000000-0000-0000-0000-000000000015'::UUID,
+      '10000000-0000-0000-0000-000000000016'::UUID
+    )
+    AND status = 'active'::public.lab_membership_status;
+
+  SELECT used_count INTO invite_uses
+  FROM public.lab_invite_codes
+  WHERE code_hash = 'v2-final-seat-invite-hash';
+
+  IF active_students <> 15 OR joined_contenders <> 1 OR invite_uses <> 1 THEN
+    RAISE EXCEPTION
+      'final seat invariant failed: active=%, contenders=%, uses=%',
+      active_students,
+      joined_contenders,
+      invite_uses;
+  END IF;
+END;
+$$;
+SQL
+
+printf 'V2 Local Supabase integration passed, including concurrent final-seat enforcement.\n'
