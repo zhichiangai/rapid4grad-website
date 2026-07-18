@@ -1,5 +1,14 @@
 # RAPID4GRAD — Phase 3 Discovery And Scope
 
+> **V2 產品依賴（2026-07-19）**：Phase 3 discovery 必須建立在學生課程買斷、Professor Lab Standard 最多 15 位／Plus 最多 30 位／31 位以上洽談、Lab 部分影片、Lab 學生加購完整影片，以及 PDF AI 稽核只屬於有效訂閱 Lab 的前提上。詳見 `08_product_business_model_v2.md` 至 `10_professor_subscription_and_seat_rules.md`。
+
+## 0. V2 後續探索邊界
+
+- Phase 3 不重新引入學生個人 PDF 訂閱。
+- 更完整的文件分享仍需學生明確 consent；教授訂閱不等於 PDF 本文存取權。
+- Professor workflow 必須支援 small/large Lab 席位與作用域角色。
+- 完整課程買斷 entitlement 與 Lab subscription entitlement 必須分離。
+
 更新時間：2026-07-11 CST
 
 本文件只定義 Phase 3 候選能力、前置驗收與非目標，不授權新增 schema 或實作功能。Phase 2 remote migrations、Preview E2E、Stripe Test Mode 與真實 AI provider 驗收完成前，不開始 Phase 3 MVP。

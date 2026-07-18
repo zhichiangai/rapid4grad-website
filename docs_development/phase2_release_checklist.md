@@ -1,5 +1,17 @@
 # RAPID4GRAD — Phase 2 Release Checklist
 
+> [!IMPORTANT]
+> **歷史驗收文件**：本文記錄 2026-07-19 前既有 Phase 2 程式、migration 與安全驗收，不代表 V2 商業模式已實作。V2 已改為學生完整課程買斷、Professor Lab Standard 最多 15 位／Plus 最多 30 位／31 位以上洽談、Lab 部分影片與學生加購升級、PDF AI 稽核僅限有效訂閱 Lab。現行產品與權限規格請讀 `08_product_business_model_v2.md`、`09_entitlement_and_access_matrix_v2.md`、`10_professor_subscription_and_seat_rules.md`；資料庫重建方向請讀 `11_database_baseline_v2_plan.md`。
+
+## 0. V2 轉向狀態
+
+- 本文件中的 `student_monthly`、`student_semester`、個人 subscription PDF quota、NT$ 2,400 + 6 個月工具，以及舊 `course_access` / `profiles.is_paid` 判斷均屬既有程式或歷史規格。
+- V2 文件已完成書面定義，但程式、付款、課程資料模型與 Supabase Baseline 尚未依 V2 重建。
+- 在 V2 重建完成前，不得把本文既有通過項目解讀為新版商業模式已可上線。
+- 本文件既有安全驗收紀錄繼續有效，可作為 V2 RLS、Storage、OAuth、concurrency 與 webhook 測試基礎。
+- 現有 `/admin/leads`、`/admin/quotas`、`/admin/templates` 只代表 Legacy Admin 已有基礎功能；V2 Admin Control Plane 尚未實作，規格見 `12_admin_control_plane_v2.md`。
+- V2 後續需要驗收 server-side Admin role guard、entitlement 補發／撤銷、subscription/seat/credit 異常處理及 `admin_action_logs`；在完成前不得宣稱新版權限管理介面閉環。
+
 更新時間：2026-07-11 CST
 
 本文件記錄 Phase 2 整合驗收狀態。此輪僅做 release audit、靜態驗收與文件化，不執行 merge、不部署 production、不打真實付款、不呼叫真實 AI provider。

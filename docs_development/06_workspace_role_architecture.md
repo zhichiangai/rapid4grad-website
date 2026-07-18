@@ -1,5 +1,21 @@
 # RAPID4GRAD — Workspace / Role Architecture
 
+> **V2 同步（2026-07-19）**：Workspace role 不等於付費權限。學生完整影片由永久 `course_full` entitlement 決定；Professor Dashboard 與 Lab 基礎影片由有效 Professor Lab subscription 決定；PDF AI 稽核只提供給有效訂閱 Lab。詳細規則見 `08_product_business_model_v2.md`、`09_entitlement_and_access_matrix_v2.md` 與 `10_professor_subscription_and_seat_rules.md`。
+
+> **Lab 管理補充**：每位 Professor 最多擁有一個 active Lab。Lab owner 可將自己 Lab 的 student、assistant 或非 owner professor membership 設為 removed，但不可刪除帳號或個人資料；移除後 Lab 衍生權限及舊 Lab summary consent 立即失效。
+
+## 0. V2 Workspace 與 Lab 作用域
+
+- `/dashboard`：學生個人資料、個人課程與所屬 Lab 團隊功能。
+- `/professor/dashboard`：有效訂閱 Lab 的管理入口。
+- `/admin`：內部觀察與受控維運，不代表擁有學生個人買斷權限。
+- `profiles.role`：主要 workspace 分流。
+- `lab_memberships.role`：特定 Lab 內的 owner/professor/assistant/student 作用域。
+- 同一帳號的影片、PDF 與 Dashboard 權限必須另查 entitlement、subscription、membership 與 consent，不可只看 `profiles.role`。
+- Admin workspace 是內部 control plane；Admin observation 不會自動建立 Professor membership，也不代表 private PDF、raw audit 或完整課程權限。Admin 可進 Professor workspace 驗收，但只能 read-only observation。
+
+Admin 的使用者、entitlement、訂閱、席位、PDF 額度及操作稽核規格見 `12_admin_control_plane_v2.md`。
+
 更新時間：2026-07-11
 
 ## 1. 現況問題
@@ -63,7 +79,7 @@ summary 可見性；它不是獨立登入 workspace，也不會改變上述
 
 - 有 `next` 時，安全驗證通過就優先尊重 `next`。
 - 沒有 `next` 時才使用 role fallback。
-- admin 直接進 `/professor/dashboard`：允許。
+- admin 直接進 `/professor/dashboard`：允許，但只能 read-only observation；所有修改回 `/admin` 完成。
 - admin 直接進 `/admin`：允許。
 - student 直接進 `/professor/dashboard`：導回 `/dashboard`。
 - professor 直接進 `/dashboard`：短期維持現有最小改動，允許進入基礎 dashboard；但 professor 的預設登入 fallback 是 `/professor/dashboard`。
@@ -116,6 +132,7 @@ admin 不是一般 professor，也不是一般 student。admin 可以進 profess
 - Lab invite 只允許 `student` role 兌換；admin 不可透過 invite 取得 student membership。
 - Professor / assistant 的資料可見範圍必須由資料庫 RLS 與目前 active Lab membership 決定，不可只靠頁面 filtering。
 - Admin observation access 使用獨立 policy / server guard，不得與 professor policy 混寫成一般 Lab 身份。
+- Admin 在 Professor workspace 不得建立邀請碼、修改 membership、指派研究工作或執行其他 Professor 寫入操作。
 - 學生的 AI audit summary 預設私人；教授/assistant 只有在學生對指定 Lab 建立且未撤回 consent 時可讀 summary。此 consent 不包含 PDF 本文、檔名、Storage metadata 或下載權限。
 - Phase 2 不支援同一帳號同時持有多個產品身份；若未來需要多身份，必須先完成 Phase 3 權限模型決策。
 
