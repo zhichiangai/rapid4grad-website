@@ -42,7 +42,9 @@ Professor 是付款人，也是自己 Lab 的 owner；每位 Professor 同一時
 | `professor_lab_plus` | 0–30 位 active students | 待定 | 第 16 位加入前必須完成升級 |
 | `professor_lab_enterprise` | 31 位以上 active students | 人工洽談 | 不提供自助結帳 |
 
-月繳／年繳週期仍待定。Professor 與 assistant 不計入 student seats，只有 `role = student` 且 `status = active` 的 membership 計入。每個 Lab 最多 3 位 active assistants，避免以 assistant 身分規避學生席位。
+Standard 與 Plus 都支援月繳、年繳。每個 Professor 帳號可啟用一次 30 天免綁卡試用；試用由 RAPID4GRAD 自己管理，不建立綠界 0 元定期定額訂單。試用結束後，正式訂閱才由綠界定期定額處理。Professor 與 assistant 不計入 student seats，只有 `role = student` 且 `status = active` 的 membership 計入。每個 Lab 最多 3 位 active assistants，避免以 assistant 身分規避學生席位。
+
+Standard／Plus 正式價格仍待公告。沒有 active `product_prices` 時，系統可展示方案與啟用試用，但不得建立正式付款單或使用假金額。
 
 ## 4. Lab 學生的影片權限與升級
 
@@ -90,7 +92,7 @@ Lab PDF 額度及超額價格：**待定**。
 
 - 學生完整課程買斷價格。
 - Lab 學生完整課程升級價格。
-- 1–15 人 Professor Lab 訂閱價格與週期。
+- 1–15 人 Professor Lab 訂閱月繳／年繳價格。
 - 16–30 人 Professor Lab Plus 訂閱價格。
 - 各方案 PDF 額度與超額費用。
 - 訂閱失效後歷史 AI 稽核資料最終保留期限；目前先無限期保留為唯讀。
@@ -105,6 +107,7 @@ Lab PDF 額度及超額價格：**待定**。
 - 學生個人永久 `course_full` entitlement 不受影響。
 - 學生仍可查看及刪除自己擁有的 private PDF 與歷史完整 AI 稽核結果；Professor/assistant 仍只能依有效 consent 與成員關係讀取安全摘要。
 - 歷史資料目前不設定自動刪除期限，後續再決定正式保留政策。
+- `past_due` 自付款失敗事件起提供 15 天寬限；寬限期間維持 Lab 管理、`lab_basic` 與 PDF 資格，寬限結束後轉為上述唯讀／停用狀態。
 
 ## 9. Admin 營運控制
 

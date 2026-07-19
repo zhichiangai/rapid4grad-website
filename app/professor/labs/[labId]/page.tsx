@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProfessorLabControls } from "@/components/professor/ProfessorLabControls";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
 import { canAccessWorkspace } from "@/lib/workspace/access";
 
 type LabRow = {
@@ -64,7 +64,7 @@ function riskClass(riskLevel: string | null | undefined) {
 }
 
 async function requireProfessor() {
-  const supabase = await createClient();
+  const supabase = await createV2Client();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -73,7 +73,7 @@ async function requireProfessor() {
     redirect("/login?next=/professor/dashboard");
   }
 
-  const admin = createAdminClient();
+  const admin = createV2AdminClient();
   const { data: profile, error } = await admin
     .from("profiles")
     .select("id,role")
@@ -109,6 +109,27 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
   if (!lab) {
     redirect("/professor/dashboard");
   }
+
+  const { data: currentSubscription } = await admin
+    .from("subscriptions")
+    .select("status,current_period_end,grace_ends_at")
+    .eq("lab_id", lab.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const now = Date.now();
+  const subscriptionMode: "functional" | "read_only" | "none" =
+    currentSubscription &&
+    (((currentSubscription.status === "active" ||
+      currentSubscription.status === "trialing") &&
+      new Date(currentSubscription.current_period_end).getTime() > now) ||
+      (currentSubscription.status === "past_due" &&
+        currentSubscription.grace_ends_at &&
+        new Date(currentSubscription.grace_ends_at).getTime() > now))
+      ? "functional"
+      : currentSubscription
+        ? "read_only"
+        : "none";
 
   const { data: membershipsData, error: membershipsError } = await admin
     .from("lab_memberships")
@@ -202,6 +223,7 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
               },
             ]}
             defaultLabId={lab.id}
+            subscriptionMode={subscriptionMode}
           />
         </div>
 

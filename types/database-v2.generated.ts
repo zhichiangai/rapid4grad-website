@@ -7,6 +7,31 @@ export type Json =
   | Json[]
 
 export type Database = {
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       admin_action_logs: {
@@ -884,6 +909,7 @@ export type Database = {
           currency: string
           id: string
           idempotency_key: string
+          lab_id: string | null
           paid_at: string | null
           product_id: string
           product_price_id: string | null
@@ -891,6 +917,7 @@ export type Database = {
           provider_order_id: string | null
           raw_checkout_payload: Json | null
           status: Database["public"]["Enums"]["order_status"]
+          subscription_id: string | null
           updated_at: string
           user_id: string
         }
@@ -902,6 +929,7 @@ export type Database = {
           currency?: string
           id?: string
           idempotency_key: string
+          lab_id?: string | null
           paid_at?: string | null
           product_id: string
           product_price_id?: string | null
@@ -909,6 +937,7 @@ export type Database = {
           provider_order_id?: string | null
           raw_checkout_payload?: Json | null
           status?: Database["public"]["Enums"]["order_status"]
+          subscription_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -920,6 +949,7 @@ export type Database = {
           currency?: string
           id?: string
           idempotency_key?: string
+          lab_id?: string | null
           paid_at?: string | null
           product_id?: string
           product_price_id?: string | null
@@ -927,10 +957,18 @@ export type Database = {
           provider_order_id?: string | null
           raw_checkout_payload?: Json | null
           status?: Database["public"]["Enums"]["order_status"]
+          subscription_id?: string | null
           updated_at?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_lab_id_fkey"
+            columns: ["lab_id"]
+            isOneToOne: false
+            referencedRelation: "labs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_product_id_fkey"
             columns: ["product_id"]
@@ -943,6 +981,13 @@ export type Database = {
             columns: ["product_price_id"]
             isOneToOne: false
             referencedRelation: "product_prices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
             referencedColumns: ["id"]
           },
         ]
@@ -1139,6 +1184,48 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      professor_subscription_trials: {
+        Row: {
+          claimed_at: string
+          created_at: string
+          id: string
+          lab_id: string
+          payer_user_id: string
+          subscription_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          created_at?: string
+          id?: string
+          lab_id: string
+          payer_user_id: string
+          subscription_id: string
+        }
+        Update: {
+          claimed_at?: string
+          created_at?: string
+          id?: string
+          lab_id?: string
+          payer_user_id?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professor_subscription_trials_lab_id_fkey"
+            columns: ["lab_id"]
+            isOneToOne: true
+            referencedRelation: "labs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professor_subscription_trials_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: true
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1398,6 +1485,7 @@ export type Database = {
           created_at: string
           current_period_end: string
           current_period_start: string
+          grace_ends_at: string | null
           id: string
           lab_id: string
           last_provider_event_created_at: string | null
@@ -1411,6 +1499,8 @@ export type Database = {
           provider_customer_id: string | null
           provider_subscription_id: string | null
           status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at: string | null
+          trial_started_at: string | null
           updated_at: string
         }
         Insert: {
@@ -1420,6 +1510,7 @@ export type Database = {
           created_at?: string
           current_period_end: string
           current_period_start: string
+          grace_ends_at?: string | null
           id?: string
           lab_id: string
           last_provider_event_created_at?: string | null
@@ -1433,6 +1524,8 @@ export type Database = {
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
           status: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -1442,6 +1535,7 @@ export type Database = {
           created_at?: string
           current_period_end?: string
           current_period_start?: string
+          grace_ends_at?: string | null
           id?: string
           lab_id?: string
           last_provider_event_created_at?: string | null
@@ -1455,6 +1549,8 @@ export type Database = {
           provider_customer_id?: string | null
           provider_subscription_id?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
+          trial_ends_at?: string | null
+          trial_started_at?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1554,6 +1650,16 @@ export type Database = {
         }
         Returns: string
       }
+      create_professor_subscription_checkout_order: {
+        Args: {
+          target_billing_interval: Database["public"]["Enums"]["subscription_interval"]
+          target_idempotency_key: string
+          target_lab_id: string
+          target_payer_user_id: string
+          target_plan_key: Database["public"]["Enums"]["professor_plan_key"]
+        }
+        Returns: Json
+      }
       create_student_course_checkout_order: {
         Args: {
           target_idempotency_key: string
@@ -1622,6 +1728,10 @@ export type Database = {
         Args: { target_order_id: string; target_payment_id?: string }
         Returns: string
       }
+      mark_professor_subscription_cancel_at_period_end: {
+        Args: { target_payer_user_id: string; target_subscription_id: string }
+        Returns: Json
+      }
       process_one_time_payment_event: {
         Args: {
           target_amount: number
@@ -1632,6 +1742,21 @@ export type Database = {
           target_paid_at: string
           target_payload: Json
           target_provider: Database["public"]["Enums"]["payment_provider"]
+          target_provider_order_id: string
+          target_provider_payment_id: string
+        }
+        Returns: Json
+      }
+      process_professor_subscription_event: {
+        Args: {
+          target_amount: number
+          target_currency: string
+          target_error_code?: string
+          target_event_created_at: string
+          target_outcome: string
+          target_payload: Json
+          target_period_end: string
+          target_provider_event_id: string
           target_provider_order_id: string
           target_provider_payment_id: string
         }
@@ -1685,6 +1810,15 @@ export type Database = {
       revoke_lab_invite: {
         Args: { target_actor_id: string; target_invite_id: string }
         Returns: boolean
+      }
+      start_professor_subscription_trial: {
+        Args: {
+          target_billing_interval: Database["public"]["Enums"]["subscription_interval"]
+          target_lab_id: string
+          target_payer_user_id: string
+          target_plan_key: Database["public"]["Enums"]["professor_plan_key"]
+        }
+        Returns: Json
       }
     }
     Enums: {
@@ -1877,6 +2011,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       account_status: ["active", "suspended"],

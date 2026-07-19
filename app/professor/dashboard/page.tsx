@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProfessorLabControls } from "@/components/professor/ProfessorLabControls";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
 import { canAccessWorkspace } from "@/lib/workspace/access";
 
 type LabRow = {
@@ -69,7 +69,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 async function getProfessorUser() {
-  const supabase = await createClient();
+  const supabase = await createV2Client();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -78,7 +78,7 @@ async function getProfessorUser() {
     redirect("/login?next=/professor/dashboard");
   }
 
-  const admin = createAdminClient();
+  const admin = createV2AdminClient();
   const { data: profile, error } = await admin
     .from("profiles")
     .select("id,email,full_name,role")
@@ -103,6 +103,39 @@ async function getProfessorUser() {
 
 export default async function ProfessorDashboardPage() {
   const { user, profile, admin, supabase } = await getProfessorUser();
+
+  const { data: currentSubscription, error: subscriptionError } = await admin
+    .from("subscriptions")
+    .select(
+      "id,lab_id,plan_key,status,current_period_end,grace_ends_at,cancel_at_period_end",
+    )
+    .eq("payer_user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (subscriptionError) {
+    console.error("Professor subscription lookup failed", {
+      code: subscriptionError.code,
+    });
+  }
+
+  const now = Date.now();
+  const subscriptionFunctional = Boolean(
+    currentSubscription &&
+      (((currentSubscription.status === "active" ||
+        currentSubscription.status === "trialing") &&
+        new Date(currentSubscription.current_period_end).getTime() > now) ||
+        (currentSubscription.status === "past_due" &&
+          currentSubscription.grace_ends_at &&
+          new Date(currentSubscription.grace_ends_at).getTime() > now)),
+  );
+  const subscriptionMode: "functional" | "read_only" | "none" =
+    subscriptionFunctional
+      ? "functional"
+      : currentSubscription
+        ? "read_only"
+        : "none";
 
   const { data: labsData, error: labsError } = await admin
     .from("labs")
@@ -218,11 +251,43 @@ export default async function ProfessorDashboardPage() {
               >
                 觀看 Lab 課程
               </Link>
+              <Link
+                href="/billing"
+                className="rounded-2xl border border-blue-300/20 bg-blue-400/10 px-4 py-3 text-center text-sm font-semibold text-blue-100 transition hover:bg-blue-400/15"
+              >
+                管理訂閱
+              </Link>
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
                 登入教授：{profile.full_name ?? profile.email}
               </div>
             </div>
           </div>
+        </div>
+
+        <div
+          className={`mt-6 rounded-3xl border p-5 ${
+            subscriptionMode === "functional"
+              ? "border-emerald-300/20 bg-emerald-400/10"
+              : "border-amber-300/20 bg-amber-400/10"
+          }`}
+        >
+          <p className="text-sm font-semibold text-white">
+            {subscriptionMode === "functional"
+              ? `${currentSubscription?.plan_key === "professor_lab_plus" ? "Plus" : "Standard"} · ${currentSubscription?.status === "trialing" ? "30 天試用中" : currentSubscription?.status === "past_due" ? "15 天付款寬限中" : "訂閱使用中"}`
+              : subscriptionMode === "none"
+                ? "尚未啟用 Professor Lab 試用或訂閱"
+                : "訂閱目前為唯讀狀態"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            {subscriptionMode === "functional"
+              ? "可管理 Lab、建立邀請碼並使用 Lab 指定影片。"
+              : "既有 Lab 與歷史安全摘要仍可查看；新增成員、Lab 影片與新 PDF 稽核會停用。"}
+          </p>
+          {subscriptionMode !== "functional" ? (
+            <Link href="/pricing" className="mt-3 inline-flex text-sm font-semibold text-cyan-100 hover:text-white">
+              查看 Standard／Plus 與 30 天免綁卡試用 →
+            </Link>
+          ) : null}
         </div>
 
         <div className="mt-6">
@@ -232,6 +297,7 @@ export default async function ProfessorDashboardPage() {
               name: lab.name,
               institution: lab.institution,
             }))}
+            subscriptionMode={subscriptionMode}
           />
         </div>
 

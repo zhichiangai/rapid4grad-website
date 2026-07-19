@@ -63,6 +63,7 @@ type RevokeInviteResponse =
 type ProfessorLabControlsProps = {
   labs: LabSummary[];
   defaultLabId?: string;
+  subscriptionMode: "functional" | "read_only" | "none";
 };
 
 function isInviteInactive(invite: {
@@ -85,6 +86,7 @@ function isInviteInactive(invite: {
 export function ProfessorLabControls({
   labs,
   defaultLabId,
+  subscriptionMode,
 }: ProfessorLabControlsProps) {
   const [labName, setLabName] = useState("");
   const [institution, setInstitution] = useState("");
@@ -97,6 +99,7 @@ export function ProfessorLabControls({
   const [isCreatingLab, setIsCreatingLab] = useState(false);
   const [isCreatingInvite, setIsCreatingInvite] = useState(false);
   const [isRevokingInvite, setIsRevokingInvite] = useState(false);
+  const canManageMembers = subscriptionMode === "functional";
 
   async function handleCreateLab(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -298,12 +301,20 @@ export function ProfessorLabControls({
           </label>
           <button
             type="submit"
-            disabled={isCreatingInvite || labs.length === 0}
+            disabled={isCreatingInvite || labs.length === 0 || !canManageMembers}
             className="self-end rounded-2xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isCreatingInvite ? "產生中..." : "產生邀請碼"}
           </button>
         </div>
+
+        {!canManageMembers ? (
+          <p className="mt-4 rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100">
+            {subscriptionMode === "none"
+              ? "請先啟用 30 天試用或正式訂閱，再產生學生邀請碼。"
+              : "目前訂閱已進入唯讀狀態，不能新增成員或產生邀請碼。"}
+          </p>
+        ) : null}
 
         {createdInvite ? (
           <div

@@ -74,7 +74,7 @@
 ## 6. 權限衝突處理
 
 - 永久 `course_full` 不會因 Lab 退訂而撤銷。
-- Lab 退訂會立即停止 `lab_basic`、`pdf_audit_team` 與 Professor Dashboard 操作權。
+- Lab 退訂會停止 `lab_basic`、`pdf_audit_team` 與 Professor Dashboard 操作權；`past_due` 先適用 15 天功能寬限，`unpaid`、`canceled` 或寬限結束後才進入唯讀／停止狀態。
 - Lab 退訂後 Professor Dashboard 僅保留既有 Lab 與安全摘要的唯讀模式，不可新增或修改資料。
 - Professor 不得授予或撤銷學生個人買斷 entitlement。
 - Admin 可透過受控 server-side 操作修正 entitlement，但一般 client 不可直接寫入。

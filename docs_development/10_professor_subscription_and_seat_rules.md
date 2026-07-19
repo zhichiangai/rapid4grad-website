@@ -15,12 +15,14 @@ Professor 與 assistant 不計入 student seats。只有 `status = active` 且 `
 
 Subscription 由 Professor 帳號付款並綁定該 Professor 自己建立的 Lab。每位 Professor 同時最多擁有一個 active Lab，每個 Lab 同時只能有一筆有效 subscription。Subscription 與 Lab owner 不轉移；新 Professor 必須重新訂閱並建立新的 Lab。
 
+Standard 與 Plus 均支援月繳、年繳。每個 Professor 帳號可領取一次 30 天免綁卡試用；試用不建立綠界 0 元訂單，正式續用時才導向綠界定期定額。價格尚未公告前，系統不得建立正式 checkout。
+
 ## 2. 席位規則
 
 - 建立邀請碼前與學生加入時都必須檢查方案席位。
 - 第 15 位 active student 可加入 Standard；第 16 位不可先加入。
 - 第 16 位嘗試加入時不得建立 membership，系統顯示方案已滿並通知 Professor 先升級 Plus。
-- Professor 完成 Plus 升級後，學生才可重新加入。
+- 綠界缺少安全的自動換方案 API；已付費 Standard 升級 Plus 暫由客服先終止舊扣款排程並完成受控方案變更，確認後學生才可重新加入。
 - Plus 第 30 位可加入；第 31 位不可加入，改為聯絡 RAPID 洽談 Enterprise。
 - 移除、退出或停用學生後，席位可重新釋放。
 - 每位 student 同一時間只能加入一個 active Lab；離開或被移除後才能加入另一個 Lab。
@@ -79,19 +81,32 @@ Subscription 由 Professor 帳號付款並綁定該 Professor 自己建立的 La
 | Subscription status | Dashboard | Lab basic videos | PDF AI audit | 歷史摘要 |
 |---|---|---|---|---|
 | `active` / `trialing` | 可操作 | 可看 | 可用 | 依 consent |
-| `past_due` | 唯讀 | 停止 | 停止新稽核 | 唯讀 |
+| `past_due`（15 天內） | 可操作 | 可看 | 可用 | 依 consent |
+| `past_due`（超過 15 天） | 唯讀 | 停止 | 停止新稽核 | 唯讀 |
 | `unpaid` / `canceled` | 唯讀 | 停止 | 停止 | 唯讀 |
 | `cancel_at_period_end` | 到期前維持 | 到期前維持 | 到期前維持 | 到期後唯讀 |
 
-## 6. 待決策清單
+## 6. 已確認付款規則
 
-- Small/Large 價格及月繳、年繳方式。
-- 各方案 PDF 額度及超額費。
-- 非 owner professor 的管理能力。
-- Past due 是否提供付款寬限天數。
+- Recurring provider 暫定綠界 ECPay。
+- 月繳以每月固定金額處理；年繳以每年固定金額處理。
+- 綠界定期定額只提供補授權與終止 API，沒有安全的自動改價／換方案 API。已開始付費的 Standard／Plus 若要換方案或月年週期，先採客服受控處理，不可直接建立第二筆定期扣款。
+- 綠界定期定額執行次數有 provider 上限，系統應在接近上限前建立新的續訂流程，不把有限期數描述成永久自動扣款。
+- `past_due` 自付款失敗事件起有 15 天功能寬限；較新的成功付款可恢復 active。
+- `unpaid`、`canceled` 立即停止衍生功能並保留唯讀歷史。
+- 同秒事件由較嚴格狀態優先，較舊事件不可覆蓋較新狀態；provider event 重送不可重複建立付款。
+- PDF 額度數字仍待定，Task 5 不建立任何假 `lab_usage_credits` row。
 - 歷史摘要與 Lab 資料最終保留期限；目前先無限期唯讀保留。
 
-## 7. Admin 異常處理邊界
+## 7. 待決策清單
+
+- Standard/Plus 月繳與年繳價格。
+- 各方案 PDF 額度及超額費。
+- 非 owner professor 的管理能力。
+- 各方案免費試用後的轉換文案與提醒節奏。
+- 已付費方案變更的客服操作流程與對帳規則。
+
+## 8. Admin 異常處理邊界
 
 - Admin 可查看所有 Lab 的方案、subscription sync 與 active student seats，用於營運與客服。
 - Admin 可修正付款已完成但 subscription 未同步的異常，或建立有期限且有理由的客服延長。

@@ -1,6 +1,6 @@
 # RAPID4GRAD — Database Baseline V2 Plan
 
-> 狀態：V2 Local baseline 已建立；Task 3 學生一次性買斷與 Task 4 三層影片 RLS extension 均已通過空白 Local Supabase replay 與整合驗收。
+> 狀態：V2 Local baseline 已建立；Task 3 學生一次性買斷、Task 4 三層影片 RLS、Task 5 Professor subscription／trial／seats extension 均已通過空白 Local Supabase replay 與整合驗收。
 > 新 baseline 尚未套用任何遠端 Supabase Project；不得直接對既有 Production 執行。
 > 更新日期：2026-07-19
 
@@ -202,3 +202,48 @@ Task 3 Local 驗收：
 - SQL fixture：`supabase/tests/v2_course_content_access_integration.sql`
 - 本機執行器：`scripts/test-v2-course-content-access.sh`
 - Static contract：`tests/v2-course-content-access-contract.test.ts`
+
+## 12. Task 5 Professor Subscription And Seats（Local closure）
+
+新增 migration：
+
+- `20260719082208_professor_subscription_and_trials.sql`
+
+本 migration 不修改 Baseline `001`–`007`，只擴充：
+
+- `subscriptions` 的 `trial_started_at`、`trial_ends_at` 與 `grace_ends_at`。
+- `professor_subscription_trials`，以 payer unique constraint 保證一個教授帳號只能領取一次 30 天免綁卡試用。
+- `orders.lab_id` 與 `orders.subscription_id`，讓正式付款單可追溯到 Professor Lab subscription。
+- service-role-only 的試用、checkout order、verified event 與取消 RPC。
+- Standard 15／Plus 30 席位與 3 位 assistant 仍由資料庫 trigger 執行。
+- `past_due` 在 15 天內仍視為 functional；寬限結束、`unpaid`、`canceled`、`expired` 轉為唯讀。
+- 同秒 provider event 由較嚴格狀態優先；event ID 與 provider payment ID 保持 idempotent。
+
+付款與價格邊界：
+
+- Standard／Plus 均支援 month/year price row。
+- 正式 provider 暫定 ECPay；CheckMacValue 已用綠界官方 SHA-256 範例驗證。
+- 綠界取消 API 使用官方 `Cashier/CreditCardPeriodAction`，並驗證回傳 CheckMacValue、Merchant ID 與 MerchantTradeNo。
+- 綠界沒有自動改價／換方案 API；既有付費訂閱不可自助建立第二筆定期扣款，Standard／Plus 或月年週期變更先走客服受控流程。
+- 30 天試用由 RAPID4GRAD 自己管理，不以 ECPay 建立 0 元定期訂單。
+- 正式價格仍待公告；沒有 active ECPay `product_prices` 時，checkout 必須 disabled。
+- PDF 額度仍待定；Task 5 不建立 `lab_usage_credits`，Task 7／Admin 後台再處理 shared pool 數值。
+
+Local 驗收：
+
+- 空白 Local Supabase replay 成功。
+- 同一教授第二次試用、第二個 active owned Lab、同 Lab 第二筆 current subscription 均被拒絕。
+- Standard 第 16 位被拒；受控變更為 Plus 後可加入。既有付費方案的自助換方案會被拒，避免兩筆綠界扣款並存。
+- Checkout idempotency retry 會回傳相同 order 與完整 provider payload，不會建立第二筆訂單。
+- 月繳與年繳只使用 active DB price，不使用環境變數或假金額。
+- Webhook 重送只建立一筆 payment；同秒較寬鬆狀態不能覆蓋 `past_due`，較新的成功事件可恢復 active。
+- 取消正式訂閱會停止後續續訂並保留目前已付款週期；取消試用則立即停止。
+- Task 5 完成後仍沒有 PDF shared pool credit row。
+
+驗收入口：
+
+- SQL fixture：`supabase/tests/v2_professor_subscription_integration.sql`
+- 本機執行器：`scripts/test-v2-professor-subscription.sh`
+- ECPay／migration contract：`tests/v2-professor-subscription-contract.test.ts`
+
+仍待外部設定：正式 Standard／Plus 月繳與年繳價格、ECPay merchant credentials、公開 webhook URL 與 Preview／Production 實際付款驗收。Local closure 不代表正式金流已上線。
