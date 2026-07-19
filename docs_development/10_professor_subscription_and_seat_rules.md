@@ -35,11 +35,11 @@ Standard 與 Plus 均支援月繳、年繳。每個 Professor 帳號可領取一
 | Lab role | 成員管理 | 邀請碼 | 查看摘要 | PDF 原檔 | 訂閱管理 | 課程買斷管理 |
 |---|---:|---:|---:|---:|---:|---:|
 | `owner` | 全部 | 建立／撤銷 | 有 consent 才可 | 不可 | 可以 | 不可 |
-| `professor` | 依 owner 授權 | 可選擇開放 | 有 consent 才可 | 不可 | 不可或待授權 | 不可 |
+| `professor` | 唯讀 | 不可 | 有 consent 才可 | 不可 | 不可 | 不可 |
 | `assistant` | 限定 | 預設不可 | 有 consent 且 active 才可 | 不可 | 不可 | 不可 |
 | `student` | 不可 | 使用邀請加入 | 只看自己 | 只看自己 | 不可 | 只能購買自己的方案 |
 
-是否允許非 owner professor 管理邀請碼與成員仍待產品決策；未確認前採最小權限。
+第一版不提供 owner 委派管理權：non-owner professor 與 assistant 僅能查看同 Lab 的必要成員資料與 consent summary，不可建立／撤銷邀請碼、移除成員或修改角色。
 
 ### 3.1 Lab 成員移除規則
 
@@ -51,7 +51,7 @@ Standard 與 Plus 均支援月繳、年繳。每個 Professor 帳號可領取一
 - 被移除成員立即失去該 Lab 的 `lab_basic`、Professor workspace、PDF shared pool 與新稽核資格。
 - 被移除學生的個人 `course_full`、private PDF 與完整歷史稽核結果仍歸學生本人。
 - 被移除後，該學生分享給舊 Lab 的 summary consent 必須立即撤回或失效，Professor/assistant 下一次查詢不得再看見摘要。
-- 移除操作必須記錄 actor、target、Lab、原因、時間及 membership 前後狀態。
+- 移除操作必須記錄 actor、target、Lab、原因、時間及 membership 前後狀態，並寫入 service-only `lab_membership_action_logs`。
 
 ## 4. Professor Dashboard
 
@@ -104,7 +104,6 @@ Standard 與 Plus 均支援月繳、年繳。每個 Professor 帳號可領取一
 
 - Standard/Plus 月繳與年繳價格。
 - 各方案 PDF 額度及超額費。
-- 非 owner professor 的管理能力。
 - 各方案免費試用後的轉換文案與提醒節奏。
 - Plus 降級 Standard、同方案月繳／年繳切換的客服操作流程與對帳規則。
 

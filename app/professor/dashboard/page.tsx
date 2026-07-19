@@ -8,8 +8,14 @@ type LabRow = {
   id: string;
   name: string;
   institution: string | null;
+  owner_professor_id: string;
   created_at: string;
   updated_at: string;
+};
+
+type ViewerLabMembershipRow = {
+  lab_id: string;
+  role: "professor" | "assistant";
 };
 
 type MembershipRow = {
@@ -137,18 +143,50 @@ export default async function ProfessorDashboardPage() {
         ? "read_only"
         : "none";
 
-  const { data: labsData, error: labsError } = await admin
+  const { data: ownedLabsData, error: ownedLabsError } = await admin
     .from("labs")
-    .select("id,name,institution,created_at,updated_at")
+    .select("id,name,institution,owner_professor_id,created_at,updated_at")
     .eq("owner_professor_id", user.id)
     .order("created_at", { ascending: false })
     .returns<LabRow[]>();
 
-  if (labsError) {
-    throw new Error(labsError.message);
+  if (ownedLabsError) {
+    throw new Error(ownedLabsError.message);
   }
 
+  const { data: viewerMembershipsData, error: viewerMembershipsError } =
+    profile.role === "professor"
+      ? await admin
+          .from("lab_memberships")
+          .select("lab_id,role")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .in("role", ["professor", "assistant"])
+          .returns<ViewerLabMembershipRow[]>()
+      : { data: [], error: null };
+  if (viewerMembershipsError) {
+    throw new Error(viewerMembershipsError.message);
+  }
+
+  const visibleLabIds = [
+    ...new Set([
+      ...(ownedLabsData ?? []).map((lab) => lab.id),
+      ...(viewerMembershipsData ?? []).map((membership) => membership.lab_id),
+    ]),
+  ];
+  const { data: labsData, error: labsError } =
+    visibleLabIds.length > 0
+      ? await admin
+          .from("labs")
+          .select("id,name,institution,owner_professor_id,created_at,updated_at")
+          .in("id", visibleLabIds)
+          .order("created_at", { ascending: false })
+          .returns<LabRow[]>()
+      : { data: [], error: null };
+  if (labsError) throw new Error(labsError.message);
+
   const labs = labsData ?? [];
+  const ownedLabs = labs.filter((lab) => lab.owner_professor_id === user.id);
   const labIds = labs.map((lab) => lab.id);
   const { data: membershipsData, error: membershipsError } =
     labIds.length > 0
@@ -241,7 +279,8 @@ export default async function ProfessorDashboardPage() {
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
                 這是正式的多租戶教授端入口，和 Phase 1 隱藏展示頁
-                /professor 分開。教授只能看到自己擁有的 Lab 與透過邀請碼加入的學生。
+                /professor 分開。你只能看到自己擁有或以 Professor/assistant
+                身分加入的 Lab，以及學生主動分享的安全摘要。
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -264,42 +303,42 @@ export default async function ProfessorDashboardPage() {
           </div>
         </div>
 
-        <div
-          className={`mt-6 rounded-3xl border p-5 ${
-            subscriptionMode === "functional"
-              ? "border-emerald-300/20 bg-emerald-400/10"
-              : "border-amber-300/20 bg-amber-400/10"
-          }`}
-        >
+        <div className={`mt-6 rounded-3xl border p-5 ${subscriptionMode === "functional" ? "border-emerald-300/20 bg-emerald-400/10" : "border-amber-300/20 bg-amber-400/10"}`}>
           <p className="text-sm font-semibold text-white">
-            {subscriptionMode === "functional"
+            {ownedLabs.length === 0 && labs.length > 0
+              ? "你目前以 Professor/assistant 成員身分加入 Lab"
+              : subscriptionMode === "functional"
               ? `${currentSubscription?.plan_key === "professor_lab_plus" ? "Plus" : "Standard"} · ${currentSubscription?.status === "trialing" ? "30 天試用中" : currentSubscription?.status === "past_due" ? "15 天付款寬限中" : "訂閱使用中"}`
               : subscriptionMode === "none"
                 ? "尚未啟用 Professor Lab 試用或訂閱"
                 : "訂閱目前為唯讀狀態"}
           </p>
           <p className="mt-2 text-sm leading-6 text-slate-300">
-            {subscriptionMode === "functional"
+            {ownedLabs.length === 0 && labs.length > 0
+              ? "你可以查看同 Lab 成員與 consent summary，但不能建立邀請碼、移除成員或管理訂閱。"
+              : subscriptionMode === "functional"
               ? "可管理 Lab、建立邀請碼並使用 Lab 指定影片。"
               : "既有 Lab 與歷史安全摘要仍可查看；新增成員、Lab 影片與新 PDF 稽核會停用。"}
           </p>
-          {subscriptionMode !== "functional" ? (
+          {ownedLabs.length > 0 && subscriptionMode !== "functional" ? (
             <Link href="/pricing" className="mt-3 inline-flex text-sm font-semibold text-cyan-100 hover:text-white">
               查看 Standard／Plus 與 30 天免綁卡試用 →
             </Link>
           ) : null}
         </div>
 
-        <div className="mt-6">
-          <ProfessorLabControls
-            labs={labs.map((lab) => ({
-              id: lab.id,
-              name: lab.name,
-              institution: lab.institution,
-            }))}
-            subscriptionMode={subscriptionMode}
-          />
-        </div>
+        {profile.role === "professor" ? (
+          <div className="mt-6">
+            <ProfessorLabControls
+              labs={ownedLabs.map((lab) => ({
+                id: lab.id,
+                name: lab.name,
+                institution: lab.institution,
+              }))}
+              subscriptionMode={subscriptionMode}
+            />
+          </div>
+        ) : null}
 
         <section className="mt-8 space-y-5">
           {labs.length === 0 ? (
@@ -321,7 +360,8 @@ export default async function ProfessorDashboardPage() {
                         {lab.name}
                       </h2>
                       <p className="mt-1 text-sm text-slate-400">
-                        {lab.institution ?? "未設定單位"} · 學生 {students.length} 位
+                        {lab.institution ?? "未設定單位"} · 學生 {students.length} 位 ·{" "}
+                        {lab.owner_professor_id === user.id ? "Owner" : "Member"}
                       </p>
                     </div>
                     <Link

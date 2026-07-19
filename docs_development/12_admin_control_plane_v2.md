@@ -86,6 +86,8 @@ Admin 不應直接修改計數器來偽造席位；席位應由 active student m
 
 一般成員管理由 Lab owner 在 Professor Dashboard 執行。Owner 可將自己 Lab 的 student、assistant 或非 owner professor membership 改為 `removed`，但不可刪除使用者帳號或歷史資料。Admin 只處理異常修正，且不得把一般移除流程改成硬刪除。
 
+一般 Professor owner 的移除與 staff role 切換寫入 service-only `lab_membership_action_logs`；Admin 的異常修正才寫入 `admin_action_logs`。兩者都必須保存必要 reason 與 before/after state，但不得保存 private PDF、raw audit、付款明細或影片進度。
+
 Admin 應能辨識 Standard 0–15、Plus 0–30 與 31+ 洽談狀態。第 16／31 位加入失敗時，Admin 可查看原因，但不可繞過方案上限強制建立 active membership。Admin 也應能辨識每位 Professor 一個 active owned Lab、每個 Lab 一筆有效 subscription，以及最多 3 位 active assistants 的違規狀態。
 
 ## 7. Lab PDF 額度管理

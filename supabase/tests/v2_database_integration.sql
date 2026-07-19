@@ -415,6 +415,80 @@ SELECT public.grant_audit_summary_consent(
   :'document_one'::UUID,
   :'lab_one'::UUID
 );
+
+-- Cross-Lab Professors, assistants, and non-owner Professors cannot remove members.
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.remove_lab_member(
+      '20000000-0000-0000-0000-000000000002'::UUID,
+      (SELECT id FROM public.labs WHERE owner_professor_id = '20000000-0000-0000-0000-000000000001'::UUID),
+      '10000000-0000-0000-0000-000000000001'::UUID,
+      'Cross Lab removal attempt'
+    );
+    RAISE EXCEPTION 'cross-Lab removal unexpectedly succeeded';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%lab_owner_required%' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.remove_lab_member(
+      '20000000-0000-0000-0000-000000000003'::UUID,
+      (SELECT id FROM public.labs WHERE owner_professor_id = '20000000-0000-0000-0000-000000000001'::UUID),
+      '10000000-0000-0000-0000-000000000001'::UUID,
+      'Assistant removal attempt'
+    );
+    RAISE EXCEPTION 'assistant removal unexpectedly succeeded';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%lab_owner_required%' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    PERFORM public.remove_lab_member(
+      '20000000-0000-0000-0000-000000000001'::UUID,
+      (SELECT id FROM public.labs WHERE owner_professor_id = '20000000-0000-0000-0000-000000000001'::UUID),
+      '20000000-0000-0000-0000-000000000001'::UUID,
+      'Owner self removal attempt'
+    );
+    RAISE EXCEPTION 'owner self-removal unexpectedly succeeded';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%lab_owner_cannot_be_removed%' THEN RAISE; END IF;
+  END;
+END;
+$$;
+
+SELECT public.change_lab_member_role(
+  :'professor_one'::UUID,
+  :'lab_one'::UUID,
+  :'assistant_one'::UUID,
+  'professor'::public.lab_role
+);
+SELECT pg_temp.assert_true(
+  (SELECT role = 'professor'::public.lab_role FROM public.lab_memberships WHERE lab_id = :'lab_one'::UUID AND user_id = :'assistant_one'::UUID),
+  'Owner must be able to change assistant to non-owner professor'
+);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.remove_lab_member(
+      '20000000-0000-0000-0000-000000000003'::UUID,
+      (SELECT id FROM public.labs WHERE owner_professor_id = '20000000-0000-0000-0000-000000000001'::UUID),
+      '10000000-0000-0000-0000-000000000001'::UUID,
+      'Non-owner Professor removal attempt'
+    );
+    RAISE EXCEPTION 'non-owner Professor removal unexpectedly succeeded';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%lab_owner_required%' THEN RAISE; END IF;
+  END;
+END;
+$$;
+SELECT public.change_lab_member_role(
+  :'professor_one'::UUID,
+  :'lab_one'::UUID,
+  :'assistant_one'::UUID,
+  'assistant'::public.lab_role
+);
+
 SELECT public.remove_lab_member(
   :'professor_one'::UUID,
   :'lab_one'::UUID,
@@ -430,18 +504,96 @@ SELECT pg_temp.assert_true(
   'Lab removal must revoke summary consent in the same transaction'
 );
 SELECT pg_temp.assert_true(
+  (
+    SELECT count(*) = 1
+      AND bool_and(action_type = 'member_removed')
+      AND bool_and(before_state ->> 'status' = 'active')
+      AND bool_and(after_state ->> 'status' = 'removed')
+    FROM public.lab_membership_action_logs
+    WHERE lab_id = :'lab_one'::UUID
+      AND target_user_id = :'student_owner'::UUID
+  ),
+  'Lab removal must write one action log in the same transaction'
+);
+SELECT pg_temp.assert_true(
   (SELECT count(*) = 1 FROM public.entitlements WHERE user_id = :'student_owner'::UUID AND entitlement_type = 'course_full' AND status = 'active' AND ends_at IS NULL),
   'Lab removal must not revoke permanent course_full entitlement'
 );
-UPDATE public.lab_memberships
-SET
-  status = 'active',
-  joined_at = timezone('utc', now()),
-  removed_at = NULL,
-  removed_by = NULL,
-  removal_reason = NULL
-WHERE lab_id = :'lab_one'::UUID
-  AND user_id = :'student_owner'::UUID;
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 2 FROM public.student_documents WHERE user_id = :'student_owner'::UUID)
+  AND (SELECT count(*) = 2 FROM public.ai_audit_jobs WHERE user_id = :'student_owner'::UUID)
+  AND (SELECT count(*) = 1 FROM public.ai_audit_results WHERE user_id = :'student_owner'::UUID),
+  'Lab removal must preserve private documents and raw audit history'
+);
+SELECT pg_temp.assert_true(
+  NOT app_private.has_lab_basic_access(:'student_owner'::UUID),
+  'Removed student must lose Lab basic access immediately'
+);
+
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'professor_one', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 0 FROM public.get_shared_audit_summaries(:'lab_one'::UUID, :'student_owner'::UUID)),
+  'Removed student summary must disappear from the old Lab immediately'
+);
+COMMIT;
+
+-- Once the old membership is non-active, the student can atomically join another Lab.
+SELECT public.create_lab_invite(
+  :'professor_two'::UUID,
+  :'lab_two'::UUID,
+  'v2-rejoin-other-lab-hash',
+  'student',
+  timezone('utc', now()) + interval '1 day',
+  1
+);
+SELECT public.redeem_lab_invite(
+  'v2-rejoin-other-lab-hash',
+  :'student_owner'::UUID
+);
+SELECT pg_temp.assert_true(
+  (SELECT status = 'active'::public.lab_membership_status FROM public.lab_memberships WHERE lab_id = :'lab_two'::UUID AND user_id = :'student_owner'::UUID)
+  AND (SELECT status = 'removed'::public.lab_membership_status FROM public.lab_memberships WHERE lab_id = :'lab_one'::UUID AND user_id = :'student_owner'::UUID),
+  'Student may join a different Lab only after the old membership is removed'
+);
+
+SELECT public.remove_lab_member(
+  :'professor_two'::UUID,
+  :'lab_two'::UUID,
+  :'student_owner'::UUID,
+  'Prepare local return to original Lab'
+);
+SELECT public.create_lab_invite(
+  :'professor_one'::UUID,
+  :'lab_one'::UUID,
+  'v2-return-original-lab-hash',
+  'student',
+  timezone('utc', now()) + interval '1 day',
+  1
+);
+SELECT public.redeem_lab_invite(
+  'v2-return-original-lab-hash',
+  :'student_owner'::UUID
+);
+SELECT pg_temp.assert_true(
+  (SELECT status = 'active'::public.lab_membership_status FROM public.lab_memberships WHERE lab_id = :'lab_one'::UUID AND user_id = :'student_owner'::UUID),
+  'Invite redemption must safely reactivate a previously removed membership'
+);
+
+-- Owner may also remove an assistant; the historical action remains immutable.
+SELECT public.remove_lab_member(
+  :'professor_one'::UUID,
+  :'lab_one'::UUID,
+  :'assistant_one'::UUID,
+  'Assistant left the Lab'
+);
+SELECT pg_temp.assert_true(
+  (SELECT status = 'removed'::public.lab_membership_status FROM public.lab_memberships WHERE lab_id = :'lab_one'::UUID AND user_id = :'assistant_one'::UUID)
+  AND (SELECT count(*) = 1 FROM public.lab_membership_action_logs WHERE lab_id = :'lab_one'::UUID AND target_user_id = :'assistant_one'::UUID AND action_type = 'member_removed'),
+  'Owner must be able to remove an assistant and preserve the action log'
+);
 
 -- Prepare Standard plan at 14 active students for an external two-session final-seat test.
 INSERT INTO public.lab_memberships(lab_id, user_id, role, status)

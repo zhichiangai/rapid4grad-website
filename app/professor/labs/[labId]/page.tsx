@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import {
+  LabMemberManagement,
+  type LabSeatUsage,
+  type ProfessorLabMember,
+} from "@/components/professor/LabMemberManagement";
 import { ProfessorLabControls } from "@/components/professor/ProfessorLabControls";
 import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
 import { canAccessWorkspace } from "@/lib/workspace/access";
+import type { LabMembershipStatus, LabRole } from "@/types/database";
 
 type LabRow = {
   id: string;
@@ -14,8 +20,13 @@ type LabRow = {
 };
 
 type MembershipRow = {
+  id: string;
   user_id: string;
+  role: LabRole;
+  status: LabMembershipStatus;
   joined_at: string;
+  removed_at: string | null;
+  removal_reason: string | null;
 };
 
 type ProfileRow = {
@@ -88,18 +99,17 @@ async function requireProfessor() {
     redirect("/dashboard");
   }
 
-  return { user, admin, supabase };
+  return { user, profile, admin, supabase };
 }
 
 export default async function ProfessorLabPage({ params }: LabPageProps) {
   const { labId } = await params;
-  const { user, admin, supabase } = await requireProfessor();
+  const { user, profile, admin, supabase } = await requireProfessor();
 
   const { data: lab, error: labError } = await admin
     .from("labs")
     .select("id,name,institution,owner_professor_id,created_at,updated_at")
     .eq("id", labId)
-    .eq("owner_professor_id", user.id)
     .maybeSingle<LabRow>();
 
   if (labError) {
@@ -110,9 +120,33 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
     redirect("/professor/dashboard");
   }
 
+  const isOwner = lab.owner_professor_id === user.id;
+  const isAdminObservation = profile?.role === "admin";
+  const { data: viewerMembership, error: viewerMembershipError } =
+    !isOwner && !isAdminObservation
+      ? await admin
+          .from("lab_memberships")
+          .select("role,status")
+          .eq("lab_id", lab.id)
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .in("role", ["professor", "assistant"])
+          .maybeSingle()
+      : { data: null, error: null };
+
+  if (viewerMembershipError) {
+    console.error("Professor Lab membership lookup failed", {
+      code: viewerMembershipError.code,
+    });
+    redirect("/professor/dashboard");
+  }
+  if (!isOwner && !isAdminObservation && !viewerMembership) {
+    redirect("/professor/dashboard");
+  }
+
   const { data: currentSubscription } = await admin
     .from("subscriptions")
-    .select("status,current_period_end,grace_ends_at")
+    .select("status,plan_key,current_period_end,grace_ends_at")
     .eq("lab_id", lab.id)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -133,10 +167,9 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
 
   const { data: membershipsData, error: membershipsError } = await admin
     .from("lab_memberships")
-    .select("user_id,joined_at")
+    .select("id,user_id,role,status,joined_at,removed_at,removal_reason")
     .eq("lab_id", lab.id)
-    .eq("role", "student")
-    .eq("status", "active")
+    .order("created_at", { ascending: true })
     .returns<MembershipRow[]>();
 
   if (membershipsError) {
@@ -144,13 +177,13 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
   }
 
   const memberships = membershipsData ?? [];
-  const studentIds = memberships.map((membership) => membership.user_id);
+  const memberIds = memberships.map((membership) => membership.user_id);
   const { data: profilesData, error: profilesError } =
-    studentIds.length > 0
+    memberIds.length > 0
       ? await admin
           .from("profiles")
           .select("id,email,full_name,degree,department,research_area")
-          .in("id", studentIds)
+          .in("id", memberIds)
           .returns<ProfileRow[]>()
       : { data: [], error: null };
 
@@ -167,6 +200,48 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
   const profilesById = new Map(
     (profilesData ?? []).map((studentProfile) => [studentProfile.id, studentProfile]),
   );
+  const memberManagementRows = memberships
+    .map((membership): ProfessorLabMember | null => {
+      const memberProfile = profilesById.get(membership.user_id);
+      if (!memberProfile) return null;
+
+      return {
+        id: membership.id,
+        userId: membership.user_id,
+        role: membership.role,
+        status: membership.status,
+        joinedAt: membership.joined_at,
+        removedAt: membership.removed_at,
+        removalReason: membership.removal_reason,
+        isOwner: membership.user_id === lab.owner_professor_id,
+        profile: {
+          fullName: memberProfile.full_name,
+          email: memberProfile.email,
+          degree: memberProfile.degree,
+          department: memberProfile.department,
+        },
+      };
+    })
+    .filter((membership): membership is ProfessorLabMember => membership !== null);
+  const seatUsage: LabSeatUsage = {
+    activeStudents: memberships.filter(
+      (membership) =>
+        membership.role === "student" && membership.status === "active",
+    ).length,
+    studentLimit:
+      currentSubscription?.plan_key === "professor_lab_standard"
+        ? 15
+        : currentSubscription?.plan_key === "professor_lab_plus"
+          ? 30
+          : currentSubscription?.plan_key === "professor_lab_enterprise"
+            ? null
+            : 0,
+    activeAssistants: memberships.filter(
+      (membership) =>
+        membership.role === "assistant" && membership.status === "active",
+    ).length,
+    assistantLimit: 3,
+  };
   const latestSummaryByStudent = new Map<string, SharedAuditSummary>();
   for (const summary of (summariesData ?? []) as SharedAuditSummary[]) {
     if (!latestSummaryByStudent.has(summary.student_user_id)) {
@@ -175,6 +250,10 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
   }
 
   const rows = memberships
+    .filter(
+      (membership) =>
+        membership.role === "student" && membership.status === "active",
+    )
     .map((membership) => {
       const studentProfile = profilesById.get(membership.user_id);
       const latestSummary = latestSummaryByStudent.get(membership.user_id);
@@ -213,19 +292,39 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
           </p>
         </section>
 
-        <div className="mt-6">
-          <ProfessorLabControls
-            labs={[
-              {
-                id: lab.id,
-                name: lab.name,
-                institution: lab.institution,
-              },
-            ]}
-            defaultLabId={lab.id}
-            subscriptionMode={subscriptionMode}
-          />
-        </div>
+        {isOwner && profile?.role === "professor" ? (
+          <div className="mt-6">
+            <ProfessorLabControls
+              labs={[
+                {
+                  id: lab.id,
+                  name: lab.name,
+                  institution: lab.institution,
+                },
+              ]}
+              defaultLabId={lab.id}
+              subscriptionMode={subscriptionMode}
+            />
+          </div>
+        ) : null}
+
+        <LabMemberManagement
+          labId={lab.id}
+          initialMembers={memberManagementRows}
+          initialSeatUsage={seatUsage}
+          canManage={
+            isOwner &&
+            profile?.role === "professor" &&
+            subscriptionMode === "functional"
+          }
+          readOnlyReason={
+            isAdminObservation
+              ? "admin_observation"
+              : !isOwner
+                ? "not_owner"
+                : "subscription"
+          }
+        />
 
         <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.035] p-5">
           <h2 className="text-2xl font-semibold">Lab Students</h2>

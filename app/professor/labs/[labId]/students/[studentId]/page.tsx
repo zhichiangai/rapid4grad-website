@@ -83,18 +83,17 @@ async function requireProfessor() {
     redirect("/dashboard");
   }
 
-  return { user, admin, supabase };
+  return { user, profile, admin, supabase };
 }
 
 export default async function ProfessorStudentPage({ params }: StudentPageProps) {
   const { labId, studentId } = await params;
-  const { user, admin, supabase } = await requireProfessor();
+  const { user, profile, admin, supabase } = await requireProfessor();
 
   const { data: lab, error: labError } = await admin
     .from("labs")
     .select("id,name,institution,owner_professor_id")
     .eq("id", labId)
-    .eq("owner_professor_id", user.id)
     .maybeSingle<LabRow>();
 
   if (labError) {
@@ -102,6 +101,24 @@ export default async function ProfessorStudentPage({ params }: StudentPageProps)
   }
 
   if (!lab) {
+    redirect("/professor/dashboard");
+  }
+
+  const isOwner = lab.owner_professor_id === user.id;
+  const isAdminObservation = profile?.role === "admin";
+  const { data: viewerMembership, error: viewerMembershipError } =
+    !isOwner && !isAdminObservation
+      ? await admin
+          .from("lab_memberships")
+          .select("id")
+          .eq("lab_id", lab.id)
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .in("role", ["professor", "assistant"])
+          .maybeSingle()
+      : { data: null, error: null };
+
+  if (viewerMembershipError || (!isOwner && !isAdminObservation && !viewerMembership)) {
     redirect("/professor/dashboard");
   }
 

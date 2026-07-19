@@ -223,11 +223,17 @@ V2 Task 5 已完成 Local closure：
 - ECPay recurring provider、CheckMacValue 驗證與 service-only subscription event RPC。
 - 正式價格、ECPay merchant credentials、公開 webhook 與外部付款驗收仍未完成。
 - 每 Lab 一筆有效 subscription。
-- 最多 3 位 active assistants。
-- Lab owner 移除 student、assistant 或非 owner professor 的完整 UI/API。
-- 移除 membership 與 summary consent 失效的同一受控 transaction。
 - Subscription 失效後 Professor workspace read-only mode。
 - Professor Dashboard 的 `/learn` 導覽捷徑；播放器本身已支援 active Professor/assistant 的 `lab_basic` RLS。
+
+V2 Task 6 已完成 Local closure：
+
+- 每個 Lab 最多 3 位 active assistants。
+- 邀請碼可指定 student、professor 或 assistant；建立、撤銷與兌換均走 service-only RPC。
+- Lab owner 可在 Professor workspace 查看角色、狀態與席位，並移除 student、assistant 或非 owner professor。
+- Non-owner professor、assistant 與 Admin observation 只有同 Lab／受控唯讀能力，不可管理成員。
+- 移除 membership、撤回舊 Lab summary consent 與寫入 `lab_membership_action_logs` 在同一 transaction 完成。
+- 移除不刪除 Auth user、private PDF、raw audit、付款或永久 `course_full`。
 
 正式規則見 `10_professor_subscription_and_seat_rules.md`。不得以 hidden demo 補足正式 workspace 的缺口。
 
@@ -335,8 +341,9 @@ app/professor/page.tsx (hidden demo)
 | `/api/documents/share` | `app/api/documents/share/route.ts` | POST | `audit_summary_shares` | `IMPLEMENTED` Phase 2 |
 | `/api/ai/audit` | `app/api/ai/audit/route.ts` | POST stream | AI SDK, Storage, jobs/results/credits | `IMPLEMENTED` Phase 2 |
 | `/api/labs` | `app/api/labs/route.ts` | POST | V2 `create_professor_lab` 原子 RPC | `IMPLEMENTED` V2 |
-| `/api/labs/invite` | `app/api/labs/invite/route.ts` | POST/PATCH | invite create/revoke | `IMPLEMENTED` Phase 2 |
-| `/api/labs/join` | `app/api/labs/join/route.ts` | POST | atomic invite join RPC | `IMPLEMENTED` Phase 2 |
+| `/api/labs/invite` | `app/api/labs/invite/route.ts` | POST/PATCH | V2 service-only invite create/revoke RPC | `IMPLEMENTED` V2 local closure |
+| `/api/labs/join` | `app/api/labs/join/route.ts` | POST | V2 atomic invite redemption RPC | `IMPLEMENTED` V2 local closure |
+| `/api/labs/members` | `app/api/labs/members/route.ts` | PATCH | owner-only remove/change-role RPC | `IMPLEMENTED` V2 local closure |
 | `/api/course/lessons/[lessonId]/playback` | `app/api/course/lessons/[lessonId]/playback/route.ts` | GET | RLS 授權 lesson 後才回傳 HTML5 media source | `IMPLEMENTED` V2 local closure |
 | `/api/course/progress` | `app/api/course/progress/route.ts` | POST | 本人 lesson progress；再次驗證 lesson access | `IMPLEMENTED` V2 local closure |
 | `/api/payments/checkout` | `app/api/payments/checkout/route.ts` | POST | V2 products/prices/orders + Payment Provider | `IMPLEMENTED` local closure；正式 provider / 價格待設定 |
@@ -351,7 +358,6 @@ app/professor/page.tsx (hidden demo)
 
 V2 尚缺少的 server boundaries 至少包括：
 
-- Lab owner 移除成員。
 - Professor 方案正式價格、ECPay credentials 與公開環境付款驗收。
 - V2 Admin users、entitlements、labs、subscriptions、orders、credits actions。
 - Course content access-level management。
@@ -493,7 +499,7 @@ Professor creates Lab
 
 V2 Baseline 必須再保證：每位 student 一個 active Lab、Standard 15 seats、Plus 30 seats、每位 Professor 一個 active owned Lab、每 Lab 一筆有效 subscription。
 
-### 12.6 Lab Member Removal — V2 PLANNED
+### 12.6 Lab Member Removal — IMPLEMENTED LOCAL CLOSURE
 
 ```text
 Lab owner selects member
@@ -504,7 +510,7 @@ Lab owner selects member
    membership status = removed
    summary consent for old Lab = revoked/invalid
    release active student/assistant seat
-   write membership/admin action log
+   write service-only lab_membership_action_logs
 → member immediately loses Lab-derived access
 ```
 
@@ -594,10 +600,9 @@ Storage：
 
 1. Standard／Plus 正式價格、ECPay credentials 與公開環境付款／取消驗收。
 2. Plus 降級 Standard、同方案月年週期變更的客服受控操作與 Admin action log；Standard 升級 Plus 已採停止舊扣款後立即全額建立 Plus 月繳或年繳的自助流程。
-3. Lab owner 移除成員的完整 UI/API。
-4. V2 Admin routes 與 course content management UI。
-5. 正式課程 lesson 清單、影片來源與教材資料上架。
-6. 正式學生一次性 payment provider；Professor recurring ECPay 已完成本機邊界，仍待外部商店驗收。
+3. V2 Admin routes 與 course content management UI。
+4. 正式課程 lesson 清單、影片來源與教材資料上架。
+5. 正式學生一次性 payment provider；Professor recurring ECPay 已完成本機邊界，仍待外部商店驗收。
 
 AI 實作上述項目前，必須先讀相對應 V2 文件、提出 migration/API/UI 影響範圍，再開始修改。
 

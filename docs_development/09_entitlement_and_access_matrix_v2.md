@@ -71,6 +71,8 @@
 - Lab 訂閱失效或學生被移除後，學生仍可查看及刪除自己擁有的 private PDF 與完整稽核結果。
 - 學生被移出 Lab 後，該 Lab 的 Professor/assistant 下一次查詢即不可再取得其分享摘要；既有 consent 必須同步撤回或視為失效。
 
+Lab 成員管理不會直接建立永久 entitlement。只有 Lab owner 可移除 student、assistant 或非 owner professor；移除、舊 Lab consent 撤回與安全 action log 必須在同一 transaction 完成。Non-owner professor、assistant 與 Admin observation 不可透過 Professor workspace 執行 membership mutation。
+
 ## 6. 權限衝突處理
 
 - 永久 `course_full` 不會因 Lab 退訂而撤銷。

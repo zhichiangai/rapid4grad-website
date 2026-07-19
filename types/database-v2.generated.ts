@@ -703,6 +703,60 @@ export type Database = {
           },
         ]
       }
+      lab_membership_action_logs: {
+        Row: {
+          action_type: string
+          actor_user_id: string
+          after_state: Json
+          before_state: Json
+          created_at: string
+          id: string
+          lab_id: string
+          membership_id: string
+          reason: string
+          target_user_id: string
+        }
+        Insert: {
+          action_type: string
+          actor_user_id: string
+          after_state: Json
+          before_state: Json
+          created_at?: string
+          id?: string
+          lab_id: string
+          membership_id: string
+          reason: string
+          target_user_id: string
+        }
+        Update: {
+          action_type?: string
+          actor_user_id?: string
+          after_state?: Json
+          before_state?: Json
+          created_at?: string
+          id?: string
+          lab_id?: string
+          membership_id?: string
+          reason?: string
+          target_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_membership_action_logs_lab_id_fkey"
+            columns: ["lab_id"]
+            isOneToOne: false
+            referencedRelation: "labs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lab_membership_action_logs_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "lab_memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_memberships: {
         Row: {
           created_at: string

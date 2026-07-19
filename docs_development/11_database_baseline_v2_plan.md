@@ -53,6 +53,7 @@ V2 需要解決：
 - `student_documents` / `ai_audit_jobs` / `ai_audit_results`：學生私有內容。
 - `audit_summary_shares`：指定 Lab、可撤回的摘要 consent。
 - `admin_action_logs`：Admin 對帳號、entitlement、Lab、subscription 與 credits 的敏感操作稽核紀錄。
+- `lab_membership_action_logs`：Lab owner 移除成員或切換非 student staff role 的安全操作紀錄；不與 Admin mutation log 混用。
 
 `admin_action_logs` 只能由受控 server-side admin 操作寫入；一般 client 不可 INSERT、UPDATE 或 DELETE。紀錄只保存必要 before/after state，不保存 secret、完整 PDF、raw prompt 或其他不必要敏感內容。
 
@@ -109,7 +110,7 @@ V2 需要解決：
 
 已通過：
 
-- 空白 Local Supabase 依序 replay `001` 至 `007`。
+- 空白 Local Supabase 依序 replay `001` 至 `007`，再 replay Task 3–6 timestamp migrations。
 - authenticated 只能更新 profile 基本欄位，不能更新 role 或付款相容欄位。
 - `free_usage_quotas` 對 anon/authenticated 無直接讀寫權限。
 - 每位 Professor 一個 active owned Lab、每位 student 一個 active Lab、每個 Lab 一筆當期 subscription。
@@ -119,6 +120,9 @@ V2 需要解決：
 - Professor/assistant 對 private PDF metadata、Storage object、raw audit jobs/results 均不可讀。
 - 同 Lab 且 consent 有效時只能經七欄 summary RPC 讀取；cross-Lab 與 revoke 後回傳零筆。
 - Lab member removal 使用狀態轉換，並在同一 transaction 使舊 Lab summary consent 失效。
+- Cross-Lab professor、assistant、non-owner professor 與 owner self-remove 均被拒絕；owner 可移除 student/assistant/non-owner professor。
+- Owner 可在 professor/assistant 之間切換 active staff role；student role 不可經此流程轉換，所有成功操作寫入 service-only `lab_membership_action_logs`。
+- 被移除 student 可在舊 membership 非 active 後加入另一個 Lab；private PDF、raw audit 與永久 `course_full` 保留。
 - 永久 `course_full` entitlement 重送授權仍只有一筆、無到期日，且不因退出 Lab 而失效。
 - 受控 Admin mutation 會寫入 `admin_action_logs`，一般 client 無直接 mutation grant。
 
