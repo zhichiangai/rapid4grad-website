@@ -114,6 +114,7 @@ export type Database = {
           error_code: string | null
           error_message: string | null
           id: string
+          idempotency_key: string
           input_prompt: string
           lab_id: string
           model: string
@@ -135,6 +136,7 @@ export type Database = {
           error_code?: string | null
           error_message?: string | null
           id?: string
+          idempotency_key: string
           input_prompt: string
           lab_id: string
           model: string
@@ -156,6 +158,7 @@ export type Database = {
           error_code?: string | null
           error_message?: string | null
           id?: string
+          idempotency_key?: string
           input_prompt?: string
           lab_id?: string
           model?: string
@@ -1851,16 +1854,20 @@ export type Database = {
         }
         Returns: boolean
       }
-      reserve_lab_pdf_audit_credit: {
+      reserve_lab_pdf_audit_job: {
         Args: {
           target_audit_type: Database["public"]["Enums"]["ai_audit_type"]
           target_document_id: string
+          target_idempotency_key: string
           target_input_prompt: string
           target_model: string
           target_provider: Database["public"]["Enums"]["ai_audit_provider"]
           target_user_id: string
         }
-        Returns: string
+        Returns: {
+          created: boolean
+          job_id: string
+        }[]
       }
       revoke_audit_summary_consent: {
         Args: {

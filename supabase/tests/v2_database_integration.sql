@@ -12,7 +12,6 @@
 \set document_two '40000000-0000-0000-0000-000000000002'
 \set subscription_one '50000000-0000-0000-0000-000000000001'
 \set subscription_two '50000000-0000-0000-0000-000000000002'
-\set credit_one '60000000-0000-0000-0000-000000000001'
 \set order_one '70000000-0000-0000-0000-000000000001'
 \set payment_one '80000000-0000-0000-0000-000000000001'
 
@@ -144,18 +143,6 @@ VALUES
     timezone('utc', now()) + interval '30 days'
   );
 
-INSERT INTO public.lab_usage_credits(
-  id, lab_id, subscription_id, period_start, period_end, pdf_audit_limit
-)
-VALUES (
-  :'credit_one'::UUID,
-  :'lab_one'::UUID,
-  :'subscription_one'::UUID,
-  timezone('utc', now()) - interval '1 day',
-  timezone('utc', now()) + interval '30 days',
-  10
-);
-
 INSERT INTO public.lab_memberships(lab_id, user_id, role, status)
 VALUES
   (:'lab_one'::UUID, :'student_owner'::UUID, 'student', 'active'),
@@ -192,14 +179,21 @@ VALUES
     repeat('b', 64)
   );
 
-SELECT public.reserve_lab_pdf_audit_credit(
+SELECT job_id AS completed_job
+FROM public.reserve_lab_pdf_audit_job(
   :'student_owner'::UUID,
   :'document_one'::UUID,
   'logic_check',
   'openai',
   'local-model',
-  'local prompt'
-) AS completed_job \gset
+  'local prompt',
+  '81000000-0000-4000-8000-000000000001'::UUID
+) \gset
+
+SELECT credit_id AS credit_one
+FROM public.ai_audit_jobs
+WHERE id = :'completed_job'::UUID
+\gset
 
 SELECT pg_temp.assert_true(
   (SELECT pdf_audit_reserved = 1 AND pdf_audit_used = 0 FROM public.lab_usage_credits WHERE id = :'credit_one'::UUID),
@@ -233,14 +227,16 @@ SELECT pg_temp.assert_true(
   'audit completion must settle exactly once'
 );
 
-SELECT public.reserve_lab_pdf_audit_credit(
+SELECT job_id AS failed_job
+FROM public.reserve_lab_pdf_audit_job(
   :'student_owner'::UUID,
   :'document_two'::UUID,
   'advisor_questions',
   'anthropic',
   'local-model',
-  'local prompt two'
-) AS failed_job \gset
+  'local prompt',
+  '81000000-0000-4000-8000-000000000002'::UUID
+) \gset
 
 SELECT public.fail_lab_pdf_audit_job(:'failed_job'::UUID, 'provider_failure', 'local failure');
 SELECT public.fail_lab_pdf_audit_job(:'failed_job'::UUID, 'provider_failure', 'local failure');

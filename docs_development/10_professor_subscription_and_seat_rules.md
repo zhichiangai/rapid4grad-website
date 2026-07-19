@@ -1,15 +1,15 @@
 # RAPID4GRAD — Professor Subscription And Seat Rules
 
 > 狀態：Professor Lab 訂閱、席位與角色管理現行規格
-> 價格、額度及部分營運規則尚未定案時，一律標記待定，不得由 AI 自行假設。
+> 價格及部分營運規則尚未定案時，一律標記待定，不得由 AI 自行假設。PDF 額度已於 Task 7 定案。
 
 ## 1. Professor Lab 方案
 
 | Plan key | Active student seats | 價格 | PDF 額度 |
 |---|---:|---:|---:|
-| `professor_lab_standard` | 0–15 | 待定 | 待定 |
-| `professor_lab_plus` | 0–30 | 待定 | 待定 |
-| `professor_lab_enterprise` | 31+ | 人工洽談 | 人工洽談 |
+| `professor_lab_standard` | 0–15 | 待定 | 30 次／月／Lab shared pool |
+| `professor_lab_plus` | 0–30 | 待定 | 100 次／月／Lab shared pool |
+| `professor_lab_enterprise` | 31+ | 人工洽談 | 人工設定 |
 
 Professor 與 assistant 不計入 student seats。只有 `status = active` 且 `role = student` 的 membership 計入席位。每個 Lab 最多 3 位 active assistants。
 
@@ -97,13 +97,14 @@ Standard 與 Plus 均支援月繳、年繳。每個 Professor 帳號可領取一
 - `past_due` 自付款失敗事件起有 15 天功能寬限；較新的成功付款可恢復 active。
 - `unpaid`、`canceled` 立即停止衍生功能並保留唯讀歷史。
 - 同秒事件由較嚴格狀態優先，較舊事件不可覆蓋較新狀態；provider event 重送不可重複建立付款。
-- PDF 額度數字仍待定，Task 5 不建立任何假 `lab_usage_credits` row。
+- Standard 每月 30 次、Plus 每月 100 次，依 subscription 起始日建立不結轉月週期；Task 7 不提供超額加購。
+- 稽核採原子 reserve → settle/refund；只有模型輸出與結果持久化完整成功才計入 used，取消或 provider／stream／persistence 失敗均退回預留額度。
 - 歷史摘要與 Lab 資料最終保留期限；目前先無限期唯讀保留。
 
 ## 7. 待決策清單
 
 - Standard/Plus 月繳與年繳價格。
-- 各方案 PDF 額度及超額費。
+- 是否於未來提供 PDF 超額加購；目前不提供。
 - 各方案免費試用後的轉換文案與提醒節奏。
 - Plus 降級 Standard、同方案月繳／年繳切換的客服操作流程與對帳規則。
 

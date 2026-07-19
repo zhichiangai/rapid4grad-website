@@ -84,7 +84,7 @@ V2 需要解決：
 - 所有價格與方案週期。
 - Large plan 人數上限。
 - 課程與 lesson 分級清單。
-- PDF 額度、超額費與失敗退款規則。
+- PDF 超額加購是否於未來提供；Task 7 目前不提供。
 - 訂閱到期後的資料保留政策。
 - Payment provider 及 recurring billing provider。
 - Admin action 類型、客服補償上限與未來內部角色分級。
@@ -110,7 +110,7 @@ V2 需要解決：
 
 已通過：
 
-- 空白 Local Supabase 依序 replay `001` 至 `007`，再 replay Task 3–6 timestamp migrations。
+- 空白 Local Supabase 依序 replay `001` 至 `007`，再 replay Task 3–7 timestamp migrations。
 - authenticated 只能更新 profile 基本欄位，不能更新 role 或付款相容欄位。
 - `free_usage_quotas` 對 anon/authenticated 無直接讀寫權限。
 - 每位 Professor 一個 active owned Lab、每位 student 一個 active Lab、每個 Lab 一筆當期 subscription。
@@ -231,7 +231,7 @@ Task 3 Local 驗收：
 - 綠界沒有原地改價／換方案 API。Standard 升級 Plus 採原子化協調流程：先取消舊 Standard provider schedule，再依使用者選擇的 Plus 月繳或年繳建立完整付款；verified webhook 成功後立即切換 Plus，不折抵 Standard 剩餘天數。Plus 降級或同方案月年週期變更仍走客服受控流程。
 - 30 天試用由 RAPID4GRAD 自己管理，不以 ECPay 建立 0 元定期訂單。
 - 正式價格仍待公告；沒有 active ECPay `product_prices` 時，checkout 必須 disabled。
-- PDF 額度仍待定；Task 5 不建立 `lab_usage_credits`，Task 7／Admin 後台再處理 shared pool 數值。
+- Task 5 當時不建立 `lab_usage_credits`；後續 Task 7 已定案 Standard 30／月、Plus 100／月並完成 shared pool local closure。
 
 Local 驗收：
 
@@ -253,3 +253,60 @@ Local 驗收：
 - ECPay／migration contract：`tests/v2-professor-subscription-contract.test.ts`
 
 仍待外部設定：正式 Standard／Plus 月繳與年繳價格、ECPay merchant credentials、公開 webhook URL 與 Preview／Production 實際付款驗收。Local closure 不代表正式金流已上線。
+
+## 13. Task 6 Lab Member Management（Local closure）
+
+新增 migration：
+
+- `20260719144418_lab_member_management.sql`
+
+本 migration 將 invite、join、remove、staff role change 與 action log 收斂到 service-only RPC。Lab owner 可移除 student、assistant 或 non-owner professor，但不可移除自己；移除、舊 Lab summary consent 撤回與 `lab_membership_action_logs` 寫入在同一 transaction 完成。每位 student 一個 active Lab、Standard 15 席、Plus 30 席及 3 位 assistant 上限均由資料庫原子不變量保護。
+
+驗收入口：
+
+- 核心 SQL fixture：`supabase/tests/v2_database_integration.sql`
+- 本機執行器：`scripts/test-v2-database.sh`
+- Static contract：`tests/v2-lab-member-management-contract.test.ts`
+
+## 14. Task 7 Lab PDF Shared Pool（Local closure）
+
+新增 migration：
+
+- `20260719152137_lab_pdf_shared_pool.sql`
+
+已確認額度規則：
+
+- Standard 每個 Lab 每月共用 30 次 PDF AI 稽核。
+- Plus 每個 Lab 每月共用 100 次 PDF AI 稽核。
+- 週期依 subscription 起始日建立，每月重設、不結轉。
+- Enterprise 或客服例外透過 subscription metadata 的受控 Admin override 設定；一般 Client 不可修改。
+- Task 7 不提供超額加購。
+
+資料庫與 route 閉環：
+
+- `ensure_lab_pdf_credit_period` 只為 active student、唯一 active Lab membership 及 functional subscription 建立當期額度。
+- `reserve_lab_pdf_audit_job` 以 shared credit row lock、idempotency key 與 transaction 原子預留額度。
+- `complete_lab_pdf_audit_job` 只在完整結果持久化成功後把 reserved 轉為 used，重送不重複結算。
+- `fail_lab_pdf_audit_job` 對取消、provider、stream、setup 或 persistence 失敗做冪等 refund。
+- PDF 上傳使用 private signed upload；complete route 重新讀取真實 Storage metadata、MIME、byte size、`%PDF-` magic bytes 與 SHA-256。
+- AI route 只接受 owner PDF，在 server 轉 Base64，以 Vercel AI SDK `mediaType: "application/pdf"` 多模態格式送出；response 關閉前必須等待 settle 或 refund 完成。
+- Professor/assistant 不可讀 private PDF 或 raw audit；學生只能主動分享固定七欄 summary，且可立即撤回。
+
+Local 驗收：
+
+- 空白 Local Supabase replay Baseline `001`–`007` 與 Task 3–7 migrations：通過。
+- Standard 30、Plus 100、歷史 used 不結轉：通過。
+- Professor、assistant、removed student、失效訂閱 Lab reserve：拒絕。
+- 相同 idempotency key 重送只建立一個 job 並預留一次：通過。
+- Provider failure 重送只 refund 一次：通過。
+- 兩位學生並行爭最後一筆 shared credit：只允許一筆成功。
+- Complete 重送只產生一筆 result 並 settle 一次；額度耗盡後新 reserve 被拒：通過。
+- Phase 1 `/dashboard/ai-command` fallback 保留。
+
+驗收入口：
+
+- SQL fixture：`supabase/tests/v2_lab_pdf_shared_pool_integration.sql`
+- 本機執行器：`scripts/test-v2-lab-pdf-shared-pool.sh`
+- Static contract：`tests/v2-lab-pdf-shared-pool-contract.test.ts`
+
+仍待外部設定與驗收：真實 OpenAI／Anthropic server credential、Preview private Storage upload、真實 PDF streaming、斷線 refund 與 Vercel runtime 行為。Local closure 不代表 AI provider 已上線。

@@ -48,6 +48,8 @@ export function AuditSummarySharing({
         { documentId, labId, shared: Boolean(payload.shared) },
       ]);
       setMessage(payload.shared ? "已分享稽核摘要。" : "已撤回稽核摘要分享。");
+    } catch {
+      setMessage("目前無法連線更新分享設定，請稍後再試。");
     } finally {
       setPendingKey(null);
     }
@@ -98,7 +100,11 @@ export function AuditSummarySharing({
           </div>
         ))}
       </div>
-      {message ? <p className="mt-4 text-sm text-cyan-100">{message}</p> : null}
+      {message ? (
+        <p aria-live="polite" className="mt-4 text-sm text-cyan-100">
+          {message}
+        </p>
+      ) : null}
     </section>
   );
 }

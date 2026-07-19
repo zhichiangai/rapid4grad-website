@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  FormEvent,
+  startTransition,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   AI_AUDIT_TYPES,
   type AiAuditType,
@@ -36,6 +43,8 @@ export function AuditStreamingPanel({
   documents,
   canAudit,
 }: AuditStreamingPanelProps) {
+  const router = useRouter();
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState(
     documents[0]?.id ?? "",
   );
@@ -60,6 +69,8 @@ export function AuditStreamingPanel({
     setIsStreaming(true);
     setStreamedText("");
     setMessage(null);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
 
     try {
       const response = await fetch("/api/ai/audit", {
@@ -71,7 +82,9 @@ export function AuditStreamingPanel({
           documentId: selectedDocumentId,
           provider,
           auditType,
+          idempotencyKey: crypto.randomUUID(),
         }),
+        signal: abortController.signal,
       });
 
       if (response.status === 401) {
@@ -97,15 +110,29 @@ export function AuditStreamingPanel({
           break;
         }
 
-        setStreamedText((current) => current + decoder.decode(value));
+        setStreamedText(
+          (current) => current + decoder.decode(value, { stream: true }),
+        );
       }
 
-      setMessage("AI 稽核串流完成，結果已由後端非阻塞寫入資料庫。");
-    } catch {
-      setMessage("AI 稽核失敗。你可以先改用 Phase 1 AI 指令產生器。");
+      const finalText = decoder.decode();
+      if (finalText) setStreamedText((current) => current + finalText);
+      setMessage("AI 稽核完成，結果與 Lab 共用額度已安全寫入資料庫。");
+      startTransition(() => router.refresh());
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setMessage("已停止 AI 稽核，預留的 Lab 共用額度會自動退回。");
+      } else {
+        setMessage("AI 稽核失敗且不會扣除額度。你可以先改用 Phase 1 fallback。");
+      }
     } finally {
+      abortControllerRef.current = null;
       setIsStreaming(false);
     }
+  }
+
+  function handleCancel() {
+    abortControllerRef.current?.abort();
   }
 
   return (
@@ -181,7 +208,7 @@ export function AuditStreamingPanel({
           </select>
         </label>
 
-        <div className="lg:col-span-3">
+        <div className="flex flex-wrap gap-3 lg:col-span-3">
           <button
             type="submit"
             disabled={!canAudit || !selectedDocument || isStreaming}
@@ -189,6 +216,15 @@ export function AuditStreamingPanel({
           >
             {isStreaming ? "AI 稽核串流中..." : "開始 AI 稽核"}
           </button>
+          {isStreaming ? (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="rounded-2xl border border-rose-300/25 bg-rose-400/10 px-6 py-4 text-sm font-semibold text-rose-100 transition hover:bg-rose-400/20"
+            >
+              停止並退回預留額度
+            </button>
+          ) : null}
         </div>
       </form>
 
@@ -203,7 +239,7 @@ export function AuditStreamingPanel({
           <p className="text-sm font-semibold text-slate-200">Streaming Result</p>
           {isStreaming ? (
             <span className="rounded-full bg-cyan-400/10 px-3 py-1 text-xs text-cyan-100">
-              receiving tokens
+              streaming · reserved 1 credit
             </span>
           ) : null}
         </div>

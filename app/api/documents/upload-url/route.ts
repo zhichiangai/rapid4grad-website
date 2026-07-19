@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { getLabPdfAuditEligibility } from "@/lib/ai/quota";
 import {
   buildStudentDocumentObjectPath,
   buildStudentDocumentStoragePath,
@@ -8,9 +8,11 @@ import {
   STUDENT_DOCUMENTS_BUCKET,
   validatePdfUpload,
 } from "@/lib/documents/validation";
-import type { Json } from "@/types/database";
+import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+
+const BODY_LIMIT_BYTES = 4096;
 
 type UploadUrlRequestBody = {
   filename?: unknown;
@@ -19,119 +21,46 @@ type UploadUrlRequestBody = {
   documentType?: unknown;
 };
 
-type ActiveCredit = {
-  id: string;
-  pdf_audit_limit: number;
-  pdf_audit_used: number;
-  period_start: string;
-  period_end: string;
-};
-
-function jsonError(message: string, status = 400, extra?: Record<string, Json>) {
+function jsonError(message: string, status = 400, details?: string[]) {
   return NextResponse.json(
-    { success: false, error: message, ...extra },
+    { success: false, error: message, ...(details ? { details } : {}) },
     { status },
   );
 }
 
-function isActivePeriod(start: string, end: string) {
-  const now = Date.now();
-  return new Date(start).getTime() <= now && now < new Date(end).getTime();
-}
+async function parseBody(request: NextRequest) {
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (declaredLength > BODY_LIMIT_BYTES) return null;
 
-async function assertCanUseAiAudit(userId: string) {
-  const admin = createAdminClient();
-  const { data: subscription, error: subscriptionError } = await admin
-    .from("subscriptions")
-    .select("id,status,current_period_start,current_period_end")
-    .eq("user_id", userId)
-    .in("status", ["active", "trialing"])
-    .order("current_period_end", { ascending: false })
-    .limit(1)
-    .maybeSingle<{
-      id: string;
-      status: string;
-      current_period_start: string;
-      current_period_end: string;
-    }>();
+  const raw = await request.text();
+  if (Buffer.byteLength(raw, "utf8") > BODY_LIMIT_BYTES) return null;
 
-  if (subscriptionError) {
-    throw new Error(subscriptionError.message);
+  try {
+    return JSON.parse(raw) as UploadUrlRequestBody;
+  } catch {
+    return null;
   }
-
-  if (
-    !subscription ||
-    !isActivePeriod(subscription.current_period_start, subscription.current_period_end)
-  ) {
-    return {
-      allowed: false,
-      reason: "需要有效的 Phase 2 AI audit 訂閱才能上傳 PDF。",
-    };
-  }
-
-  const { data: credit, error: creditError } = await admin
-    .from("ai_usage_credits")
-    .select("id,pdf_audit_limit,pdf_audit_used,period_start,period_end")
-    .eq("user_id", userId)
-    .eq("subscription_id", subscription.id)
-    .order("period_end", { ascending: false })
-    .limit(1)
-    .maybeSingle<ActiveCredit>();
-
-  if (creditError) {
-    throw new Error(creditError.message);
-  }
-
-  if (!credit || !isActivePeriod(credit.period_start, credit.period_end)) {
-    return {
-      allowed: false,
-      reason: "目前沒有可用的 AI audit 額度週期。",
-    };
-  }
-
-  if (credit.pdf_audit_used >= credit.pdf_audit_limit) {
-    return {
-      allowed: false,
-      reason: "本期 PDF audit 額度已用完。",
-    };
-  }
-
-  return { allowed: true, reason: "" };
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = await createV2Client();
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError) {
-    return jsonError(userError.message, 401);
-  }
-
   if (!user) {
-    return jsonError("Login is required before uploading documents.", 401);
+    return jsonError("請先登入學生帳號後再上傳 PDF。", 401);
   }
 
-  let body: UploadUrlRequestBody;
-
-  try {
-    body = (await request.json()) as UploadUrlRequestBody;
-  } catch {
-    return jsonError("Invalid JSON body.", 400);
-  }
-
+  const body = await parseBody(request);
   if (
+    !body ||
     typeof body.filename !== "string" ||
     typeof body.mimeType !== "string" ||
-    typeof body.sizeBytes !== "number"
+    typeof body.sizeBytes !== "number" ||
+    !isUploadDocumentType(body.documentType)
   ) {
-    return jsonError("filename, mimeType, and sizeBytes are required.", 400);
-  }
-
-  if (!isUploadDocumentType(body.documentType)) {
-    return jsonError("Unsupported document type.", 400);
+    return jsonError("無效的 PDF 上傳請求。", 400);
   }
 
   const validation = validatePdfUpload({
@@ -141,50 +70,42 @@ export async function POST(request: NextRequest) {
   });
 
   if (!validation.valid) {
-    return jsonError("Invalid PDF upload.", 400, {
-      details: validation.errors,
-    });
+    return jsonError("PDF 檔案不符合上傳規則。", 400, validation.errors);
   }
 
-  try {
-    const permission = await assertCanUseAiAudit(user.id);
-
-    if (!permission.allowed) {
-      return jsonError(permission.reason, 403);
-    }
-
-    const admin = createAdminClient();
-    const documentId = randomUUID();
-    const objectPath = buildStudentDocumentObjectPath({
-      userId: user.id,
-      documentId,
-      filename: body.filename,
-    });
-    const storagePath = buildStudentDocumentStoragePath(objectPath);
-
-    const { data, error } = await admin.storage
-      .from(STUDENT_DOCUMENTS_BUCKET)
-      .createSignedUploadUrl(objectPath);
-
-    if (error) {
-      console.error("Signed upload URL creation failed", { code: error.name });
-      return jsonError("Upload could not be prepared.", 500);
-    }
-
-    return NextResponse.json({
-      success: true,
-      bucket: STUDENT_DOCUMENTS_BUCKET,
-      documentId,
-      objectPath,
-      storagePath,
-      signedUrl: data.signedUrl,
-      token: data.token,
-      expiresInSeconds: 7200,
-    });
-  } catch (error) {
-    console.error("Upload URL request failed", {
-      name: error instanceof Error ? error.name : "UnknownError",
-    });
-    return jsonError("Upload could not be prepared.", 500);
+  const eligibility = await getLabPdfAuditEligibility(supabase);
+  if (!eligibility.allowed) {
+    return jsonError(
+      eligibility.reason ?? "目前沒有 Lab PDF AI 稽核資格。",
+      eligibility.balance?.remaining === 0 ? 429 : 403,
+    );
   }
+
+  const admin = createV2AdminClient();
+  const documentId = randomUUID();
+  const objectPath = buildStudentDocumentObjectPath({
+    userId: user.id,
+    documentId,
+    filename: body.filename,
+  });
+
+  const { data, error } = await admin.storage
+    .from(STUDENT_DOCUMENTS_BUCKET)
+    .createSignedUploadUrl(objectPath);
+
+  if (error) {
+    console.error("[documents-upload-url] Signed upload creation failed", {
+      code: error.name,
+    });
+    return jsonError("目前無法準備 PDF 上傳，請稍後再試。", 503);
+  }
+
+  return NextResponse.json({
+    success: true,
+    bucket: STUDENT_DOCUMENTS_BUCKET,
+    documentId,
+    objectPath,
+    storagePath: buildStudentDocumentStoragePath(objectPath),
+    token: data.token,
+  });
 }

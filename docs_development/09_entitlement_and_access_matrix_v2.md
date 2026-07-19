@@ -68,6 +68,9 @@
 - 每位 student 同一時間只能存在一筆 active Lab membership。
 - 只有 active Lab students 可以上傳自己的 PDF 並消耗唯一所屬 Lab 的 shared pool。
 - Professor/assistant 不直接上傳 PDF，也不因管理 shared pool 取得 PDF 本文。
+- Standard Lab 每月共用 30 次，Plus Lab 每月共用 100 次；週期依 subscription 起始日計算，每月重設且不結轉。
+- 稽核開始先 reserve；只有完整串流且結果成功寫入才 settle。取消、provider／串流／持久化失敗必須 refund，且三種操作均需冪等。
+- Task 7 不提供額度超額加購；Admin 例外額度只能經 server-side 受控操作與 action log，不可由一般 client 改 counter。
 - Lab 訂閱失效或學生被移除後，學生仍可查看及刪除自己擁有的 private PDF 與完整稽核結果。
 - 學生被移出 Lab 後，該 Lab 的 Professor/assistant 下一次查詢即不可再取得其分享摘要；既有 consent 必須同步撤回或視為失效。
 

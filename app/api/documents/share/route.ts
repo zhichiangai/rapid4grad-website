@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -35,7 +35,7 @@ function isUuid(value: unknown): value is string {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = await createV2Client();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -51,63 +51,32 @@ export async function POST(request: NextRequest) {
     return jsonError("無效的分享設定。", 400);
   }
 
-  const admin = createAdminClient();
-  const [documentResult, membershipResult] = await Promise.all([
-    admin
-      .from("student_documents")
-      .select("id,user_id")
-      .eq("id", body.documentId)
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    admin
-      .from("lab_memberships")
-      .select("id")
-      .eq("lab_id", body.labId)
-      .eq("user_id", user.id)
-      .eq("role", "student")
-      .eq("status", "active")
-      .maybeSingle(),
-  ]);
-  const { data: document, error: documentError } = documentResult;
-  const { data: membership, error: membershipError } = membershipResult;
-
-  if (documentError || membershipError) {
-    console.error("[document-share] Authorization lookup failed", {
-      documentCode: documentError?.code,
-      membershipCode: membershipError?.code,
-    });
-    return jsonError("目前無法確認分享權限。", 500);
-  }
-
-  if (!document || (body.action === "grant" && !membership)) {
-    return jsonError("你只能分享自己的文件到已加入的 Lab。", 403);
-  }
-
-  const now = new Date().toISOString();
-  const query =
+  const admin = createV2AdminClient();
+  const { error } =
     body.action === "grant"
-      ? admin.from("audit_summary_shares").upsert(
-          {
-            document_id: document.id,
-            student_user_id: user.id,
-            lab_id: body.labId,
-            consented_at: now,
-            revoked_at: null,
-            updated_at: now,
-          },
-          { onConflict: "document_id,lab_id" },
-        )
-      : admin
-          .from("audit_summary_shares")
-          .update({ revoked_at: now, updated_at: now })
-          .eq("document_id", document.id)
-          .eq("student_user_id", user.id)
-          .eq("lab_id", body.labId);
-  const { error } = await query;
+      ? await admin.rpc("grant_audit_summary_consent", {
+          target_student_id: user.id,
+          target_document_id: body.documentId,
+          target_lab_id: body.labId,
+        })
+      : await admin.rpc("revoke_audit_summary_consent", {
+          target_student_id: user.id,
+          target_document_id: body.documentId,
+          target_lab_id: body.labId,
+        });
 
   if (error) {
     console.error("[document-share] Consent update failed", { code: error.code });
-    return jsonError("目前無法更新分享設定。", 500);
+    if (
+      error.message.includes("owned_document_required") ||
+      error.message.includes("active_student_lab_membership_required")
+    ) {
+      return jsonError("你只能分享自己的文件到目前加入的 Lab。", 403);
+    }
+    if (error.message.includes("summary_consent_not_found")) {
+      return jsonError("找不到可撤回的摘要分享。", 404);
+    }
+    return jsonError("目前無法更新分享設定。", 503);
   }
 
   return NextResponse.json({

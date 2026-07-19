@@ -193,9 +193,9 @@ build/
 | `/dashboard` | `app/dashboard/page.tsx` | Supabase browser client | `IMPLEMENTED`, partial legacy |
 | `/dashboard/course` | `app/dashboard/course/page.tsx` | Server redirect | `IMPLEMENTED` compatibility | 保留舊網址並導向跨 workspace 的 `/learn` |
 | `/dashboard/ai-command` | `app/dashboard/ai-command/page.tsx` | `AiCommandContainer`, CMS templates | `IMPLEMENTED` Phase 1 fallback |
-| `/dashboard/ai-audit` | `app/dashboard/ai-audit/page.tsx` | Upload、Streaming、Sharing | `IMPLEMENTED` Phase 2；V2 eligibility 待改為 Lab-only |
+| `/dashboard/ai-audit` | `app/dashboard/ai-audit/page.tsx` | Upload、Streaming、Sharing | `IMPLEMENTED` V2 Task 7 local closure；僅有效訂閱 Lab 的 active student |
 | `/dashboard/ai-audit/history` | `app/dashboard/ai-audit/history/page.tsx` | audit jobs/results read | `IMPLEMENTED` |
-| `/dashboard/lab-join` | `app/dashboard/lab-join/page.tsx` | `LabJoinForm` | `IMPLEMENTED`; V2 單一 active Lab invariant 待 baseline 落實 |
+| `/dashboard/lab-join` | `app/dashboard/lab-join/page.tsx` | `LabJoinForm` | `IMPLEMENTED` V2 Task 6 local closure；單一 active Lab 與席位均由原子 RPC 保護 |
 
 `app/dashboard/layout.tsx` 是 student workspace 的 server layout。`middleware.ts` 也會攔截未登入的 `/dashboard/**`，但 layout 與每個高權限 API 仍須自行驗證。現況只驗證登入，尚未在 layout 強制 `student` role；功能權限仍由個別 page/API 判斷。
 
@@ -459,16 +459,16 @@ V2 實作時 quiz score 應在 server 依答案重算，不能只信任 client s
 → student_documents
 → AuditStreamingPanel
 → POST /api/ai/audit
-→ reserve Lab/user credit
+→ 原子 reserve 唯一 active Lab shared credit
 → server downloads private PDF
 → Base64 + mediaType application/pdf
 → Vercel AI SDK streamText
 → ai_audit_jobs + ai_audit_results
-→ settle/refund credit
+→ 完整成功後 settle；取消或失敗時冪等 refund
 → /dashboard/ai-audit/history
 ```
 
-V2 必須把 eligibility 與額度 Source of Truth 改為有效 Professor Lab 的 shared pool。
+V2 eligibility 與額度 Source of Truth 已改為有效 Professor Lab 的 shared pool：Standard 每月 30 次、Plus 每月 100 次、不結轉；相同 idempotency key 不重複扣額度。
 
 ### 12.4 Audit Summary Sharing
 
@@ -531,7 +531,7 @@ Lab 優惠只在 checkout 時驗證有效 subscription + active student membersh
 
 課程觀看共用 `/learn`；舊 `/dashboard/course` 僅保留相容導向。`/learn` 使用原生 HTML5 `<video controls>`，由 server route 與 RLS 先判定可見單元，再回傳 MP4/WebM 播放來源，不使用 YouTube iframe。
 
-### 12.8 V2 Professor Subscription — V2 PLANNED
+### 12.8 V2 Professor Subscription — IMPLEMENTED Local Closure
 
 ```text
 Professor plan page
@@ -550,7 +550,7 @@ Professor 與 assistant 的 `lab_basic` 課程也使用共用 `/learn`；Profess
 
 目前資料庫分為兩個明確目錄：
 
-- `supabase/migrations/`：乾淨 V2 Baseline `001`–`007`、Task 3 學生買斷 extension，以及 Task 4 `20260719073736_split_course_lesson_access_policies.sql`；均已通過空白 Local replay。
+- `supabase/migrations/`：乾淨 V2 Baseline `001`–`007` 與 Task 3–7 timestamp migrations；均已通過空白 Local replay。
 - `supabase/migrations_legacy/`：原 Phase 1/2 migration 歷史，只供追蹤，不參與 V2 replay。
 
 V2 baseline 的 table、RPC、RLS、Storage、grants 與 seed 分工見
@@ -562,6 +562,9 @@ V2 baseline 的 table、RPC、RLS、Storage、grants 與 seed 分工見
 三層影片 RLS 與觀看進度隔離位於
 `supabase/tests/v2_course_content_access_integration.sql`，由
 `scripts/test-v2-course-content-access.sh` 執行。
+Lab PDF shared pool 的資格、月週期、reserve／settle／refund 與最後額度併發測試位於
+`supabase/tests/v2_lab_pdf_shared_pool_integration.sql`，由
+`scripts/test-v2-lab-pdf-shared-pool.sh` 執行。
 
 現有應用程式仍使用 `types/database.ts` 維持 Phase 1 fallback 編譯；新 V2 schema 的獨立
 generated types 位於 `types/database-v2.generated.ts`，後續 route 改造應逐步切換，不可在
@@ -603,6 +606,7 @@ Storage：
 3. V2 Admin routes 與 course content management UI。
 4. 正式課程 lesson 清單、影片來源與教材資料上架。
 5. 正式學生一次性 payment provider；Professor recurring ECPay 已完成本機邊界，仍待外部商店驗收。
+6. 真實 AI provider credentials、Preview private Storage upload 與串流端到端驗收；Task 7 目前只完成 Local DB、route contract 與 production build closure。
 
 AI 實作上述項目前，必須先讀相對應 V2 文件、提出 migration/API/UI 影響範圍，再開始修改。
 
