@@ -17,6 +17,10 @@ const ecpayProvider = readFileSync(
   new URL("../lib/subscriptions/ecpay.ts", import.meta.url),
   "utf8",
 );
+const checkoutRoute = readFileSync(
+  new URL("../app/api/billing/checkout/route.ts", import.meta.url),
+  "utf8",
+);
 
 test("official ECPay checksum example matches", () => {
   const fields = {
@@ -74,6 +78,7 @@ test("subscription RPCs remain service-only", () => {
   for (const functionName of [
     "start_professor_subscription_trial",
     "create_professor_subscription_checkout_order",
+    "prepare_professor_subscription_upgrade",
     "process_professor_subscription_event",
     "mark_professor_subscription_cancel_at_period_end",
   ]) {
@@ -101,14 +106,38 @@ test("ECPay cancellation uses the documented endpoint and verifies the response"
     /verifyEcpayCheckMacValue\(payload, config\.hashKey, config\.hashIv\)/,
   );
   assert.match(ecpayProvider, /payload\.MerchantTradeNo !== providerSubscriptionId/);
+  assert.match(ecpayProvider, /payload\.RtnCode === "90100149"/);
 });
 
-test("paid provider subscriptions cannot create a second self-service schedule", () => {
-  assert.match(migration, /provider_plan_change_requires_manual_support/);
+test("paid provider subscriptions only allow a controlled Standard to Plus upgrade", () => {
   assert.match(
     migration,
-    /selected_subscription\.provider_subscription_id IS NOT NULL[\s\S]*?'active'[\s\S]*?'past_due'[\s\S]*?'unpaid'/,
+    /selected_subscription\.plan_key = 'professor_lab_standard'[\s\S]*?target_plan_key = 'professor_lab_plus'[\s\S]*?is_upgrade := TRUE/,
   );
+  assert.match(migration, /provider_plan_change_requires_manual_support/);
+  assert.match(migration, /retiredProviderSubscriptionIds/);
+  assert.match(migration, /is_retired_provider_order/);
+  assert.match(migration, /upgradePaymentFailed/);
+  assert.match(
+    migration,
+    /is_upgrade_order[\s\S]*?incoming_status = 'past_due'::public\.subscription_status[\s\S]*?selected_order\.status IN \([\s\S]*?'pending'::public\.order_status[\s\S]*?'processing'::public\.order_status[\s\S]*?\)/,
+  );
+});
+
+test("checkout always retires Standard and cancels its active schedule first", () => {
+  assert.match(checkoutRoute, /if \(result\.isUpgrade\)/);
+  assert.match(
+    checkoutRoute,
+    /if \(result\.requiresProviderCancellation\) \{[\s\S]*?await provider\.cancelSubscription/,
+  );
+  const cancelPosition = checkoutRoute.indexOf(
+    "await provider.cancelSubscription(",
+  );
+  const preparePosition = checkoutRoute.indexOf(
+    '"prepare_professor_subscription_upgrade"',
+  );
+  assert.ok(cancelPosition >= 0);
+  assert.ok(preparePosition > cancelPosition);
 });
 
 test("idempotent checkout retries return every provider input field", () => {

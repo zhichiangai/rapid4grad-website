@@ -123,6 +123,9 @@ export async function POST(request: NextRequest) {
     productName: string;
     planKey: ProfessorPlanKey;
     billingInterval: SubscriptionBillingInterval;
+    isUpgrade: boolean;
+    requiresProviderCancellation: boolean;
+    previousProviderSubscriptionId: string | null;
   };
 
   try {
@@ -148,6 +151,38 @@ export async function POST(request: NextRequest) {
       siteUrl: request.nextUrl.origin,
     });
 
+    if (result.isUpgrade) {
+      if (!result.previousProviderSubscriptionId) {
+        return jsonError("升級狀態不完整，請稍後再試。", 409);
+      }
+
+      if (result.requiresProviderCancellation) {
+        await provider.cancelSubscription(
+          result.previousProviderSubscriptionId,
+        );
+      }
+
+      const { error: prepareError } = await admin.rpc(
+        "prepare_professor_subscription_upgrade",
+        {
+          target_payer_user_id: user.id,
+          target_subscription_id: result.subscriptionId,
+          target_order_id: result.orderId,
+          target_previous_provider_subscription_id:
+            result.previousProviderSubscriptionId,
+        },
+      );
+      if (prepareError) {
+        console.error("Professor subscription upgrade preparation failed", {
+          code: prepareError.code,
+        });
+        return jsonError(
+          "舊方案已停止續扣，但升級狀態尚未完成同步；請重新按一次升級。",
+          503,
+        );
+      }
+    }
+
     const { error: updateError } = await admin
       .from("orders")
       .update({
@@ -155,6 +190,13 @@ export async function POST(request: NextRequest) {
         raw_checkout_payload: {
           mode: checkout.mode,
           actionUrl: checkout.actionUrl,
+          subscriptionUpgrade: result.isUpgrade,
+          previousProviderSubscriptionId:
+            result.previousProviderSubscriptionId,
+          providerScheduleCanceled:
+            result.isUpgrade &&
+            (result.requiresProviderCancellation ||
+              Boolean(result.previousProviderSubscriptionId)),
         },
       })
       .eq("id", result.orderId)

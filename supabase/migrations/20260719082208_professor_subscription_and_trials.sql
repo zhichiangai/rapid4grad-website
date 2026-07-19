@@ -409,6 +409,7 @@ DECLARE
   provider_order TEXT;
   desired_price_interval public.price_interval;
   placeholder_end TIMESTAMPTZ := timezone('utc', now()) + interval '15 minutes';
+  is_upgrade BOOLEAN := FALSE;
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtextextended(target_payer_user_id::TEXT, 0));
   PERFORM pg_advisory_xact_lock(hashtextextended(target_lab_id::TEXT, 0));
@@ -464,15 +465,34 @@ BEGIN
         WHERE product.id = selected_order.product_id
       ),
       'planKey', (
-        SELECT subscription.plan_key
-        FROM public.subscriptions AS subscription
-        WHERE subscription.id = selected_order.subscription_id
+        SELECT CASE product.slug
+          WHEN 'professor-lab-plus' THEN 'professor_lab_plus'
+          ELSE 'professor_lab_standard'
+        END
+        FROM public.products AS product
+        WHERE product.id = selected_order.product_id
       ),
       'billingInterval', (
-        SELECT subscription.billing_interval
-        FROM public.subscriptions AS subscription
-        WHERE subscription.id = selected_order.subscription_id
+        SELECT CASE price.interval
+          WHEN 'year'::public.price_interval THEN 'year'
+          ELSE 'month'
+        END
+        FROM public.product_prices AS price
+        WHERE price.id = selected_order.product_price_id
       ),
+      'isUpgrade', COALESCE(
+        (selected_order.raw_checkout_payload->>'subscriptionUpgrade')::BOOLEAN,
+        FALSE
+      ),
+      'requiresProviderCancellation', COALESCE(
+        (selected_order.raw_checkout_payload->>'subscriptionUpgrade')::BOOLEAN,
+        FALSE
+      ) AND NOT COALESCE(
+        (selected_order.raw_checkout_payload->>'providerScheduleCanceled')::BOOLEAN,
+        FALSE
+      ),
+      'previousProviderSubscriptionId',
+        selected_order.raw_checkout_payload->>'previousProviderSubscriptionId',
       'reused', TRUE
     );
   END IF;
@@ -542,7 +562,12 @@ BEGIN
          'past_due'::public.subscription_status,
          'unpaid'::public.subscription_status
        ) THEN
-      RAISE EXCEPTION 'provider_plan_change_requires_manual_support';
+      IF selected_subscription.plan_key = 'professor_lab_standard'::public.professor_plan_key
+         AND target_plan_key = 'professor_lab_plus'::public.professor_plan_key THEN
+        is_upgrade := TRUE;
+      ELSE
+        RAISE EXCEPTION 'provider_plan_change_requires_manual_support';
+      END IF;
     END IF;
   ELSE
     INSERT INTO public.subscriptions(
@@ -574,6 +599,40 @@ BEGIN
     RETURNING * INTO selected_subscription;
   END IF;
 
+  IF is_upgrade THEN
+    SELECT *
+    INTO selected_order
+    FROM public.orders AS existing_order
+    WHERE existing_order.user_id = target_payer_user_id
+      AND existing_order.subscription_id = selected_subscription.id
+      AND existing_order.product_id = selected_product.id
+      AND existing_order.product_price_id = selected_price.id
+      AND existing_order.status IN (
+        'pending'::public.order_status,
+        'processing'::public.order_status
+      )
+    ORDER BY existing_order.created_at DESC
+    LIMIT 1
+    FOR UPDATE;
+
+    IF FOUND THEN
+      RETURN jsonb_build_object(
+        'orderId', selected_order.id,
+        'subscriptionId', selected_subscription.id,
+        'providerOrderId', selected_order.provider_order_id,
+        'amount', selected_order.amount,
+        'currency', selected_order.currency,
+        'productName', selected_product.name,
+        'planKey', target_plan_key,
+        'billingInterval', target_billing_interval,
+        'isUpgrade', TRUE,
+        'requiresProviderCancellation', NOT selected_subscription.cancel_at_period_end,
+        'previousProviderSubscriptionId', selected_subscription.provider_subscription_id,
+        'reused', TRUE
+      );
+    END IF;
+  END IF;
+
   provider_order := 'R4G' || upper(substr(replace(extensions.gen_random_uuid()::TEXT, '-', ''), 1, 17));
 
   INSERT INTO public.orders(
@@ -587,7 +646,8 @@ BEGIN
     status,
     provider,
     provider_order_id,
-    idempotency_key
+    idempotency_key,
+    raw_checkout_payload
   )
   VALUES (
     target_payer_user_id,
@@ -600,7 +660,18 @@ BEGIN
     'pending'::public.order_status,
     'ecpay'::public.payment_provider,
     provider_order,
-    target_idempotency_key
+    target_idempotency_key,
+    jsonb_build_object(
+      'subscriptionUpgrade', is_upgrade,
+      'previousProviderSubscriptionId', CASE
+        WHEN is_upgrade THEN selected_subscription.provider_subscription_id
+        ELSE NULL
+      END,
+      'providerScheduleCanceled', CASE
+        WHEN is_upgrade THEN selected_subscription.cancel_at_period_end
+        ELSE FALSE
+      END
+    )
   )
   RETURNING * INTO selected_order;
 
@@ -613,7 +684,114 @@ BEGIN
     'productName', selected_product.name,
     'planKey', target_plan_key,
     'billingInterval', target_billing_interval,
+    'isUpgrade', is_upgrade,
+    'requiresProviderCancellation', is_upgrade AND NOT selected_subscription.cancel_at_period_end,
+    'previousProviderSubscriptionId', CASE
+      WHEN is_upgrade THEN selected_subscription.provider_subscription_id
+      ELSE NULL
+    END,
     'reused', FALSE
+  );
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.prepare_professor_subscription_upgrade(
+  target_payer_user_id UUID,
+  target_subscription_id UUID,
+  target_order_id UUID,
+  target_previous_provider_subscription_id TEXT
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  selected_subscription public.subscriptions%ROWTYPE;
+  selected_order public.orders%ROWTYPE;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtextextended(target_subscription_id::TEXT, 0));
+
+  SELECT *
+  INTO selected_subscription
+  FROM public.subscriptions AS subscription
+  WHERE subscription.id = target_subscription_id
+    AND subscription.payer_user_id = target_payer_user_id
+  FOR UPDATE;
+
+  IF NOT FOUND
+     OR selected_subscription.plan_key <> 'professor_lab_standard'::public.professor_plan_key
+     OR selected_subscription.provider <> 'ecpay'::public.payment_provider
+     OR selected_subscription.provider_subscription_id IS DISTINCT FROM target_previous_provider_subscription_id
+     OR selected_subscription.status NOT IN (
+       'active'::public.subscription_status,
+       'past_due'::public.subscription_status,
+       'unpaid'::public.subscription_status
+     ) THEN
+    RAISE EXCEPTION 'eligible_standard_subscription_required';
+  END IF;
+
+  SELECT payment_order.*
+  INTO selected_order
+  FROM public.orders AS payment_order
+  JOIN public.products AS product ON product.id = payment_order.product_id
+  WHERE payment_order.id = target_order_id
+    AND payment_order.user_id = target_payer_user_id
+    AND payment_order.subscription_id = target_subscription_id
+    AND payment_order.provider = 'ecpay'::public.payment_provider
+    AND payment_order.status IN (
+      'pending'::public.order_status,
+      'processing'::public.order_status
+    )
+    AND product.slug = 'professor-lab-plus'
+    AND COALESCE(
+      (payment_order.raw_checkout_payload->>'subscriptionUpgrade')::BOOLEAN,
+      FALSE
+    )
+  FOR UPDATE OF payment_order;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'valid_plus_upgrade_order_required';
+  END IF;
+
+  UPDATE public.subscriptions
+  SET cancel_at_period_end = TRUE,
+      canceled_at = COALESCE(canceled_at, timezone('utc', now())),
+      metadata = metadata || jsonb_build_object(
+        'pendingUpgradeOrderId', target_order_id,
+        'pendingUpgradePlan', 'professor_lab_plus',
+        'retiredProviderSubscriptionIds',
+          CASE
+            WHEN COALESCE(
+              metadata->'retiredProviderSubscriptionIds',
+              '[]'::JSONB
+            ) ? target_previous_provider_subscription_id
+              THEN COALESCE(
+                metadata->'retiredProviderSubscriptionIds',
+                '[]'::JSONB
+              )
+            ELSE COALESCE(
+              metadata->'retiredProviderSubscriptionIds',
+              '[]'::JSONB
+            ) || jsonb_build_array(target_previous_provider_subscription_id)
+          END
+      ),
+      updated_at = timezone('utc', now())
+  WHERE id = target_subscription_id;
+
+  UPDATE public.orders
+  SET raw_checkout_payload = COALESCE(raw_checkout_payload, '{}'::JSONB)
+        || jsonb_build_object(
+          'providerScheduleCanceled', TRUE,
+          'providerScheduleCanceledAt', timezone('utc', now())
+        ),
+      updated_at = timezone('utc', now())
+  WHERE id = target_order_id;
+
+  RETURN jsonb_build_object(
+    'subscriptionId', target_subscription_id,
+    'orderId', target_order_id,
+    'providerScheduleCanceled', TRUE
   );
 END;
 $$;
@@ -645,6 +823,8 @@ DECLARE
   incoming_rank INTEGER;
   should_apply BOOLEAN;
   payment_id UUID;
+  is_upgrade_order BOOLEAN;
+  is_retired_provider_order BOOLEAN;
 BEGIN
   INSERT INTO public.payment_events(
     provider,
@@ -686,6 +866,15 @@ BEGIN
   WHERE id = selected_order.subscription_id
   FOR UPDATE;
 
+  is_upgrade_order := COALESCE(
+    (selected_order.raw_checkout_payload->>'subscriptionUpgrade')::BOOLEAN,
+    FALSE
+  );
+  is_retired_provider_order := COALESCE(
+    selected_subscription.metadata->'retiredProviderSubscriptionIds',
+    '[]'::JSONB
+  ) ? target_provider_order_id;
+
   IF target_amount <> selected_order.amount
      OR upper(target_currency) <> upper(selected_order.currency) THEN
     RAISE EXCEPTION 'subscription_payment_amount_mismatch';
@@ -701,6 +890,52 @@ BEGIN
 
   IF incoming_status IS NULL THEN
     RAISE EXCEPTION 'unsupported_subscription_outcome';
+  END IF;
+
+  IF is_retired_provider_order THEN
+    UPDATE public.payment_events
+    SET status = 'processed'::public.payment_event_status,
+        processed_at = timezone('utc', now()),
+        error_code = NULL,
+        updated_at = timezone('utc', now())
+    WHERE provider = 'ecpay'::public.payment_provider
+      AND provider_event_id = target_provider_event_id;
+
+    RETURN jsonb_build_object(
+      'duplicate', FALSE,
+      'applied', FALSE,
+      'retiredProviderOrder', TRUE,
+      'subscriptionId', selected_subscription.id,
+      'status', selected_subscription.status
+    );
+  END IF;
+
+  IF is_upgrade_order
+     AND incoming_status = 'past_due'::public.subscription_status
+     AND selected_order.status IN (
+       'pending'::public.order_status,
+       'processing'::public.order_status
+     ) THEN
+    UPDATE public.orders
+    SET status = 'failed'::public.order_status,
+        updated_at = timezone('utc', now())
+    WHERE id = selected_order.id;
+
+    UPDATE public.payment_events
+    SET status = 'processed'::public.payment_event_status,
+        processed_at = timezone('utc', now()),
+        error_code = target_error_code,
+        updated_at = timezone('utc', now())
+    WHERE provider = 'ecpay'::public.payment_provider
+      AND provider_event_id = target_provider_event_id;
+
+    RETURN jsonb_build_object(
+      'duplicate', FALSE,
+      'applied', FALSE,
+      'upgradePaymentFailed', TRUE,
+      'subscriptionId', selected_subscription.id,
+      'status', selected_subscription.status
+    );
   END IF;
 
   existing_rank := CASE selected_subscription.status
@@ -935,6 +1170,12 @@ REVOKE ALL ON FUNCTION public.create_professor_subscription_checkout_order(
   public.subscription_interval,
   TEXT
 ) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.prepare_professor_subscription_upgrade(
+  UUID,
+  UUID,
+  UUID,
+  TEXT
+) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.process_professor_subscription_event(
   TEXT,
   TEXT,
@@ -963,6 +1204,12 @@ GRANT EXECUTE ON FUNCTION public.create_professor_subscription_checkout_order(
   UUID,
   public.professor_plan_key,
   public.subscription_interval,
+  TEXT
+) TO service_role;
+GRANT EXECUTE ON FUNCTION public.prepare_professor_subscription_upgrade(
+  UUID,
+  UUID,
+  UUID,
   TEXT
 ) TO service_role;
 GRANT EXECUTE ON FUNCTION public.process_professor_subscription_event(
@@ -998,3 +1245,10 @@ COMMENT ON FUNCTION public.start_professor_subscription_trial(
   public.subscription_interval
 ) IS
   'Service-only atomic one-time cardless trial claim. The trial is app-managed and does not create an ECPay zero-value recurring order.';
+COMMENT ON FUNCTION public.prepare_professor_subscription_upgrade(
+  UUID,
+  UUID,
+  UUID,
+  TEXT
+) IS
+  'Service-only transition after the previous ECPay recurring schedule is stopped. Retires old provider events before the Plus checkout is presented.';

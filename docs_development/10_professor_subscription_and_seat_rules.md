@@ -22,7 +22,7 @@ Standard 與 Plus 均支援月繳、年繳。每個 Professor 帳號可領取一
 - 建立邀請碼前與學生加入時都必須檢查方案席位。
 - 第 15 位 active student 可加入 Standard；第 16 位不可先加入。
 - 第 16 位嘗試加入時不得建立 membership，系統顯示方案已滿並通知 Professor 先升級 Plus。
-- 綠界缺少安全的自動換方案 API；已付費 Standard 升級 Plus 暫由客服先終止舊扣款排程並完成受控方案變更，確認後學生才可重新加入。
+- 已付費 Standard 可自助立即升級 Plus：後端先透過綠界終止舊 Standard 未來扣款，再建立完整 Plus 費用付款；verified webhook 確認付款成功後 Plus 立即生效，第 16 位學生才可重新加入。
 - Plus 第 30 位可加入；第 31 位不可加入，改為聯絡 RAPID 洽談 Enterprise。
 - 移除、退出或停用學生後，席位可重新釋放。
 - 每位 student 同一時間只能加入一個 active Lab；離開或被移除後才能加入另一個 Lab。
@@ -90,7 +90,9 @@ Standard 與 Plus 均支援月繳、年繳。每個 Professor 帳號可領取一
 
 - Recurring provider 暫定綠界 ECPay。
 - 月繳以每月固定金額處理；年繳以每年固定金額處理。
-- 綠界定期定額只提供補授權與終止 API，沒有安全的自動改價／換方案 API。已開始付費的 Standard／Plus 若要換方案或月年週期，先採客服受控處理，不可直接建立第二筆定期扣款。
+- 綠界定期定額只提供補授權與終止 API，沒有原地改價／換方案 API。Standard 升級 Plus 採受控的「終止舊排程後建立新排程」流程：先停止 Standard 未來扣款，再立即收取完整 Plus 費用；Plus 付款成功後立即生效，Standard 剩餘天數不折抵。
+- Plus 首次付款失敗時不得切換方案，既有 Standard 只維持至原已付款週期結束且不再續扣。舊 Standard 延遲 webhook 必須被辨識為 retired provider order，不能覆蓋 Plus 或重複付款。
+- Standard 升級 Plus 時可在新 Plus 訂單選擇月繳或年繳。Plus 降級 Standard，以及不伴隨方案升級的單純月繳／年繳週期切換，第一版仍採客服受控處理，不可直接建立第二筆定期扣款。
 - 綠界定期定額執行次數有 provider 上限，系統應在接近上限前建立新的續訂流程，不把有限期數描述成永久自動扣款。
 - `past_due` 自付款失敗事件起有 15 天功能寬限；較新的成功付款可恢復 active。
 - `unpaid`、`canceled` 立即停止衍生功能並保留唯讀歷史。
@@ -104,7 +106,7 @@ Standard 與 Plus 均支援月繳、年繳。每個 Professor 帳號可領取一
 - 各方案 PDF 額度及超額費。
 - 非 owner professor 的管理能力。
 - 各方案免費試用後的轉換文案與提醒節奏。
-- 已付費方案變更的客服操作流程與對帳規則。
+- Plus 降級 Standard、同方案月繳／年繳切換的客服操作流程與對帳規則。
 
 ## 8. Admin 異常處理邊界
 

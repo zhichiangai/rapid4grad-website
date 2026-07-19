@@ -46,6 +46,8 @@ Standard 與 Plus 都支援月繳、年繳。每個 Professor 帳號可啟用一
 
 Standard／Plus 正式價格仍待公告。沒有 active `product_prices` 時，系統可展示方案與啟用試用，但不得建立正式付款單或使用假金額。
 
+已付費 Standard 可自助立即升級 Plus，並在新 Plus 訂單選擇月繳或年繳。系統先停止 Standard 的未來定期扣款，再建立一筆完整 Plus 費用的即時付款；Plus 只在付款成功並通過 verified webhook 後立即生效，Standard 剩餘天數與金額不折抵、不退差額。若 Plus 付款未完成，Standard 僅維持至原已付款週期結束且不再續扣。Plus 降級 Standard，或不伴隨 Standard→Plus 升級的單純月繳／年繳週期切換，仍採人工處理，避免同時存在兩筆定期扣款。
+
 ## 4. Lab 學生的影片權限與升級
 
 - 公開、Lab 與完整課程共用 `/learn` HTML5 網頁播放器，不使用 YouTube iframe；播放器路由不改變任何商業權限。

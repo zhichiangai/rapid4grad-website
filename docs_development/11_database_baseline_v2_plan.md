@@ -224,7 +224,7 @@ Task 3 Local 驗收：
 - Standard／Plus 均支援 month/year price row。
 - 正式 provider 暫定 ECPay；CheckMacValue 已用綠界官方 SHA-256 範例驗證。
 - 綠界取消 API 使用官方 `Cashier/CreditCardPeriodAction`，並驗證回傳 CheckMacValue、Merchant ID 與 MerchantTradeNo。
-- 綠界沒有自動改價／換方案 API；既有付費訂閱不可自助建立第二筆定期扣款，Standard／Plus 或月年週期變更先走客服受控流程。
+- 綠界沒有原地改價／換方案 API。Standard 升級 Plus 採原子化協調流程：先取消舊 Standard provider schedule，再依使用者選擇的 Plus 月繳或年繳建立完整付款；verified webhook 成功後立即切換 Plus，不折抵 Standard 剩餘天數。Plus 降級或同方案月年週期變更仍走客服受控流程。
 - 30 天試用由 RAPID4GRAD 自己管理，不以 ECPay 建立 0 元定期訂單。
 - 正式價格仍待公告；沒有 active ECPay `product_prices` 時，checkout 必須 disabled。
 - PDF 額度仍待定；Task 5 不建立 `lab_usage_credits`，Task 7／Admin 後台再處理 shared pool 數值。
@@ -233,7 +233,9 @@ Local 驗收：
 
 - 空白 Local Supabase replay 成功。
 - 同一教授第二次試用、第二個 active owned Lab、同 Lab 第二筆 current subscription 均被拒絕。
-- Standard 第 16 位被拒；受控變更為 Plus 後可加入。既有付費方案的自助換方案會被拒，避免兩筆綠界扣款並存。
+- Standard 第 16 位被拒；自助立即升級 Plus 並完成付款後可加入。升級會先停止 Standard 未來扣款，完整收取 Plus，且不折抵 Standard 剩餘天數。
+- Plus 首次付款失敗時不切換 subscription plan，Standard 僅維持原已付款週期；成功升級後的 Plus 續約失敗則進入正常 `past_due` 與 15 天寬限。
+- 舊 Standard provider order 的延遲 webhook 被標記為 retired 並忽略，不得覆蓋 Plus；checkout retry 不重複取消舊排程。
 - Checkout idempotency retry 會回傳相同 order 與完整 provider payload，不會建立第二筆訂單。
 - 月繳與年繳只使用 active DB price，不使用環境變數或假金額。
 - Webhook 重送只建立一筆 payment；同秒較寬鬆狀態不能覆蓋 `past_due`，較新的成功事件可恢復 active。

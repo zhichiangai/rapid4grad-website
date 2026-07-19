@@ -215,7 +215,8 @@ export const ecpaySubscriptionProvider: SubscriptionProvider = {
       throw new Error("Unexpected ECPay cancellation response");
     }
 
-    if (!response.ok || payload.RtnCode !== "1") {
+    const isAlreadyStopped = payload.RtnCode === "90100149";
+    if (!response.ok || (payload.RtnCode !== "1" && !isAlreadyStopped)) {
       throw new Error(payload.RtnMsg || "ECPay cancellation failed");
     }
   },

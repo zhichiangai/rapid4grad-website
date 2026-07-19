@@ -211,40 +211,92 @@ BEGIN
 END;
 $$;
 
-DO $$
-BEGIN
-  BEGIN
-    PERFORM public.create_professor_subscription_checkout_order(
-      'a1000000-0000-0000-0000-000000000001'::UUID,
-      (SELECT id FROM public.labs
-       WHERE owner_professor_id = 'a1000000-0000-0000-0000-000000000001'::UUID
-         AND status = 'active'),
-      'professor_lab_plus', 'month', 'plus-upgrade-checkout'
-    );
-    RAISE EXCEPTION 'unsafe self-service provider plan change unexpectedly succeeded';
-  EXCEPTION WHEN OTHERS THEN
-    IF SQLERRM NOT LIKE '%provider_plan_change_requires_manual_support%' THEN RAISE; END IF;
-  END;
-END;
-$$;
+SELECT
+  (payload->>'orderId')::UUID AS first_plus_order_id,
+  payload->>'providerOrderId' AS first_plus_provider_order,
+  payload->>'previousProviderSubscriptionId' AS previous_standard_provider_order,
+  (payload->>'isUpgrade')::BOOLEAN AS first_plus_is_upgrade,
+  (payload->>'requiresProviderCancellation')::BOOLEAN AS first_plus_requires_cancel
+FROM (
+  SELECT public.create_professor_subscription_checkout_order(
+    :'professor_one'::UUID, :'lab_one'::UUID,
+    'professor_lab_plus', 'month', 'plus-upgrade-checkout'
+  ) AS payload
+) AS checkout \gset
 
--- Simulate the future audited support operation after the old ECPay schedule
--- has been terminated. Task 5 intentionally does not automate this provider gap.
-UPDATE public.subscriptions
-SET product_id = (SELECT id FROM public.products WHERE slug = 'professor-lab-plus'),
-    product_price_id = (
-      SELECT price.id
-      FROM public.product_prices AS price
-      JOIN public.products AS product ON product.id = price.product_id
-      WHERE product.slug = 'professor-lab-plus'
-        AND price.interval = 'month'
-        AND price.is_active = TRUE
-      ORDER BY price.created_at DESC
-      LIMIT 1
-    ),
-    plan_key = 'professor_lab_plus',
-    updated_at = timezone('utc', now())
-WHERE id = :'trial_subscription_id'::UUID;
+SELECT pg_temp.assert_true(
+  :'first_plus_is_upgrade'::BOOLEAN
+  AND :'first_plus_requires_cancel'::BOOLEAN,
+  'Standard to Plus checkout must require retiring the previous provider schedule'
+);
+
+SELECT public.prepare_professor_subscription_upgrade(
+  :'professor_one'::UUID,
+  :'trial_subscription_id'::UUID,
+  :'first_plus_order_id'::UUID,
+  :'previous_standard_provider_order'
+);
+
+SELECT pg_temp.assert_true(
+  (
+    SELECT cancel_at_period_end = TRUE
+      AND metadata->'retiredProviderSubscriptionIds' ? :'previous_standard_provider_order'
+    FROM public.subscriptions
+    WHERE id = :'trial_subscription_id'::UUID
+  ),
+  'upgrade preparation must retire the old ECPay schedule before Plus checkout'
+);
+
+SELECT pg_temp.assert_true(
+  NOT (public.process_professor_subscription_event(
+    'event-retired-standard-delayed', :'standard_provider_order', 'payment-retired-standard',
+    'paid', 100, 'TWD', '2026-07-19T01:01:00Z', '2026-08-19T01:01:00Z',
+    '{"fixture_only":true}'::JSONB, NULL
+  )->>'applied')::BOOLEAN,
+  'delayed events from the retired Standard schedule must not mutate the subscription'
+);
+
+SELECT public.process_professor_subscription_event(
+  'event-first-plus-failed', :'first_plus_provider_order', 'payment-first-plus-failed',
+  'failed', 200, 'TWD', '2026-07-19T01:01:10Z', '2026-08-19T01:01:10Z',
+  '{"fixture_only":true}'::JSONB, 'failed'
+);
+SELECT pg_temp.assert_true(
+  (
+    SELECT subscription.status = 'active'
+      AND subscription.plan_key = 'professor_lab_standard'
+      AND payment_order.status = 'failed'
+    FROM public.subscriptions AS subscription
+    JOIN public.orders AS payment_order
+      ON payment_order.id = :'first_plus_order_id'::UUID
+    WHERE subscription.id = :'trial_subscription_id'::UUID
+  ),
+  'failed Plus checkout must preserve Standard access through its paid period'
+);
+
+SELECT
+  (payload->>'orderId')::UUID AS plus_order_id,
+  payload->>'providerOrderId' AS plus_provider_order,
+  (payload->>'isUpgrade')::BOOLEAN AS retry_plus_is_upgrade,
+  (payload->>'requiresProviderCancellation')::BOOLEAN AS retry_plus_requires_cancel
+FROM (
+  SELECT public.create_professor_subscription_checkout_order(
+    :'professor_one'::UUID, :'lab_one'::UUID,
+    'professor_lab_plus', 'month', 'plus-upgrade-checkout-retry'
+  ) AS payload
+) AS checkout \gset
+
+SELECT pg_temp.assert_true(
+  :'retry_plus_is_upgrade'::BOOLEAN
+  AND NOT :'retry_plus_requires_cancel'::BOOLEAN,
+  'retry after retiring Standard must not call provider cancellation twice'
+);
+
+SELECT public.process_professor_subscription_event(
+  'event-plus-paid', :'plus_provider_order', 'payment-plus-1',
+  'paid', 200, 'TWD', '2026-07-19T01:01:20Z', '2026-08-19T01:01:20Z',
+  '{"fixture_only":true}'::JSONB, NULL
+);
 
 INSERT INTO public.lab_memberships(lab_id, user_id, role, status)
 VALUES (
@@ -255,12 +307,12 @@ VALUES (
 SELECT pg_temp.assert_true(
   (SELECT count(*) = 16 FROM public.lab_memberships
    WHERE lab_id = :'lab_one'::UUID AND role = 'student' AND status = 'active'),
-  'An audited Plus plan change must permit the sixteenth student'
+  'A verified Plus upgrade must permit the sixteenth student'
 );
 
 SELECT public.process_professor_subscription_event(
-  'event-plus-failed', :'standard_provider_order', 'payment-plus-failed',
-  'failed', 100, 'TWD', '2026-07-19T01:02:00Z', '2026-08-19T01:02:00Z',
+  'event-plus-failed', :'plus_provider_order', 'payment-plus-failed',
+  'failed', 200, 'TWD', '2026-07-19T01:02:00Z', '2026-08-19T01:02:00Z',
   '{"fixture_only":true}'::JSONB, 'failed'
 );
 SELECT pg_temp.assert_true(
@@ -270,8 +322,8 @@ SELECT pg_temp.assert_true(
 );
 
 SELECT public.process_professor_subscription_event(
-  'event-plus-same-second-active', :'standard_provider_order', 'payment-plus-same-second',
-  'paid', 100, 'TWD', '2026-07-19T01:02:00Z', '2026-08-19T01:02:00Z',
+  'event-plus-same-second-active', :'plus_provider_order', 'payment-plus-same-second',
+  'paid', 200, 'TWD', '2026-07-19T01:02:00Z', '2026-08-19T01:02:00Z',
   '{"fixture_only":true}'::JSONB, NULL
 );
 SELECT pg_temp.assert_true(
@@ -280,8 +332,8 @@ SELECT pg_temp.assert_true(
 );
 
 SELECT public.process_professor_subscription_event(
-  'event-plus-recovered', :'standard_provider_order', 'payment-plus-recovered',
-  'paid', 100, 'TWD', '2026-07-19T01:03:00Z', '2026-08-19T01:03:00Z',
+  'event-plus-recovered', :'plus_provider_order', 'payment-plus-recovered',
+  'paid', 200, 'TWD', '2026-07-19T01:03:00Z', '2026-08-19T01:03:00Z',
   '{"fixture_only":true}'::JSONB, NULL
 );
 SELECT pg_temp.assert_true(

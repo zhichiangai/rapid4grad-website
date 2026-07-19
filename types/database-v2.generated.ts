@@ -1732,6 +1732,15 @@ export type Database = {
         Args: { target_payer_user_id: string; target_subscription_id: string }
         Returns: Json
       }
+      prepare_professor_subscription_upgrade: {
+        Args: {
+          target_order_id: string
+          target_payer_user_id: string
+          target_previous_provider_subscription_id: string
+          target_subscription_id: string
+        }
+        Returns: Json
+      }
       process_one_time_payment_event: {
         Args: {
           target_amount: number

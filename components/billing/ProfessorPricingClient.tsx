@@ -174,18 +174,27 @@ export function ProfessorPricingClient({
             const interval = intervals[plan.key];
             const amount = prices[`${plan.key}:${interval}`];
             const trialDisabled = trialAlreadyUsed || Boolean(currentSubscription);
-            const paidSubscriptionNeedsSupport = Boolean(
+            const isPaidState = Boolean(
               currentSubscription &&
                 ["active", "past_due", "unpaid"].includes(
                   currentSubscription.status,
-                ) &&
-                (currentSubscription.plan_key !== plan.key ||
-                  currentSubscription.billing_interval !== interval),
+                ),
             );
-            const alreadySubscribed = Boolean(
-              currentSubscription?.status === "active" &&
-                currentSubscription.plan_key === plan.key &&
+            const isSafeUpgrade = Boolean(
+              isPaidState &&
+                currentSubscription?.plan_key === "professor_lab_standard" &&
+                plan.key === "professor_lab_plus",
+            );
+            const samePaidConfiguration = Boolean(
+              isPaidState &&
+                currentSubscription?.plan_key === plan.key &&
                 currentSubscription.billing_interval === interval,
+            );
+            const paidSubscriptionNeedsSupport = Boolean(
+              isPaidState &&
+                (currentSubscription?.plan_key !== plan.key ||
+                  currentSubscription?.billing_interval !== interval) &&
+                !isSafeUpgrade,
             );
             return (
               <article key={plan.key} className="rounded-[2rem] border border-white/10 bg-slate-950/75 p-7 shadow-2xl shadow-slate-950/40">
@@ -217,6 +226,11 @@ export function ProfessorPricingClient({
 
                 <p className="mt-6 text-2xl font-semibold">{formatPrice(amount, interval)}</p>
                 <p className="mt-2 text-xs text-slate-500">正式付款由綠界定期定額處理；價格公告前不會建立付款單。</p>
+                {isSafeUpgrade ? (
+                  <p className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-xs leading-6 text-amber-100">
+                    升級會先停止 Standard 未來續扣，再立即收取完整 Plus 費用。付款成功後 Plus 立即生效，Standard 剩餘天數不折抵；若未完成付款，原方案只維持到目前週期結束。
+                  </p>
+                ) : null}
 
                 <ul className="mt-6 space-y-3">
                   {plan.features.map((feature) => (
@@ -237,11 +251,14 @@ export function ProfessorPricingClient({
                     type="button"
                     disabled={
                       loading !== null ||
-                      !amount ||
                       !lab ||
-                      alreadySubscribed
+                      (!amount && !samePaidConfiguration)
                     }
                     onClick={() => {
+                      if (samePaidConfiguration) {
+                        window.location.href = "/billing";
+                        return;
+                      }
                       if (paidSubscriptionNeedsSupport) {
                         setMessage(
                           "綠界無法安全地自動換方案或週期，請聯絡客服處理，避免兩筆定期扣款同時存在。",
@@ -254,10 +271,12 @@ export function ProfessorPricingClient({
                   >
                     {loading === `${plan.key}:checkout`
                       ? "前往綠界..."
-                      : alreadySubscribed
-                        ? "目前使用中"
+                      : samePaidConfiguration
+                        ? "前往帳務管理"
                         : paidSubscriptionNeedsSupport
                           ? "聯絡客服變更"
+                          : isSafeUpgrade
+                            ? "安全升級至 Plus"
                           : amount
                             ? "開始正式訂閱"
                             : "價格待公告"}

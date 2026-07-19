@@ -593,7 +593,7 @@ Storage：
 目前仍待後續 Task 或外部設定的項目：
 
 1. Standard／Plus 正式價格、ECPay credentials 與公開環境付款／取消驗收。
-2. 已付費 Standard／Plus 或月年週期變更的客服受控操作與 Admin action log。
+2. Plus 降級 Standard、同方案月年週期變更的客服受控操作與 Admin action log；Standard 升級 Plus 已採停止舊扣款後立即全額建立 Plus 月繳或年繳的自助流程。
 3. Lab owner 移除成員的完整 UI/API。
 4. V2 Admin routes 與 course content management UI。
 5. 正式課程 lesson 清單、影片來源與教材資料上架。
