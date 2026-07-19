@@ -62,6 +62,7 @@ Subscription 由 Professor 帳號付款並綁定該 Professor 自己建立的 La
 - 研究進度、風險與下一步的安全摘要。
 - Lab 影片內容入口與推薦；不顯示任何個別學生觀看或完成狀態。
 - Professor 與 assistant 可觀看教授管理與團隊版本的 `lab_basic` 影片，但不自動取得學生完整課程。
+- Professor、assistant 與 student 共用 `/learn` 播放器；可見 lesson 由 active membership、subscription 與個人 entitlement 的 RLS 動態決定，不因進入 Professor workspace 而放寬。
 
 不得提供：
 

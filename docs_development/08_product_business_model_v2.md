@@ -46,6 +46,7 @@ Professor 是付款人，也是自己 Lab 的 owner；每位 Professor 同一時
 
 ## 4. Lab 學生的影片權限與升級
 
+- 公開、Lab 與完整課程共用 `/learn` HTML5 網頁播放器，不使用 YouTube iframe；播放器路由不改變任何商業權限。
 - 有效教授訂閱下的 active Lab student 可觀看 `lab_basic` 影片。
 - Lab student 可支付優惠升級價，取得個人永久 `full_course` 權限。
 - 升級價格：**待定**。

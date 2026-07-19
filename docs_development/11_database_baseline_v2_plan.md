@@ -1,6 +1,6 @@
 # RAPID4GRAD — Database Baseline V2 Plan
 
-> 狀態：V2 Local baseline 已建立，Task 3 學生一次性買斷 extension 也已通過空白 Local Supabase replay 與整合驗收。
+> 狀態：V2 Local baseline 已建立；Task 3 學生一次性買斷與 Task 4 三層影片 RLS extension 均已通過空白 Local Supabase replay 與整合驗收。
 > 新 baseline 尚未套用任何遠端 Supabase Project；不得直接對既有 Production 執行。
 > 更新日期：2026-07-19
 
@@ -170,3 +170,35 @@ Task 3 Local 驗收：
 - 本機執行器：`scripts/test-v2-student-course-purchase.sh`
 - Token tests：`tests/payment-test-provider-token.test.ts`
 - Static contract：`tests/v2-student-course-purchase-contract.test.ts`
+
+## 11. Task 4 三層影片存取（Local closure）
+
+沿用 Baseline `004_courses_lessons_and_progress.sql` 的資料模型：
+
+- `courses`：課程容器與發布狀態。
+- `course_lessons`：模組、排序、顯示 metadata、`video_provider`、`video_external_id` 與三層 `access_level`。
+- `course_progress`：只屬於使用者本人的觀看進度；Professor/assistant/Admin 無跨使用者 SELECT policy。
+
+新增 migration：
+
+- `20260719073736_split_course_lesson_access_policies.sql`
+
+此 migration 修正 Baseline 合併 policy 的匿名查詢缺口：
+
+- `course_lessons_select_public_preview` 只判斷已發布的 `public_preview`，不呼叫 authenticated-only helper。
+- `course_lessons_select_authenticated_access` 才呼叫永久 `course_full` 與動態 Lab access helper。
+- 不授權 anon 執行 `has_active_course_full` 或 `has_lab_basic_access`，避免匿名探測其他帳號權限。
+- 買斷學生能讀三層 lesson；active Lab professor/assistant/student 只能多讀 `lab_basic`；訂閱到期或 membership 結束後立即回到 public preview。
+- Admin role 本身不產生課程權限，只能讀 public preview。
+
+正式內容狀態：
+
+- Baseline 只有一個未發布的 `rapid4grad-core` course 容器，沒有正式 lesson。
+- 真實影片分類、HTML5 media source 與教材 URL 仍待使用者提供，不在 migration seed 放置假影片。
+- Local integration 使用 `media.local.test` fixture，只驗證 RLS，不代表正式影音 hosting 已設定。
+
+驗收入口：
+
+- SQL fixture：`supabase/tests/v2_course_content_access_integration.sql`
+- 本機執行器：`scripts/test-v2-course-content-access.sh`
+- Static contract：`tests/v2-course-content-access-contract.test.ts`

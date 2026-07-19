@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CourseCheckoutButton } from "@/components/course/CourseCheckoutButton";
 import { getConfiguredDatabaseProviderName } from "@/lib/payments";
 import { createV2Client } from "@/lib/supabase/server";
@@ -99,6 +100,12 @@ export default async function CoursePage() {
               </div>
             ))}
           </div>
+          <Link
+            href="/learn"
+            className="mt-6 inline-flex rounded-2xl border border-cyan-300/25 bg-cyan-400/10 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
+          >
+            使用網頁播放器觀看公開試看
+          </Link>
         </div>
 
         <aside className="rounded-[2rem] border border-cyan-300/20 bg-slate-950/80 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">

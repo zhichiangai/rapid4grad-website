@@ -43,7 +43,7 @@
 | 有效 Lab 教授 | 是 | 是，教授／團隊版本 | 不自動取得學生完整版 | 管理 shared pool，不上傳 | 是 |
 | 有效 Lab 助教 | 是 | 是，教授／團隊版本 | 不自動取得學生完整版 | 不上傳 | 限定範圍 |
 | 訂閱失效 Lab 成員 | 是 | 否 | 個人已買斷者保留 | 否 | Professor/Admin 可唯讀歷史 |
-| Admin | 依內部驗收規則 | 觀察用途 | 不代表個人授權 | 不代表 PDF 本文權限 | Admin control plane |
+| Admin | 是 | 否，role 不自動授權 | 否，role 不自動授權 | 不代表 PDF 本文權限 | Admin control plane |
 
 ## 4. Entitlement 類型
 
@@ -103,3 +103,24 @@ Professor/assistant 可查看的學生進度僅限：
 - Admin role 本身不會自動產生 `course_full`、`lab_basic` 或 `pdf_audit_team` entitlement。
 - Admin 不得將 Lab 衍生權限永久寫入個人帳號以繞過訂閱狀態。
 - 完整規格見 `12_admin_control_plane_v2.md`。
+
+## 10. Task 4 播放器與 Server 授權邊界
+
+- 共用觀看入口為 `/learn`；`/dashboard/course` 只保留舊網址相容導向。
+- `/learn` 的 Server Component 只查詢 lesson metadata，不查詢或下發 `video_external_id`。
+- Client 選擇 lesson 後，必須呼叫 `/api/course/lessons/[lessonId]/playback`。
+- Playback Route 使用目前 session 的 Supabase client 查詢 lesson；RLS 查不到即拒絕，不使用 admin client 繞過。
+- 匿名 policy 與 authenticated policy 分離。匿名 policy 不得呼叫 entitlement／Lab SECURITY DEFINER helper。
+- 目前播放器使用原生 HTML5 `<video controls>`，只接受 HTTPS 或同站 MP4/WebM source；不使用 YouTube iframe。
+- `/api/course/progress` 只接受登入使用者，使用 `user.id` 寫入本人進度，並在寫入前再次確認 lesson 仍可見。
+- Professor、assistant 與 Admin 沒有讀取其他使用者 `course_progress` 的 policy。
+
+### 播放保護的殘餘風險
+
+Server/RLS 可阻止未授權帳號取得播放來源，但網頁播放器不是完整 DRM。已授權使用者仍可能：
+
+- 使用螢幕錄影保存內容。
+- 在播放來源有效期間轉傳 URL。
+- 透過瀏覽器開發工具觀察 media request。
+
+因此正式上架前仍需決定影片承載平台與短效簽章策略。UI 與 lesson schema 保持 provider-neutral，未來可切換 private object storage、HLS 或商用 DRM provider，不應重寫 entitlement 與 RLS。
