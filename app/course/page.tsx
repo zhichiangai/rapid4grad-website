@@ -1,39 +1,92 @@
 import { CourseCheckoutButton } from "@/components/course/CourseCheckoutButton";
-
-const COURSE_PRICE = "NT$ 2,400";
-const RENEWAL_PRICE = "NT$ 890 / 6 個月";
+import { getConfiguredDatabaseProviderName } from "@/lib/payments";
+import { createV2Client } from "@/lib/supabase/server";
 
 const features = [
-  "研究生畢業加速課程：聚焦文獻、Meeting、簡報、寫作與工具流",
-  "6 個月研究報告 AI 指令產生器權限",
-  "針對 ChatGPT、Claude、Gemini、Grok 的外部 AI 使用策略",
-  "教授提問模擬、邏輯漏洞檢查、簡報修正、英文潤飾指令模板",
-  "適合論文題目確認、組會報告、口試前預演與初稿修改",
+  "RAPID 五大課程模組：Research、Application、Presentation、Interpersonal、Direction",
+  "完整 full_course 影片與後續新增的完整課程內容",
+  "一次性付款，course_full 權限不設定到期日",
+  "離開 Lab、教授停止訂閱或畢業後仍保留個人課程權限",
+  "課程買斷與團隊 PDF AI 稽核分開，不混用權限或費用",
 ];
 
 const outcomes = [
-  "Meeting 前先知道教授可能會問什麼",
-  "把研究報告轉成可被 AI 嚴格檢查的任務指令",
-  "降低被問倒、報告失焦、文獻讀完卻不會用的風險",
+  "Meeting 前建立清楚的研究敘事與應答架構",
+  "把文獻、研究缺口、簡報與寫作拆成可執行流程",
+  "建立能持續使用、不依附單一 Lab 的個人課程資源",
 ];
 
-export default function CoursePage() {
+function formatTwd(amount: number) {
+  return new Intl.NumberFormat("zh-TW", {
+    style: "currency",
+    currency: "TWD",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
+export default async function CoursePage() {
+  const supabase = await createV2Client();
+  const provider = getConfiguredDatabaseProviderName();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [{ data: entitlement }, { data: products }] = await Promise.all([
+    user
+      ? supabase
+          .from("entitlements")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("entitlement_type", "course_full")
+          .eq("status", "active")
+          .is("ends_at", null)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("products")
+      .select("id,slug")
+      .in("slug", ["student-course-full", "student-lab-course-upgrade"])
+      .eq("is_active", true),
+  ]);
+
+  const productIds = products?.map((product) => product.id) ?? [];
+  const { data: prices } =
+    provider && productIds.length > 0
+      ? await supabase
+          .from("product_prices")
+          .select("product_id,amount,currency")
+          .in("product_id", productIds)
+          .eq("provider", provider)
+          .eq("interval", "one_time")
+          .eq("is_active", true)
+      : { data: null };
+
+  const productById = new Map(
+    products?.map((product) => [product.id, product.slug]) ?? [],
+  );
+  const standardPrice = prices?.find(
+    (price) => productById.get(price.product_id) === "student-course-full",
+  );
+  const labPrice = prices?.find(
+    (price) =>
+      productById.get(price.product_id) === "student-lab-course-upgrade",
+  );
+  const checkoutEnabled = Boolean(provider && standardPrice?.amount != null);
+
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.24),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_48%,#020617_100%)] px-4 py-12 text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.22),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_48%,#020617_100%)] px-4 py-12 text-white">
       <section className="mx-auto grid w-full max-w-6xl gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-blue-300">
+          <p className="text-xs font-semibold uppercase tracking-[0.32em] text-cyan-300">
             RAPID4GRAD COURSE
           </p>
           <h1 className="mt-5 max-w-3xl text-4xl font-semibold tracking-tight text-white sm:text-5xl">
             研究生畢業加速課程
-            <span className="block text-blue-300">
-              加上 6 個月 AI 指令產生器
-            </span>
+            <span className="block text-cyan-300">一次買斷，永久保留</span>
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-8 text-slate-300">
-            這不是單純教你「怎麼問 AI」。RAPID4GRAD 的重點是把研究生最常卡住的情境拆成可操作流程：
-            文獻讀完要怎麼變成研究缺口、Meeting 前要怎麼預判教授追問、報告與口試前要怎麼先找出邏輯漏洞。
+            完整課程屬於學生個人帳號，不依附 Professor 或 Lab。付款完成後，系統會以永久
+            course_full entitlement 開通完整影片；日後離開 Lab 或畢業都不會失效。
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
@@ -48,19 +101,23 @@ export default function CoursePage() {
           </div>
         </div>
 
-        <aside className="rounded-[2rem] border border-blue-300/20 bg-slate-950/80 p-6 shadow-2xl shadow-blue-950/30 backdrop-blur">
+        <aside className="rounded-[2rem] border border-cyan-300/20 bg-slate-950/80 p-6 shadow-2xl shadow-cyan-950/30 backdrop-blur">
           <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
-            <p className="text-sm font-medium text-blue-200">
-              研究生畢業加速課程 + 6 個月研究報告 AI 指令產生器
+            <p className="text-sm font-medium text-cyan-200">
+              學生個人完整課程買斷
             </p>
-            <div className="mt-5 flex items-end gap-3">
+            <div className="mt-5">
               <span className="text-4xl font-semibold tracking-tight">
-                {COURSE_PRICE}
+                {standardPrice?.amount != null
+                  ? formatTwd(standardPrice.amount)
+                  : "價格待公告"}
               </span>
-              <span className="pb-1 text-sm text-slate-400">一次付清</span>
+              <span className="ml-3 text-sm text-slate-400">一次性付款</span>
             </div>
             <p className="mt-3 text-sm leading-6 text-slate-400">
-              半年後如果還需要工具權限，可以用 {RENEWAL_PRICE} 彈性續約。
+              {labPrice?.amount != null
+                ? `有效訂閱 Lab 的 active student，結帳時由 Server 自動套用 ${formatTwd(labPrice.amount)} 優惠價。`
+                : "Lab student 優惠價同樣待公告；資格只在建立訂單當下由 Server 驗證。"}
             </p>
           </div>
 
@@ -70,7 +127,7 @@ export default function CoursePage() {
                 key={feature}
                 className="flex gap-3 text-sm leading-6 text-slate-200"
               >
-                <span className="mt-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-blue-500/15 text-xs text-blue-200">
+                <span className="mt-1 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/15 text-xs text-cyan-200">
                   ✓
                 </span>
                 <span>{feature}</span>
@@ -78,28 +135,16 @@ export default function CoursePage() {
             ))}
           </ul>
 
-          <CourseCheckoutButton />
+          <CourseCheckoutButton
+            disabled={!checkoutEnabled}
+            alreadyOwned={Boolean(entitlement)}
+          />
 
           <p className="mt-4 text-center text-xs leading-5 text-slate-500">
-            付款成功後，系統將透過付款服務通知自動開通課程與工具權限。
+            新付款流程只寫入 orders、payments 與永久 entitlement，不以 profiles.is_paid
+            作為 V2 權限來源。退款與拒付由 Admin 人工審核。
           </p>
         </aside>
-      </section>
-
-      <section className="mx-auto mt-12 grid w-full max-w-6xl gap-4 md:grid-cols-3">
-        {[
-          ["適合誰", "正在準備組會、Meeting、口試或論文初稿的研究生。"],
-          ["核心工具", "不是替你寫論文，而是幫你產生更嚴謹的外部 AI 分析指令。"],
-          ["開通方式", "付款完成後，由付款服務通知寫入權限，不需要人工手動開通。"],
-        ].map(([title, body]) => (
-          <div
-            key={title}
-            className="rounded-3xl border border-white/10 bg-white/[0.035] p-5"
-          >
-            <h2 className="text-base font-semibold text-white">{title}</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-400">{body}</p>
-          </div>
-        ))}
       </section>
     </main>
   );

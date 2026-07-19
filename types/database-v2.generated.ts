@@ -7,31 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       admin_action_logs: {
@@ -1579,6 +1554,30 @@ export type Database = {
         }
         Returns: string
       }
+      create_student_course_checkout_order: {
+        Args: {
+          target_idempotency_key: string
+          target_provider: Database["public"]["Enums"]["payment_provider"]
+          target_user_id: string
+        }
+        Returns: {
+          amount: number
+          checkout_url: string
+          currency: string
+          is_lab_discount: boolean
+          order_id: string
+          order_status: Database["public"]["Enums"]["order_status"]
+          product_id: string
+          product_metadata: Json
+          product_name: string
+          product_price_id: string
+          product_slug: string
+          product_type: Database["public"]["Enums"]["product_type"]
+          provider: Database["public"]["Enums"]["payment_provider"]
+          provider_order_id: string
+          user_id: string
+        }[]
+      }
       fail_lab_pdf_audit_job: {
         Args: {
           failure_code: string
@@ -1622,6 +1621,21 @@ export type Database = {
       grant_course_entitlement_for_order: {
         Args: { target_order_id: string; target_payment_id?: string }
         Returns: string
+      }
+      process_one_time_payment_event: {
+        Args: {
+          target_amount: number
+          target_currency: string
+          target_event_id: string
+          target_event_type: string
+          target_outcome: string
+          target_paid_at: string
+          target_payload: Json
+          target_provider: Database["public"]["Enums"]["payment_provider"]
+          target_provider_order_id: string
+          target_provider_payment_id: string
+        }
+        Returns: Json
       }
       record_admin_action: {
         Args: {
@@ -1863,9 +1877,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       account_status: ["active", "suspended"],

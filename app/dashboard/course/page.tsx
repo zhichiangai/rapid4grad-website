@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createV2Client } from "@/lib/supabase/server";
 
 const modules = [
   {
@@ -35,7 +35,7 @@ const modules = [
 ];
 
 export default async function DashboardCoursePage() {
-  const supabase = await createClient();
+  const supabase = await createV2Client();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -45,7 +45,19 @@ export default async function DashboardCoursePage() {
   }
 
   const now = new Date().toISOString();
-  const [{ data: profile }, { data: activeAccess }] = await Promise.all([
+  const [
+    { data: entitlement },
+    { data: legacyProfile },
+    { data: legacyAccess },
+  ] = await Promise.all([
+    supabase
+      .from("entitlements")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("entitlement_type", "course_full")
+      .eq("status", "active")
+      .is("ends_at", null)
+      .maybeSingle(),
     supabase
       .from("profiles")
       .select("is_paid,course_expires_at")
@@ -62,12 +74,12 @@ export default async function DashboardCoursePage() {
       .maybeSingle(),
   ]);
 
-  const profileHasAccess =
-    profile?.is_paid === true &&
-    Boolean(profile.course_expires_at) &&
-    new Date(profile.course_expires_at as string).getTime() > Date.now();
+  const legacyProfileHasAccess =
+    legacyProfile?.is_paid === true &&
+    Boolean(legacyProfile.course_expires_at) &&
+    new Date(legacyProfile.course_expires_at as string).getTime() > Date.now();
 
-  if (!profileHasAccess && !activeAccess) {
+  if (!entitlement && !legacyProfileHasAccess && !legacyAccess) {
     redirect("/course?reason=course-access-required");
   }
 

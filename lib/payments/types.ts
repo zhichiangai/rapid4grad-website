@@ -1,6 +1,13 @@
-import type { Json } from "@/types/database";
+import type { Json } from "@/types/database-v2.generated";
 
-export type PaymentProviderName = "ecpay" | "newebpay" | "tappay" | "stripe";
+export type PaymentProviderName =
+  | "ecpay"
+  | "newebpay"
+  | "tappay"
+  | "stripe"
+  | "manual";
+
+export type PaymentProviderConfigName = PaymentProviderName | "test";
 
 export type PaymentOrderStatus =
   | "pending"
@@ -13,7 +20,9 @@ export type PaymentOrderStatus =
 
 export type PaymentStatus = "pending" | "completed" | "failed" | "refunded";
 
-export type ProductSlug = "rapid4grad-course";
+export type ProductSlug =
+  | "student-course-full"
+  | "student-lab-course-upgrade";
 
 export type CheckoutProduct = {
   id: string;
@@ -22,7 +31,6 @@ export type CheckoutProduct = {
   productType: ProductType;
   amount: number;
   currency: string;
-  durationMonths: number | null;
   metadata: Json;
 };
 
@@ -30,6 +38,7 @@ export type CheckoutOrder = {
   id: string;
   userId: string;
   productId: string;
+  productPriceId: string;
   amount: number;
   currency: string;
   provider: PaymentProviderName;
@@ -50,7 +59,7 @@ export type CreateCheckoutInput = {
 export type ProductType =
   | "course"
   | "ai_credits"
-  | "subscription"
+  | "professor_subscription"
   | "consultation"
   | "bundle";
 
@@ -79,9 +88,13 @@ export type VerifyWebhookInput = {
 };
 
 export type VerifyWebhookResult = {
+  eventId: string;
+  eventType: string;
   providerOrderId: string;
   providerPaymentId: string;
-  status: PaymentStatus;
+  outcome: "completed" | "failed" | "cancelled" | "refunded";
+  amount: number;
+  currency: string;
   paidAt?: string;
   rawPayload: Json;
 };

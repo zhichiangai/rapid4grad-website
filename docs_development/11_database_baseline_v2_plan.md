@@ -1,6 +1,6 @@
 # RAPID4GRAD — Database Baseline V2 Plan
 
-> 狀態：V2 Local baseline 已建立並通過空白 Local Supabase replay 與整合驗收。
+> 狀態：V2 Local baseline 已建立，Task 3 學生一次性買斷 extension 也已通過空白 Local Supabase replay 與整合驗收。
 > 新 baseline 尚未套用任何遠端 Supabase Project；不得直接對既有 Production 執行。
 > 更新日期：2026-07-19
 
@@ -129,5 +129,44 @@ V2 需要解決：
 - 靜態安全 contract：`tests/v2-database-baseline-contract.test.ts`
 - 由 Local schema 產生的獨立型別：`types/database-v2.generated.ts`
 
-仍未完成：新 Supabase Project、遠端 migration、Auth/OAuth、Vercel Preview、付款 provider、
-真實 AI provider 與 Production 切換。以上不得因 Local 驗收通過而標記為已上線。
+仍未完成：新 Supabase Project、遠端 migration、Auth/OAuth、Vercel Preview、正式付款 provider、
+正式學生價格、真實 AI provider 與 Production 切換。以上不得因 Local 驗收通過而標記為已上線。
+
+## 10. Task 3 學生一次性買斷（Local closure）
+
+新增 migration：
+
+- `20260718222430_student_one_time_course_purchase.sql`
+
+此 migration 不修改 Baseline `001`–`007`，只補上學生課程買斷所需的原子交易邊界：
+
+- `create_student_course_checkout_order(...)`：由 server/service role 建立或重用 pending order；商品、價格與 Lab 優惠資格都由資料庫決定，不接受 Client 宣稱。
+- `process_one_time_payment_event(...)`：在同一 transaction 內處理 payment event idempotency、付款紀錄、訂單狀態與永久 `course_full` entitlement。
+- 同一 provider event 重送不重複建立 payment、event 或 entitlement。
+- 已持有永久 `course_full` 的使用者不能重複建立新買斷訂單。
+- 付款失敗或取消不開通 entitlement。
+- 退款／拒付只標記付款與訂單狀態，由 Admin 人工審核；目前不自動撤銷永久 entitlement。
+- Lab 優惠只在建立訂單當下驗證 active student membership 與 Lab 有效 subscription；離開 Lab 不影響已取得的永久權限。
+
+本機 provider 與價格邊界：
+
+- `PAYMENT_PROVIDER=test` 只用於 Local integration，不收取真實款項，且 Production runtime 明確禁用。
+- `PAYMENT_TEST_SECRET` 只放本機環境，使用 HMAC 簽章 checkout token；不得進 Git 或 Client bundle。
+- 正式商品價格尚未決定；沒有 active `product_prices` 時，`/course` 顯示「價格待公告」且 checkout disabled。
+- 尚未實作 ECPay、NewebPay、TapPay 或 Stripe 的 V2 一次性付款 provider，不能把本機 closure 宣稱為正式金流已完成。
+
+Task 3 Local 驗收：
+
+- 空白 Local Supabase replay Baseline `001`–`007` 與 Task 3 migration 成功。
+- Standard buyer 與有效訂閱 Lab student 分別選取正確 server-side price row。
+- 成功付款只建立一筆 payment、一筆 payment event 與一筆無到期日 `course_full` entitlement。
+- webhook 重送與並行重送維持 idempotent。
+- 付款失敗、取消與退款人工處理規則符合預期。
+- order SELECT 受 owner RLS 隔離，其他使用者無法讀取。
+
+驗收入口：
+
+- SQL fixture：`supabase/tests/v2_student_course_purchase_integration.sql`
+- 本機執行器：`scripts/test-v2-student-course-purchase.sh`
+- Token tests：`tests/payment-test-provider-token.test.ts`
+- Static contract：`tests/v2-student-course-purchase-contract.test.ts`

@@ -1,4 +1,8 @@
-export { getPaymentProvider, normalizePaymentProviderName } from "./provider";
+export {
+  getConfiguredDatabaseProviderName,
+  getPaymentProvider,
+  normalizePaymentProviderName,
+} from "./provider";
 export type {
   CheckoutOrder,
   CheckoutProduct,
@@ -7,6 +11,7 @@ export type {
   FormPostCheckoutResult,
   PaymentOrderStatus,
   PaymentProvider,
+  PaymentProviderConfigName,
   PaymentProviderName,
   PaymentStatus,
   ProductType,
