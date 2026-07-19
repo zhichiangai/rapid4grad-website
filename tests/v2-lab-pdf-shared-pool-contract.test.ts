@@ -10,6 +10,9 @@ function readRepoFile(path: string) {
 const migration = readRepoFile(
   "supabase/migrations/20260719152137_lab_pdf_shared_pool.sql",
 );
+const storageRestrictionMigration = readRepoFile(
+  "supabase/migrations/20260719155719_restrict_student_document_uploads_to_signed_urls.sql",
+);
 const auditRoute = readRepoFile("app/api/ai/audit/route.ts");
 const uploadRoute = readRepoFile("app/api/documents/upload-url/route.ts");
 const completeRoute = readRepoFile("app/api/documents/complete/route.ts");
@@ -82,7 +85,9 @@ test("stream completion waits for settlement and failures await refunds", () => 
 });
 
 test("signed upload and completion validate actual private PDF metadata", () => {
+  assert.match(uploadRoute, /auth\.getUser\(\)/);
   assert.match(uploadRoute, /getLabPdfAuditEligibility/);
+  assert.match(uploadRoute, /createV2AdminClient\(\)/);
   assert.match(uploadRoute, /createSignedUploadUrl/);
   assert.match(completeRoute, /getLabPdfAuditEligibility/);
   assert.match(completeRoute, /\.list\(folderPath/);
@@ -92,6 +97,25 @@ test("signed upload and completion validate actual private PDF metadata", () => 
   assert.match(completeRoute, /createHash\("sha256"\)/);
   assert.match(completeRoute, /await deleteObject\(\)/);
   assert.doesNotMatch(completeRoute, /lab_id: null/);
+});
+
+test("direct authenticated Storage writes are disabled in favor of server-issued tokens", () => {
+  assert.match(
+    storageRestrictionMigration,
+    /DROP POLICY IF EXISTS "student_documents_storage_insert_owner"/,
+  );
+  assert.match(
+    storageRestrictionMigration,
+    /DROP POLICY IF EXISTS "student_documents_storage_update_owner"/,
+  );
+  assert.doesNotMatch(
+    storageRestrictionMigration,
+    /DROP POLICY IF EXISTS "student_documents_storage_select_owner"/,
+  );
+  assert.doesNotMatch(
+    storageRestrictionMigration,
+    /DROP POLICY IF EXISTS "student_documents_storage_delete_owner"/,
+  );
 });
 
 test("student page and sharing route use V2 Lab boundaries", () => {

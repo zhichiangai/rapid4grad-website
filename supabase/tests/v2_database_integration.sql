@@ -348,11 +348,107 @@ VALUES (
   '{"mimetype":"application/pdf","size":1024}'::JSONB
 );
 
+-- Browser clients cannot bypass the eligibility API by inserting directly.
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'student_owner', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO storage.objects(bucket_id, name, owner_id, metadata)
+    VALUES (
+      'student-documents',
+      '10000000-0000-0000-0000-000000000001/direct-student.pdf',
+      '10000000-0000-0000-0000-000000000001',
+      '{"mimetype":"application/pdf","size":1024}'::JSONB
+    );
+    RAISE EXCEPTION 'student direct Storage insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
+COMMIT;
+
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'professor_one', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO storage.objects(bucket_id, name, owner_id, metadata)
+    VALUES (
+      'student-documents',
+      '20000000-0000-0000-0000-000000000001/direct-professor.pdf',
+      '20000000-0000-0000-0000-000000000001',
+      '{"mimetype":"application/pdf","size":1024}'::JSONB
+    );
+    RAISE EXCEPTION 'professor direct Storage insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
+COMMIT;
+
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'assistant_one', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO storage.objects(bucket_id, name, owner_id, metadata)
+    VALUES (
+      'student-documents',
+      '20000000-0000-0000-0000-000000000003/direct-assistant.pdf',
+      '20000000-0000-0000-0000-000000000003',
+      '{"mimetype":"application/pdf","size":1024}'::JSONB
+    );
+    RAISE EXCEPTION 'assistant direct Storage insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
+COMMIT;
+
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'admin_one', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO storage.objects(bucket_id, name, owner_id, metadata)
+    VALUES (
+      'student-documents',
+      '30000000-0000-0000-0000-000000000001/direct-admin.pdf',
+      '30000000-0000-0000-0000-000000000001',
+      '{"mimetype":"application/pdf","size":1024}'::JSONB
+    );
+    RAISE EXCEPTION 'Admin direct Storage insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
+COMMIT;
+
 BEGIN;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :'student_owner', TRUE);
 SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
 SELECT pg_temp.assert_true((SELECT count(*) = 1 FROM storage.objects WHERE bucket_id = 'student-documents'), 'owner must read own Storage object');
+COMMIT;
+
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'student_other', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+SELECT pg_temp.assert_true((SELECT count(*) = 0 FROM storage.objects WHERE bucket_id = 'student-documents'), 'another student must not read owner Storage object');
 COMMIT;
 
 BEGIN;
@@ -364,10 +460,29 @@ COMMIT;
 
 BEGIN;
 SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'assistant_one', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+SELECT pg_temp.assert_true((SELECT count(*) = 0 FROM storage.objects WHERE bucket_id = 'student-documents'), 'assistant must not read student Storage object');
+COMMIT;
+
+BEGIN;
+SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :'admin_one', TRUE);
 SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
 SELECT pg_temp.assert_true((SELECT count(*) = 0 FROM storage.objects WHERE bucket_id = 'student-documents'), 'Admin must not read student Storage object');
 COMMIT;
+
+SELECT pg_temp.assert_true(
+  (
+    SELECT count(*) = 1
+    FROM pg_policies
+    WHERE schemaname = 'storage'
+      AND tablename = 'objects'
+      AND policyname = 'student_documents_storage_delete_owner'
+      AND cmd = 'DELETE'
+  ),
+  'owner delete policy must remain available for the supported Storage API path'
+);
 
 -- Permanent course entitlement remains active after Lab membership removal.
 UPDATE public.products SET is_active = TRUE WHERE slug = 'student-course-full';

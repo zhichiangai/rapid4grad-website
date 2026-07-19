@@ -67,6 +67,7 @@
 - Summary API/RPC 僅回傳固定安全欄位，不回傳文件路徑或完整結果。
 - 每位 student 同一時間只能存在一筆 active Lab membership。
 - 只有 active Lab students 可以上傳自己的 PDF 並消耗唯一所屬 Lab 的 shared pool。
+- Browser client 不具備 `student-documents` bucket 的直接 INSERT／UPDATE policy；合法上傳只能使用 server 在驗證 student、active membership、functional subscription 與剩餘額度後核發的短效 signed upload token。
 - Professor/assistant 不直接上傳 PDF，也不因管理 shared pool 取得 PDF 本文。
 - Standard Lab 每月共用 30 次，Plus Lab 每月共用 100 次；週期依 subscription 起始日計算，每月重設且不結轉。
 - 稽核開始先 reserve；只有完整串流且結果成功寫入才 settle。取消、provider／串流／持久化失敗必須 refund，且三種操作均需冪等。

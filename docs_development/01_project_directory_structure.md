@@ -580,6 +580,7 @@ Storage：
 禁止事項：
 
 - 不可將 bucket 改成 public。
+- `student-documents` 新物件只能用 `/api/documents/upload-url` 通過資格檢查後核發的 signed upload token 建立；authenticated client 不具備直接 INSERT／UPDATE policy。
 - 不可將 signed URL 或 Storage path 當作 Professor summary 欄位。
 - 不可讓 Professor/assistant 直接 SELECT raw audit tables。
 - 不可讓一般 authenticated client 直接修改 entitlement、subscription、quota、membership role 或 Admin logs。

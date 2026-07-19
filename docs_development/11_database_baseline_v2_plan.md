@@ -273,6 +273,7 @@ Local 驗收：
 新增 migration：
 
 - `20260719152137_lab_pdf_shared_pool.sql`
+- `20260719155719_restrict_student_document_uploads_to_signed_urls.sql`
 
 已確認額度規則：
 
@@ -289,6 +290,7 @@ Local 驗收：
 - `complete_lab_pdf_audit_job` 只在完整結果持久化成功後把 reserved 轉為 used，重送不重複結算。
 - `fail_lab_pdf_audit_job` 對取消、provider、stream、setup 或 persistence 失敗做冪等 refund。
 - PDF 上傳使用 private signed upload；complete route 重新讀取真實 Storage metadata、MIME、byte size、`%PDF-` magic bytes 與 SHA-256。
+- `student-documents` 不提供 authenticated browser client 直接 INSERT／UPDATE policy；所有新物件只能使用通過 server eligibility 檢查後核發的短效 signed upload token，owner 仍保留 SELECT／DELETE。
 - AI route 只接受 owner PDF，在 server 轉 Base64，以 Vercel AI SDK `mediaType: "application/pdf"` 多模態格式送出；response 關閉前必須等待 settle 或 refund 完成。
 - Professor/assistant 不可讀 private PDF 或 raw audit；學生只能主動分享固定七欄 summary，且可立即撤回。
 
@@ -297,6 +299,7 @@ Local 驗收：
 - 空白 Local Supabase replay Baseline `001`–`007` 與 Task 3–7 migrations：通過。
 - Standard 30、Plus 100、歷史 used 不結轉：通過。
 - Professor、assistant、removed student、失效訂閱 Lab reserve：拒絕。
+- Student、Professor、assistant、Admin 直接 INSERT／UPDATE private PDF Storage：拒絕；只有 server-issued signed upload token 可建立新物件。
 - 相同 idempotency key 重送只建立一個 job 並預留一次：通過。
 - Provider failure 重送只 refund 一次：通過。
 - 兩位學生並行爭最後一筆 shared credit：只允許一筆成功。
