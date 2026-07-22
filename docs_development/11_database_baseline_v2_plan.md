@@ -313,3 +313,46 @@ Local 驗收：
 - Static contract：`tests/v2-lab-pdf-shared-pool-contract.test.ts`
 
 仍待外部設定與驗收：真實 OpenAI／Anthropic server credential、Preview private Storage upload、真實 PDF streaming、斷線 refund 與 Vercel runtime 行為。Local closure 不代表 AI provider 已上線。
+
+## 15. Task 8 Admin Control Plane（Local closure）
+
+新增 migration：
+
+- `20260722185659_admin_control_plane.sql`
+
+本 migration 不修改 Baseline `001`–`007` 或 Task 3–7 migration，只增加 service-role-only Admin 原子操作：
+
+- active Admin 驗證、必填 reason 與 request ID validation。
+- student／professor 角色修正；Admin 角色不能由 UI 授予、移除或降級。
+- 非 Admin 帳號 active／suspended 狀態修正；Admin 帳號受保護。
+- 永久 `course_full` entitlement 授予／撤銷。
+- 有效 `active`、`trialing`、`past_due` subscription 客服延長；每次 1–30 天，不復活 `unpaid`、`canceled`、`expired` 或 `incomplete`。
+- 當期 PDF shared pool 補償；每次 1–100，只增加 `pdf_audit_limit`，不修改 `pdf_audit_used` 或 `pdf_audit_reserved`。
+- Phase 1 Lead、Legacy quota 與 Prompt Template CMS mutation 收斂到相同受控邊界。
+- 每次成功 mutation 與對應 `admin_action_logs` 在同一 PostgreSQL transaction 完成；失敗不留下 log 或半套資料。
+
+安全邊界：
+
+- 所有 Admin RPC 都撤銷 `PUBLIC`、`anon`、`authenticated` execute，只授權 `service_role`。
+- Server Action 先透過 session client 驗證目前 user 是 active Admin，才建立 admin client。
+- Admin observation 不讀 `student_documents`、`ai_audit_jobs`、`ai_audit_results`、private Storage、student prompt、token/cost 或付款 raw payload。
+- Action Log snapshots 由資料庫明確建構安全欄位，UI 顯示前再套用 allowlist。
+- 所有高權限表單都要求操作原因與前端二次確認；server 端仍再次驗證 confirmation token。
+
+Local 驗收：
+
+- 空白 Local Supabase replay Baseline `001`–`007`、Task 3–8 migrations：通過。
+- authenticated browser 無法執行 Admin RPC、寫 entitlement/subscription/credits 或讀 action logs：通過。
+- 角色、帳號、entitlement、subscription、credits、Lead、Legacy quota、Prompt template 的成功操作均寫入一筆 action log：通過。
+- 31 天延長、終止訂閱復活、非法角色與失敗 mutation 不留下資料或 log：通過。
+- PDF 額度補償只將 limit 30 → 35，reserved 仍為 2、used 仍為 3：通過。
+- Admin routes 不查 private PDF 或 raw audit tables，orders 不選取 raw provider payload：通過。
+- 完整 V2 integration 再驗證 same-Lab／cross-Lab summary、revoke 即時失效、Professor／assistant／Admin private Storage 皆為 0 rows，以及 Admin 跨 Lab observation RLS：通過。
+
+驗收入口：
+
+- SQL fixture：`supabase/tests/v2_admin_control_plane_integration.sql`
+- 本機執行器：`scripts/test-v2-admin-control-plane.sh`
+- Static contract：`tests/v2-admin-control-plane-contract.test.ts`
+
+仍待 Preview：套用 Task 8 migration、建立 active Admin 測試帳號、逐頁驗收二次確認與 action log。Local closure 不代表 Preview 或 Production 已部署。

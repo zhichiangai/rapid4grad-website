@@ -122,6 +122,7 @@ build/
 │   ├── not-found.tsx
 │   └── globals.css
 ├── components/
+│   ├── admin/                  # Admin 二次確認與受控 mutation UI
 │   ├── ai-audit/
 │   ├── ai-command/
 │   ├── billing/
@@ -130,6 +131,7 @@ build/
 │   ├── professor/
 │   └── quiz/
 ├── lib/
+│   ├── admin/                  # Admin session guard、訊息與安全快照
 │   ├── ai/
 │   ├── documents/
 │   ├── email-verification/
@@ -154,7 +156,7 @@ build/
 └── README.md
 ```
 
-目前沒有 `components/ui/`、`components/admin/`、`components/dashboard/`、`components/landing/`、`components/result/` 或 `hooks/`。AI 不得因舊文件曾列出這些路徑，就假設它們已實作。
+目前沒有 `components/ui/`、`components/dashboard/`、`components/landing/`、`components/result/` 或 `hooks/`。`components/admin/` 已由 V2 Task 8 建立；AI 不得因舊文件曾列出其他路徑，就假設它們已實作。
 
 ## 4. Public Routes
 
@@ -243,26 +245,21 @@ V2 Task 6 已完成 Local closure：
 
 | URL | 實體檔案 | 狀態 | 責任 |
 |---|---|---|---|
-| `/admin` | `app/admin/page.tsx` | `IMPLEMENTED` legacy home | Admin 入口 |
-| `/admin/leads` | `app/admin/leads/page.tsx` | `IMPLEMENTED` | Lead 狀態管理 |
-| `/admin/quotas` | `app/admin/quotas/page.tsx` | `LEGACY` | Phase 1 Prompt 免費額度 |
-| `/admin/templates` | `app/admin/templates/page.tsx` | `IMPLEMENTED` | Prompt Template CMS |
+| `/admin` | `app/admin/page.tsx` | `IMPLEMENTED` V2 local closure | Admin 控制台入口 |
+| `/admin/users` | `app/admin/users/page.tsx` | `IMPLEMENTED` V2 local closure | 搜尋帳號、student/professor 修正與帳號狀態 |
+| `/admin/entitlements` | `app/admin/entitlements/page.tsx` | `IMPLEMENTED` V2 local closure | 永久 `course_full` 授予／撤銷 |
+| `/admin/labs` | `app/admin/labs/page.tsx` | `IMPLEMENTED` V2 local closure | 跨 Lab 安全摘要與唯讀觀察入口 |
+| `/admin/subscriptions` | `app/admin/subscriptions/page.tsx` | `IMPLEMENTED` V2 local closure | 有效訂閱客服延長，單次上限 30 天 |
+| `/admin/orders` | `app/admin/orders/page.tsx` | `IMPLEMENTED` V2 local closure | 訂單與付款安全摘要，只讀 |
+| `/admin/pdf-credits` | `app/admin/pdf-credits/page.tsx` | `IMPLEMENTED` V2 local closure | 當期 PDF limit 補償，單次 1–100 |
+| `/admin/action-logs` | `app/admin/action-logs/page.tsx` | `IMPLEMENTED` V2 local closure | 最近 200 筆安全 before/after 操作紀錄 |
+| `/admin/leads` | `app/admin/leads/page.tsx` | `IMPLEMENTED` compatibility | Lead 狀態管理，已納入 reason、二次確認與 action log |
+| `/admin/quotas` | `app/admin/quotas/page.tsx` | `LEGACY` compatibility | Phase 1 Prompt 免費額度，已納入受控 RPC 與 action log |
+| `/admin/templates` | `app/admin/templates/page.tsx` | `IMPLEMENTED` compatibility | Prompt Template CMS，已納入受控 RPC 與 action log |
+| `/admin/course-content` | 尚未建立 | `V2 PLANNED` | 後續課程內容管理 |
+| `/admin/audit-consents` | 尚未建立 | `V2 PLANNED` | 後續 consent 異常觀察，不顯示 PDF／raw audit |
 
-V2 `V2 PLANNED` routes：
-
-```text
-/admin/users
-/admin/entitlements
-/admin/labs
-/admin/subscriptions
-/admin/orders
-/admin/pdf-credits
-/admin/action-logs
-/admin/course-content       # 後續
-/admin/audit-consents       # 後續
-```
-
-上述 V2 routes 目前不存在。Admin 完整規格見 `12_admin_control_plane_v2.md`。
+V2 Task 8 的高權限 mutation 全部由 `app/admin/actions.ts` 重新驗證 active Admin，再呼叫 service-role-only PostgreSQL RPC。Client Component 不可直接更新 role、account status、entitlement、subscription、credits、Lead、Legacy quota 或 Prompt template。完整規格見 `12_admin_control_plane_v2.md`。
 
 ## 8. Components Map
 
@@ -359,7 +356,6 @@ app/professor/page.tsx (hidden demo)
 V2 尚缺少的 server boundaries 至少包括：
 
 - Professor 方案正式價格、ECPay credentials 與公開環境付款驗收。
-- V2 Admin users、entitlements、labs、subscriptions、orders、credits actions。
 - Course content access-level management。
 
 API 命名可在實作設計階段決定，但不得直接讓 Client Component 更新相關 tables。
@@ -604,7 +600,7 @@ Storage：
 
 1. Standard／Plus 正式價格、ECPay credentials 與公開環境付款／取消驗收。
 2. Plus 降級 Standard、同方案月年週期變更的客服受控操作與 Admin action log；Standard 升級 Plus 已採停止舊扣款後立即全額建立 Plus 月繳或年繳的自助流程。
-3. V2 Admin routes 與 course content management UI。
+3. Course content management UI 與 audit consent 異常觀察頁；V2 Admin MVP routes 已完成 Local closure。
 4. 正式課程 lesson 清單、影片來源與教材資料上架。
 5. 正式學生一次性 payment provider；Professor recurring ECPay 已完成本機邊界，仍待外部商店驗收。
 6. 真實 AI provider credentials、Preview private Storage upload 與串流端到端驗收；Task 7 目前只完成 Local DB、route contract 與 production build closure。
@@ -664,9 +660,16 @@ app/not-found.tsx
 app/page.tsx
 app/admin/layout.tsx
 app/admin/page.tsx
+app/admin/action-logs/page.tsx
+app/admin/entitlements/page.tsx
+app/admin/labs/page.tsx
 app/admin/leads/page.tsx
+app/admin/orders/page.tsx
+app/admin/pdf-credits/page.tsx
 app/admin/quotas/page.tsx
+app/admin/subscriptions/page.tsx
 app/admin/templates/page.tsx
+app/admin/users/page.tsx
 app/ai-command/page.tsx
 app/auth/login/route.ts
 app/auth/callback/route.ts

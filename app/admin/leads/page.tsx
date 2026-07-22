@@ -1,5 +1,7 @@
 import { updateLeadStatus } from "../actions";
-import { createClient } from "@/lib/supabase/server";
+import { AdminConfirmAction } from "@/components/admin/AdminConfirmAction";
+import { requireAdminContext } from "@/lib/admin/authorization";
+import { resolveAdminMessage } from "@/lib/admin/messages";
 import type { LeadStatus, RiskLevel } from "@/types/database";
 
 type AdminLeadsSearchParams = Promise<{
@@ -39,28 +41,14 @@ const statusLabels: Record<LeadStatus, string> = {
   not_fit: "not_fit",
 };
 
-function resolveMessage(message?: string) {
-  if (!message) return "";
-
-  if (message === "lead-status-updated") {
-    return "Lead 狀態已更新。";
-  }
-
-  if (message === "invalid-lead-status") {
-    return "Lead ID 或狀態不合法。";
-  }
-
-  return decodeURIComponent(message);
-}
-
 export default async function AdminLeadsPage({
   searchParams,
 }: {
   searchParams: AdminLeadsSearchParams;
 }) {
   const params = await searchParams;
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const { admin } = await requireAdminContext("/admin/leads");
+  const { data, error } = await admin
     .from("leads")
     .select(
       "id,name,email,quiz_result,quiz_score,main_tags,lead_status,created_at",
@@ -68,7 +56,8 @@ export default async function AdminLeadsPage({
     .order("created_at", { ascending: false });
 
   const leads = (data ?? []) as LeadRow[];
-  const message = error?.message ?? resolveMessage(params.message);
+  if (error) console.error("[admin-leads] Lead lookup failed", { code: error.code });
+  const message = resolveAdminMessage(params.message);
 
   return (
     <section className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-blue-950/20">
@@ -85,6 +74,11 @@ export default async function AdminLeadsPage({
       {message ? (
         <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
           {message}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="mt-4 rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+          目前無法讀取 Lead 資料，請稍後再試。
         </p>
       ) : null}
 
@@ -134,7 +128,7 @@ export default async function AdminLeadsPage({
                     </div>
                   </td>
                   <td className="px-4 py-4">
-                    <form action={updateLeadStatus} className="flex gap-2">
+                    <form action={updateLeadStatus} className="min-w-[19rem] space-y-3">
                       <input type="hidden" name="leadId" value={lead.id} />
                       <select
                         name="leadStatus"
@@ -147,12 +141,13 @@ export default async function AdminLeadsPage({
                           </option>
                         ))}
                       </select>
-                      <button
-                        type="submit"
-                        className="rounded-xl bg-blue-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-400"
-                      >
-                        更新
-                      </button>
+                      <AdminConfirmAction
+                        confirmationToken="CONFIRM_LEAD_STATUS"
+                        buttonLabel="更新 Lead 狀態"
+                        dialogTitle="確認更新 Lead 狀態？"
+                        dialogDescription="這會改變後續客服追蹤狀態，並留下不可省略的操作紀錄。"
+                        reasonPlaceholder="例如：已完成 Email 聯繫"
+                      />
                     </form>
                   </td>
                   <td className="px-4 py-4 text-xs text-slate-500">

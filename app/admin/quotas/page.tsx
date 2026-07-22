@@ -1,5 +1,7 @@
 import { unlockQuota } from "../actions";
-import { createAdminClient } from "@/lib/supabase/server";
+import { AdminConfirmAction } from "@/components/admin/AdminConfirmAction";
+import { requireAdminContext } from "@/lib/admin/authorization";
+import { resolveAdminMessage } from "@/lib/admin/messages";
 
 type AdminQuotasSearchParams = Promise<{
   email?: string;
@@ -18,20 +20,6 @@ type QuotaRow = {
   last_used_at: string | null;
 };
 
-function resolveMessage(message?: string) {
-  if (!message) return "";
-
-  if (message === "quota-unlocked") {
-    return "已將該 Email 設為管理者解鎖，並增加一次手動贈送紀錄。";
-  }
-
-  if (message === "missing-email") {
-    return "請輸入 Email。";
-  }
-
-  return decodeURIComponent(message);
-}
-
 export default async function AdminQuotasPage({
   searchParams,
 }: {
@@ -39,11 +27,9 @@ export default async function AdminQuotasPage({
 }) {
   const params = await searchParams;
   const normalizedEmail = params.email?.trim().toLowerCase() ?? "";
-  // The admin layout has already verified the role. Quota rows are intentionally
-  // unavailable to browser/session clients and are read only on the server.
-  const supabase = createAdminClient();
+  const { admin: supabase } = await requireAdminContext("/admin/quotas");
   let quota: QuotaRow | null = null;
-  let message = resolveMessage(params.message);
+  let message = resolveAdminMessage(params.message);
 
   if (normalizedEmail) {
     const { data, error } = await supabase
@@ -94,13 +80,17 @@ export default async function AdminQuotasPage({
 
       <form action={unlockQuota} className="mt-3">
         <input type="hidden" name="email" value={normalizedEmail} />
-        <button
-          type="submit"
-          disabled={!normalizedEmail}
-          className="rounded-2xl border border-cyan-300/20 bg-cyan-500/10 px-5 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          解鎖並增加次數
-        </button>
+        {normalizedEmail ? (
+          <AdminConfirmAction
+            confirmationToken="CONFIRM_QUOTA_UNLOCK"
+            buttonLabel="解鎖並增加次數"
+            dialogTitle="確認解鎖 Legacy 免費額度？"
+            dialogDescription="此操作只影響 Phase 1 免費額度相容層，並會留下管理操作紀錄。"
+            reasonPlaceholder="例如：客服補償一次免費使用"
+          />
+        ) : (
+          <p className="text-sm text-slate-500">請先輸入 Email。</p>
+        )}
       </form>
 
       {message ? (
