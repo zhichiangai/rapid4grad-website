@@ -1,219 +1,195 @@
 import { NextRequest, NextResponse } from "next/server";
 import { streamText } from "ai";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
 import {
   buildAuditSystemPrompt,
   buildAuditUserInstruction,
   isAiAuditType,
   parseAuditResult,
 } from "@/lib/ai/audit-prompts";
+import { getAiAuditProvider, isAiAuditProvider } from "@/lib/ai/providers";
 import {
-  getAiAuditProvider,
-  isAiAuditProvider,
-} from "@/lib/ai/providers";
-import {
-  checkAiAuditQuota,
   estimateCostCents,
   extractUsageTokens,
-  incrementPdfAuditUsage,
+  LabPdfAuditServiceError,
+  refundLabPdfAuditJob,
+  reserveLabPdfAuditJob,
+  settleLabPdfAuditJob,
 } from "@/lib/ai/quota";
-import { STUDENT_DOCUMENTS_BUCKET } from "@/lib/documents/validation";
-import type { Json } from "@/types/database";
+import {
+  assertValidDocumentId,
+  MAX_PDF_SIZE_BYTES,
+  STUDENT_DOCUMENTS_BUCKET,
+} from "@/lib/documents/validation";
+import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 120;
+
+const BODY_LIMIT_BYTES = 4096;
+const PDF_MAGIC = Buffer.from("%PDF-", "ascii");
 
 type AuditRequestBody = {
   documentId?: unknown;
   provider?: unknown;
   auditType?: unknown;
+  idempotencyKey?: unknown;
 };
 
-type StudentDocumentForAudit = {
-  id: string;
-  user_id: string;
-  lab_id: string | null;
-  storage_bucket: string;
-  storage_path: string;
-  original_filename: string;
-  mime_type: string;
-  upload_status: string;
-};
+type StreamOutcome =
+  | { kind: "finished"; text: string; usage: unknown; finishReason: string }
+  | { kind: "failed" }
+  | { kind: "aborted" };
 
-type AuditJob = {
-  id: string;
-  user_id: string;
-  document_id: string;
-  lab_id: string | null;
-};
-
-function jsonError(message: string, status = 400, extra?: Record<string, Json>) {
+function jsonError(
+  message: string,
+  status = 400,
+  extra?: Record<string, string | boolean>,
+) {
   return NextResponse.json(
-    { success: false, error: message, ...extra },
+    { success: false, error: message, ...(extra ?? {}) },
     { status },
   );
 }
 
-async function canAccessDocument(input: {
-  supabase: ReturnType<typeof createAdminClient>;
-  userId: string;
-  document: StudentDocumentForAudit;
-}) {
-  if (input.document.user_id === input.userId) {
-    return true;
+async function parseBody(request: NextRequest) {
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (declaredLength > BODY_LIMIT_BYTES) return null;
+
+  const raw = await request.text();
+  if (Buffer.byteLength(raw, "utf8") > BODY_LIMIT_BYTES) return null;
+
+  try {
+    return JSON.parse(raw) as AuditRequestBody;
+  } catch {
+    return null;
   }
-
-  if (!input.document.lab_id) {
-    return false;
-  }
-
-  const { data: membership, error } = await input.supabase
-    .from("lab_memberships")
-    .select("id")
-    .eq("lab_id", input.document.lab_id)
-    .eq("user_id", input.userId)
-    .in("role", ["professor", "assistant"])
-    .eq("status", "active")
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return Boolean(membership);
 }
 
-async function downloadPdfAsBase64(input: {
-  supabase: ReturnType<typeof createAdminClient>;
+async function downloadOwnedPdfAsBase64(input: {
   storagePath: string;
+  expectedSize: number;
 }) {
-  const { data, error } = await input.supabase.storage
+  const admin = createV2AdminClient();
+  const { data, error } = await admin.storage
     .from(STUDENT_DOCUMENTS_BUCKET)
     .download(input.storagePath);
 
-  if (error) {
-    throw new Error(error.message);
+  if (error || !data) {
+    throw new LabPdfAuditServiceError(
+      "pdf_download_failed",
+      "目前無法讀取 private PDF。",
+      503,
+    );
   }
 
-  const arrayBuffer = await data.arrayBuffer();
-  return Buffer.from(arrayBuffer).toString("base64");
+  const bytes = Buffer.from(await data.arrayBuffer());
+  if (
+    bytes.length !== input.expectedSize ||
+    bytes.length <= PDF_MAGIC.length ||
+    bytes.length > MAX_PDF_SIZE_BYTES ||
+    data.type.toLowerCase() !== "application/pdf" ||
+    !bytes.subarray(0, PDF_MAGIC.length).equals(PDF_MAGIC)
+  ) {
+    throw new LabPdfAuditServiceError(
+      "pdf_integrity_check_failed",
+      "PDF 完整性驗證失敗，請重新上傳。",
+      400,
+    );
+  }
+
+  return bytes.toString("base64");
 }
 
-async function updateJobStatus(input: {
-  supabase: ReturnType<typeof createAdminClient>;
+async function persistCompletedAudit(input: {
   jobId: string;
-  status: "streaming" | "completed" | "failed";
-  errorMessage?: string;
-}) {
-  const { error } = await input.supabase
-    .from("ai_audit_jobs")
-    .update({
-      status: input.status,
-      error_message: input.errorMessage ?? null,
-      completed_at:
-        input.status === "completed" || input.status === "failed"
-          ? new Date().toISOString()
-          : null,
-    })
-    .eq("id", input.jobId);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-}
-
-async function persistAuditResult(input: {
-  job: AuditJob;
   text: string;
   usage: unknown;
-  creditId: string | null;
-  providerCost: {
-    estimatedInputCostCentsPer1k: number;
-    estimatedOutputCostCentsPer1k: number;
-  };
+  inputCostPer1k: number;
+  outputCostPer1k: number;
 }) {
-  const supabase = createAdminClient();
   const parsed = parseAuditResult(input.text);
   const { inputTokens, outputTokens } = extractUsageTokens(input.usage);
   const costEstimateCents = estimateCostCents({
     inputTokens,
     outputTokens,
-    inputCostPer1k: input.providerCost.estimatedInputCostCentsPer1k,
-    outputCostPer1k: input.providerCost.estimatedOutputCostCentsPer1k,
+    inputCostPer1k: input.inputCostPer1k,
+    outputCostPer1k: input.outputCostPer1k,
   });
 
-  const { error: resultError } = await supabase.from("ai_audit_results").insert({
-    job_id: input.job.id,
-    user_id: input.job.user_id,
+  await settleLabPdfAuditJob(createV2AdminClient(), {
+    jobId: input.jobId,
     summary: parsed.summary,
-    result_markdown: input.text,
-    risk_level: parsed.riskLevel,
-    issue_tags: parsed.issueTags,
-    token_input: inputTokens,
-    token_output: outputTokens,
-    cost_estimate_cents: costEstimateCents,
+    markdown: input.text,
+    riskLevel: parsed.riskLevel,
+    issueTags: parsed.issueTags,
+    inputTokens,
+    outputTokens,
+    costEstimateCents,
   });
+}
 
-  if (resultError) {
-    throw new Error(resultError.message);
-  }
-
-  await updateJobStatus({
-    supabase,
-    jobId: input.job.id,
-    status: "completed",
-  });
-
-  if (input.creditId) {
-    await incrementPdfAuditUsage(supabase, input.creditId);
+async function refundReservedAudit(
+  jobId: string,
+  code: string,
+  message: string,
+) {
+  try {
+    await refundLabPdfAuditJob(createV2AdminClient(), {
+      jobId,
+      code,
+      message,
+    });
+  } catch (error) {
+    console.error("[ai-audit] Shared credit refund failed", {
+      jobId,
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    throw error;
   }
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = await createV2Client();
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError) {
-    return jsonError(userError.message, 401);
-  }
-
   if (!user) {
-    return jsonError("Login is required before AI audit.", 401);
+    return jsonError("請先登入學生帳號後再執行 AI 稽核。", 401);
   }
 
-  let body: AuditRequestBody;
-
-  try {
-    body = (await request.json()) as AuditRequestBody;
-  } catch {
-    return jsonError("Invalid JSON body.", 400);
-  }
-
+  const body = await parseBody(request);
   if (
+    !body ||
     typeof body.documentId !== "string" ||
+    !assertValidDocumentId(body.documentId) ||
     !isAiAuditProvider(body.provider) ||
-    !isAiAuditType(body.auditType)
+    !isAiAuditType(body.auditType) ||
+    typeof body.idempotencyKey !== "string" ||
+    !assertValidDocumentId(body.idempotencyKey)
   ) {
-    return jsonError("documentId, provider, and auditType are required.", 400);
+    return jsonError("無效的 AI 稽核請求。", 400);
   }
 
-  const admin = createAdminClient();
+  const admin = createV2AdminClient();
   const { data: document, error: documentError } = await admin
     .from("student_documents")
     .select(
-      "id,user_id,lab_id,storage_bucket,storage_path,original_filename,mime_type,upload_status",
+      "id,user_id,storage_bucket,storage_path,original_filename,mime_type,file_size_bytes,upload_status",
     )
     .eq("id", body.documentId)
-    .maybeSingle<StudentDocumentForAudit>();
+    .eq("user_id", user.id)
+    .maybeSingle();
 
   if (documentError) {
-    return jsonError(documentError.message, 500);
+    console.error("[ai-audit] Document lookup failed", {
+      code: documentError.code,
+    });
+    return jsonError("目前無法確認 PDF 文件，請稍後再試。", 503);
   }
 
   if (!document) {
-    return jsonError("Document was not found.", 404);
+    return jsonError("找不到屬於你的 PDF 文件。", 404);
   }
 
   if (
@@ -221,73 +197,78 @@ export async function POST(request: NextRequest) {
     document.mime_type !== "application/pdf" ||
     document.upload_status !== "ready"
   ) {
-    return jsonError("Document is not a ready private PDF.", 400);
+    return jsonError("這份文件尚未通過 private PDF 驗證。", 400);
   }
 
+  const provider = getAiAuditProvider(body.provider);
+  const inputPrompt = buildAuditUserInstruction({
+    auditType: body.auditType,
+    filename: document.original_filename,
+  });
+
+  let jobId: string | null = null;
+
   try {
-    const authorized = await canAccessDocument({
-      supabase: admin,
+    const reservation = await reserveLabPdfAuditJob(admin, {
       userId: user.id,
-      document,
-    });
-
-    if (!authorized) {
-      return jsonError("You are not allowed to audit this document.", 403);
-    }
-
-    const quota = await checkAiAuditQuota(admin, user.id);
-
-    if (!quota.allowed) {
-      return jsonError(quota.reason ?? "AI audit quota is not available.", 403);
-    }
-
-    const provider = getAiAuditProvider(body.provider);
-    const inputPrompt = buildAuditUserInstruction({
+      documentId: document.id,
       auditType: body.auditType,
-      filename: document.original_filename,
+      provider: body.provider,
+      model: provider.model,
+      inputPrompt,
+      idempotencyKey: body.idempotencyKey,
     });
+    jobId = reservation.jobId;
 
-    const { data: job, error: jobError } = await admin
-      .from("ai_audit_jobs")
-      .insert({
-        user_id: document.user_id,
-        document_id: document.id,
-        lab_id: document.lab_id,
-        audit_type: body.auditType,
-        provider: body.provider,
-        model: provider.model,
-        status: "queued",
-        input_prompt: inputPrompt,
-      })
-      .select("id,user_id,document_id,lab_id")
-      .single<AuditJob>();
+    if (!reservation.created) {
+      const { data: existingJob } = await admin
+        .from("ai_audit_jobs")
+        .select("status")
+        .eq("id", reservation.jobId)
+        .eq("user_id", user.id)
+        .maybeSingle();
 
-    if (jobError) {
-      return jsonError(jobError.message, 500);
+      return jsonError(
+        existingJob?.status === "completed"
+          ? "這次稽核已完成，請到稽核歷史查看。"
+          : "這次稽核請求已處理，請勿重複送出。",
+        409,
+        {
+          jobId: reservation.jobId,
+          jobStatus: existingJob?.status ?? "unknown",
+        },
+      );
     }
 
-    await updateJobStatus({
-      supabase: admin,
-      jobId: job.id,
-      status: "streaming",
+    const pdfBase64 = await downloadOwnedPdfAsBase64({
+      storagePath: document.storage_path,
+      expectedSize: document.file_size_bytes,
     });
 
-    const pdfBase64 = await downloadPdfAsBase64({
-      supabase: admin,
-      storagePath: document.storage_path,
+    const modelAbortController = new AbortController();
+    let streamOutcomeResolved = false;
+    let resolveStreamOutcome: (outcome: StreamOutcome) => void = () => undefined;
+    const streamOutcome = new Promise<StreamOutcome>((resolve) => {
+      resolveStreamOutcome = resolve;
     });
+    const resolveOnce = (outcome: StreamOutcome) => {
+      if (streamOutcomeResolved) return;
+      streamOutcomeResolved = true;
+      resolveStreamOutcome(outcome);
+    };
+    const abortFromRequest = () => modelAbortController.abort("client_disconnected");
+    request.signal.addEventListener("abort", abortFromRequest, { once: true });
 
     const result = streamText({
       model: provider.model,
       system: buildAuditSystemPrompt(),
+      abortSignal: modelAbortController.signal,
+      timeout: { totalMs: 110_000, chunkMs: 30_000 },
       messages: [
         {
           role: "user",
           content: [
-            {
-              type: "text",
-              text: inputPrompt,
-            },
+            { type: "text", text: inputPrompt },
             {
               type: "file",
               mediaType: "application/pdf",
@@ -297,45 +278,145 @@ export async function POST(request: NextRequest) {
           ],
         },
       ],
-      onFinish({ text, usage }) {
-        void persistAuditResult({
-          job,
-          text,
-          usage,
-          creditId: quota.creditId,
-          providerCost: {
-            estimatedInputCostCentsPer1k:
-              provider.estimatedInputCostCentsPer1k,
-            estimatedOutputCostCentsPer1k:
-              provider.estimatedOutputCostCentsPer1k,
-          },
-        }).catch((error: unknown) => {
-          console.error("RAPID4GRAD audit persistence failed", error);
-        });
+      onFinish({ text, usage, finishReason }) {
+        resolveOnce({ kind: "finished", text, usage, finishReason });
       },
       onError({ error }) {
-        void updateJobStatus({
-          supabase: createAdminClient(),
-          jobId: job.id,
-          status: "failed",
-          errorMessage:
-            error instanceof Error ? error.message : "AI audit stream failed.",
-        }).catch((updateError: unknown) => {
-          console.error("RAPID4GRAD audit failure persistence failed", updateError);
+        console.error("[ai-audit] Provider stream failed", {
+          jobId,
+          name: error instanceof Error ? error.name : "UnknownError",
         });
+        resolveOnce({ kind: "failed" });
+      },
+      onAbort() {
+        resolveOnce({ kind: "aborted" });
       },
     });
 
-    return result.toTextStreamResponse({
+    const encoder = new TextEncoder();
+    const responseStream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const textDelta of result.textStream) {
+            controller.enqueue(encoder.encode(textDelta));
+          }
+
+          const outcome = await streamOutcome;
+          if (
+            outcome.kind === "aborted" ||
+            modelAbortController.signal.aborted
+          ) {
+            await refundReservedAudit(
+              reservation.jobId,
+              "user_aborted",
+              "AI audit was cancelled before completion.",
+            );
+            controller.error(new Error("AI audit cancelled."));
+            return;
+          }
+
+          if (
+            outcome.kind === "failed" ||
+            outcome.finishReason === "error" ||
+            !outcome.text.trim()
+          ) {
+            await refundReservedAudit(
+              reservation.jobId,
+              "provider_stream_failed",
+              "AI provider did not complete a valid audit result.",
+            );
+            controller.error(new Error("AI audit stream failed."));
+            return;
+          }
+
+          try {
+            await persistCompletedAudit({
+              jobId: reservation.jobId,
+              text: outcome.text,
+              usage: outcome.usage,
+              inputCostPer1k: provider.estimatedInputCostCentsPer1k,
+              outputCostPer1k: provider.estimatedOutputCostCentsPer1k,
+            });
+          } catch (error) {
+            console.error("[ai-audit] Result persistence failed", {
+              jobId: reservation.jobId,
+              name: error instanceof Error ? error.name : "UnknownError",
+            });
+            await refundReservedAudit(
+              reservation.jobId,
+              "persistence_failed",
+              "AI audit result persistence failed.",
+            );
+            controller.error(new Error("AI audit persistence failed."));
+            return;
+          }
+
+          controller.close();
+        } catch (error) {
+          const aborted = modelAbortController.signal.aborted;
+          try {
+            await refundReservedAudit(
+              reservation.jobId,
+              aborted ? "user_aborted" : "provider_stream_failed",
+              aborted
+                ? "AI audit was cancelled before completion."
+                : "AI audit stream failed before completion.",
+            );
+          } catch {
+            // The server log emitted by refundReservedAudit is sufficient here.
+          }
+          controller.error(
+            error instanceof Error ? error : new Error("AI audit failed."),
+          );
+        } finally {
+          request.signal.removeEventListener("abort", abortFromRequest);
+        }
+      },
+      async cancel() {
+        modelAbortController.abort("client_cancelled");
+        try {
+          await refundReservedAudit(
+            reservation.jobId,
+            "user_aborted",
+            "AI audit was cancelled by the user.",
+          );
+        } catch {
+          // The server log emitted by refundReservedAudit is sufficient here.
+        }
+      },
+    });
+
+    return new Response(responseStream, {
       headers: {
-        "X-RAPID-Audit-Job-Id": job.id,
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff",
+        "X-RAPID-Audit-Job-Id": reservation.jobId,
         "X-RAPID-Audit-Provider": body.provider,
         "X-RAPID-Audit-Model": provider.model,
       },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "AI audit request failed.";
-    return jsonError(message, 500);
+    if (jobId) {
+      try {
+        await refundReservedAudit(
+          jobId,
+          "setup_failed",
+          "AI audit setup failed before streaming.",
+        );
+      } catch {
+        // The server log emitted by refundReservedAudit is sufficient here.
+      }
+    }
+
+    console.error("[ai-audit] Request setup failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+
+    if (error instanceof LabPdfAuditServiceError) {
+      return jsonError(error.message, error.status, { code: error.code });
+    }
+
+    return jsonError("目前無法啟動 AI 稽核，請稍後再試。", 503);
   }
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
+import type { LabRole } from "@/types/database";
 
 type JoinLabResponse =
   | {
@@ -11,6 +12,7 @@ type JoinLabResponse =
         id: string;
         name: string;
         institution: string | null;
+        role: LabRole;
       };
     }
   | {
@@ -46,9 +48,7 @@ export function LabJoinForm() {
 
       setJoinedLab(payload.lab);
       setMessage(
-        payload.alreadyJoined
-          ? "你已經是這個實驗室成員。"
-          : "已成功加入實驗室。",
+        payload.alreadyJoined ? "你已經是這個 Lab 成員。" : "已成功加入 Lab。",
       );
       setInviteCode("");
     } catch {
@@ -67,10 +67,10 @@ export function LabJoinForm() {
         Lab Invite
       </p>
       <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">
-        加入指導教授 Lab
+        使用邀請碼加入 Lab
       </h1>
       <p className="mt-3 text-sm leading-6 text-slate-300">
-        請輸入教授提供的一次性邀請碼。系統只會儲存雜湊後的邀請碼，不保存明碼。
+        請輸入 Lab owner 提供的邀請碼。系統會依邀請碼指定的角色加入，且只儲存雜湊後的邀請碼。
       </p>
 
       <label className="mt-6 block text-sm text-slate-300">
@@ -102,11 +102,20 @@ export function LabJoinForm() {
               {joinedLab.institution ? (
                 <p className="text-slate-400">{joinedLab.institution}</p>
               ) : null}
+              <p className="mt-1 text-xs text-slate-400">
+                Lab 角色：{joinedLab.role}
+              </p>
               <Link
-                href="/dashboard/ai-audit"
+                href={
+                  joinedLab.role === "student"
+                    ? "/dashboard/ai-audit"
+                    : "/professor/dashboard"
+                }
                 className="mt-3 inline-flex rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300"
               >
-                前往 PDF AI 稽核
+                {joinedLab.role === "student"
+                  ? "前往 PDF AI 稽核"
+                  : "前往 Professor Dashboard"}
               </Link>
             </div>
           ) : null}

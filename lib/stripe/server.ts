@@ -65,6 +65,7 @@ export type StripeInvoice = {
 export type StripeEvent = {
   id: string;
   type: string;
+  created?: number;
   data: {
     object: Json;
   };

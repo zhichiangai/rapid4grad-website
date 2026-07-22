@@ -12,6 +12,10 @@ import {
   type StripeSubscription,
 } from "@/lib/stripe/server";
 import { getBillingPlan } from "@/lib/stripe/plans";
+import {
+  shouldApplySubscriptionEvent,
+  shouldRestrictSubscription,
+} from "@/lib/stripe/event-ordering";
 import type {
   CoursePlanType,
   Json,
@@ -39,6 +43,9 @@ type ExistingSubscription = {
   id: string;
   user_id: string;
   current_period_end: string;
+  last_stripe_event_created_at: string | null;
+  status: SubscriptionStatus;
+  cancel_at_period_end: boolean;
 };
 
 const DEFAULT_PLAN_TYPE: CoursePlanType = "course_plus_6mo_tool";
@@ -120,36 +127,39 @@ function asInvoice(value: Json): StripeInvoice {
   return toRecord(value) as StripeInvoice;
 }
 
-async function recordStripeEvent(
+function stripeEventCreatedAt(event: StripeEvent) {
+  const seconds = event.created;
+  return typeof seconds === "number" && Number.isFinite(seconds)
+    ? new Date(seconds * 1000).toISOString()
+    : new Date().toISOString();
+}
+
+async function claimStripeEvent(
   supabase: SupabaseAdminClient,
   event: StripeEvent,
 ) {
-  const { error } = await supabase.from("stripe_events").insert({
-    stripe_event_id: event.id,
-    event_type: event.type,
-    payload: event as unknown as Json,
+  const { data, error } = await supabase.rpc("claim_stripe_event", {
+    target_event_id: event.id,
+    target_event_type: event.type,
+    target_event_created_at: stripeEventCreatedAt(event),
+    target_payload: event as unknown as Json,
   });
-
-  if (error) {
-    throw new Error(error.message);
-  }
+  if (error) throw new Error(error.message);
+  return data === true;
 }
 
-async function hasProcessedEvent(
+async function finishStripeEvent(
   supabase: SupabaseAdminClient,
-  stripeEventId: string,
+  eventId: string,
+  succeeded: boolean,
+  message?: string,
 ) {
-  const { data, error } = await supabase
-    .from("stripe_events")
-    .select("id")
-    .eq("stripe_event_id", stripeEventId)
-    .maybeSingle();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  return Boolean(data);
+  const { error } = await supabase.rpc("finish_stripe_event", {
+    target_event_id: eventId,
+    succeeded,
+    failure_message: message?.slice(0, 500) ?? null,
+  });
+  if (error) throw new Error(error.message);
 }
 
 async function grantCourseAccessForOneTimePayment({
@@ -373,7 +383,7 @@ async function ensureAiUsageCredits({
 }) {
   const { data: existingCredit, error: existingCreditError } = await supabase
     .from("ai_usage_credits")
-    .select("id")
+    .select("id,credits_used,pdf_audit_used")
     .eq("subscription_id", localSubscriptionId)
     .eq("period_start", periodStart)
     .eq("period_end", periodEnd)
@@ -384,18 +394,21 @@ async function ensureAiUsageCredits({
   }
 
   if (existingCredit) {
-    if (shouldRestrict) {
-      const { error } = await supabase
-        .from("ai_usage_credits")
-        .update({
-          monthly_credit_limit: 0,
-          pdf_audit_limit: 0,
-        })
-        .eq("id", existingCredit.id);
+    const plan = getBillingPlan(planKey);
+    const { error } = await supabase
+      .from("ai_usage_credits")
+      .update({
+        monthly_credit_limit: shouldRestrict
+          ? existingCredit.credits_used
+          : Math.max(plan?.monthlyCreditLimit ?? 0, existingCredit.credits_used),
+        pdf_audit_limit: shouldRestrict
+          ? existingCredit.pdf_audit_used
+          : Math.max(plan?.pdfAuditLimit ?? 0, existingCredit.pdf_audit_used),
+      })
+      .eq("id", existingCredit.id);
 
-      if (error) {
-        throw new Error(error.message);
-      }
+    if (error) {
+      throw new Error(error.message);
     }
 
     return;
@@ -421,11 +434,13 @@ async function ensureAiUsageCredits({
 async function syncSubscriptionFromStripe({
   supabase,
   subscription,
+  event,
   fallbackUserId,
   forceRestrictCredits = false,
 }: {
   supabase: SupabaseAdminClient;
   subscription: StripeSubscription;
+  event: StripeEvent;
   fallbackUserId?: string | null;
   forceRestrictCredits?: boolean;
 }) {
@@ -450,12 +465,14 @@ async function syncSubscriptionFromStripe({
     subscription.current_period_start,
   );
   const currentPeriodEnd = unixSecondsToIso(subscription.current_period_end);
-  const incomingPeriodEndMs = new Date(currentPeriodEnd).getTime();
+  const incomingEventCreatedAt = stripeEventCreatedAt(event);
+  const incomingStatus = normalizeSubscriptionStatus(subscription.status);
+  const incomingCancelAtPeriodEnd = subscription.cancel_at_period_end ?? false;
 
   const { data: existingSubscription, error: existingSubscriptionError } =
     await supabase
       .from("subscriptions")
-      .select("id,user_id,current_period_end")
+      .select("id,user_id,current_period_end,last_stripe_event_created_at,status,cancel_at_period_end")
       .eq("stripe_subscription_id", subscription.id)
       .maybeSingle<ExistingSubscription>();
 
@@ -465,8 +482,16 @@ async function syncSubscriptionFromStripe({
 
   if (
     existingSubscription &&
-    incomingPeriodEndMs <=
-      new Date(existingSubscription.current_period_end).getTime()
+    !shouldApplySubscriptionEvent({
+      existingEventCreatedAt:
+        existingSubscription.last_stripe_event_created_at,
+      incomingEventCreatedAt,
+      existingStatus: existingSubscription.status,
+      incomingStatus,
+      existingCancelAtPeriodEnd: existingSubscription.cancel_at_period_end,
+      incomingCancelAtPeriodEnd,
+      forceRestrict: forceRestrictCredits,
+    })
   ) {
     return { skipped: true, reason: "Stale subscription event." };
   }
@@ -479,12 +504,14 @@ async function syncSubscriptionFromStripe({
           user_id: userId,
           stripe_customer_id: subscription.customer,
           stripe_subscription_id: subscription.id,
-          status: normalizeSubscriptionStatus(subscription.status),
+          status: incomingStatus,
           price_id: priceId,
           plan_key: planKey,
           current_period_start: currentPeriodStart,
           current_period_end: currentPeriodEnd,
-          cancel_at_period_end: subscription.cancel_at_period_end ?? false,
+          cancel_at_period_end: incomingCancelAtPeriodEnd,
+          last_stripe_event_created_at: incomingEventCreatedAt,
+          last_stripe_event_id: event.id,
         },
         { onConflict: "stripe_subscription_id" },
       )
@@ -508,11 +535,10 @@ async function syncSubscriptionFromStripe({
     planKey,
     periodStart: currentPeriodStart,
     periodEnd: currentPeriodEnd,
-    shouldRestrict:
-      forceRestrictCredits ||
-      normalizeSubscriptionStatus(subscription.status) === "past_due" ||
-      normalizeSubscriptionStatus(subscription.status) === "unpaid" ||
-      normalizeSubscriptionStatus(subscription.status) === "canceled",
+    shouldRestrict: shouldRestrictSubscription(
+      incomingStatus,
+      forceRestrictCredits,
+    ),
   });
 
   return { skipped: false, subscriptionId: localSubscription.id };
@@ -529,6 +555,7 @@ async function handleCheckoutSessionCompleted(
     await syncSubscriptionFromStripe({
       supabase,
       subscription,
+      event,
       fallbackUserId: session.client_reference_id ?? session.metadata?.user_id,
     });
     return;
@@ -544,7 +571,11 @@ async function handleSubscriptionEvent(
   const subscription = asSubscription(event.data.object);
   await syncSubscriptionFromStripe({
     supabase,
-    subscription,
+    subscription:
+      event.type === "customer.subscription.deleted"
+        ? { ...subscription, status: "canceled" }
+        : subscription,
+    event,
     forceRestrictCredits:
       event.type === "customer.subscription.deleted" ||
       normalizeSubscriptionStatus(subscription.status) === "past_due" ||
@@ -576,6 +607,7 @@ async function handleInvoiceEvent(
 
   await syncSubscriptionFromStripe({
     supabase,
+    event,
     subscription: {
       ...subscription,
       status:
@@ -646,11 +678,12 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
+  let claimed = false;
 
   try {
-    const duplicate = await hasProcessedEvent(supabase, event.id);
+    claimed = await claimStripeEvent(supabase, event);
 
-    if (duplicate) {
+    if (!claimed) {
       return NextResponse.json({
         received: true,
         duplicate: true,
@@ -659,7 +692,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await processStripeEvent(supabase, event);
-    await recordStripeEvent(supabase, event);
+    await finishStripeEvent(supabase, event.id, true);
 
     return NextResponse.json({
       received: true,
@@ -668,8 +701,26 @@ export async function POST(request: NextRequest) {
       handled: result.handled,
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Stripe webhook failed.";
-    return jsonError(message, 500);
+    console.error("[stripe-webhook] Event processing failed", {
+      eventId: event.id,
+      eventType: event.type,
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    if (claimed) {
+      try {
+        await finishStripeEvent(
+          supabase,
+          event.id,
+          false,
+          error instanceof Error ? error.message : "Stripe webhook failed.",
+        );
+      } catch (finishError) {
+        console.error("[stripe-webhook] Failed to mark event failure", {
+          name:
+            finishError instanceof Error ? finishError.name : "UnknownError",
+        });
+      }
+    }
+    return jsonError("Stripe webhook processing failed.", 500);
   }
 }

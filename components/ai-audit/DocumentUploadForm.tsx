@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { ChangeEvent, FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ChangeEvent, FormEvent, startTransition, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   DOCUMENT_TYPES,
@@ -57,6 +58,7 @@ export function DocumentUploadForm({
   reason,
   remainingPdfAudits,
 }: DocumentUploadFormProps) {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [documentType, setDocumentType] =
     useState<UploadDocumentType>("thesis");
@@ -159,7 +161,10 @@ export function DocumentUploadForm({
         });
 
       if (uploadError) {
-        setMessage(`上傳失敗：${uploadError.message}`);
+        console.error("[document-upload] Signed upload failed", {
+          name: uploadError.name,
+        });
+        setMessage("PDF 上傳失敗，請稍後再試。");
         return;
       }
 
@@ -170,12 +175,8 @@ export function DocumentUploadForm({
         },
         body: JSON.stringify({
           documentId: uploadUrlPayload.documentId,
-          filename: file.name,
-          mimeType: file.type,
-          sizeBytes: file.size,
           documentType,
           objectPath: uploadUrlPayload.objectPath,
-          storagePath: uploadUrlPayload.storagePath,
         }),
       });
       const completePayload =
@@ -191,7 +192,8 @@ export function DocumentUploadForm({
       }
 
       setUploadedDocument(completePayload.document);
-      setMessage("PDF 已上傳並建立文件 metadata。下一步可進入 AI 稽核流程。");
+      setMessage("PDF 已通過 private Storage 與檔案完整性驗證，可以開始 AI 稽核。");
+      startTransition(() => router.refresh());
     } catch {
       setMessage("上傳流程失敗，請稍後再試。");
     } finally {
@@ -204,14 +206,14 @@ export function DocumentUploadForm({
       <div className="rounded-[2rem] border border-amber-300/20 bg-amber-400/10 p-6 text-amber-50">
         <h2 className="text-xl font-semibold">目前無法上傳 PDF</h2>
         <p className="mt-3 text-sm leading-7 text-amber-100/90">
-          {reason ?? "需要有效訂閱與可用 PDF audit 額度。"}
+          {reason ?? "需要 active student membership、有效 Lab 訂閱與剩餘共用額度。"}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
-            href="/pricing"
+            href="/dashboard/lab-join"
             className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
           >
-            查看 Phase 2 訂閱方案
+            加入 Professor Lab
           </Link>
           <Link
             href="/dashboard/ai-command"
@@ -233,14 +235,14 @@ export function DocumentUploadForm({
         <div>
           <h2 className="text-2xl font-semibold">上傳研究 PDF</h2>
           <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-400">
-            檔案會存入 Supabase private bucket。RAPID 不會把 PDF
-            直接丟給模型；後續 AI audit route 會在 server 端讀取 PDF、轉成
-            Base64，並用 <span className="text-cyan-200">mimeType:
+            檔案只存入學生本人可讀的 Supabase private bucket。後續 audit route
+            會在 server 端重新驗證 PDF、轉成
+            Base64，並用 <span className="text-cyan-200">mediaType:
             application/pdf</span> 封裝。
           </p>
         </div>
         <span className="rounded-full border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-100">
-          剩餘 PDF audit：{remainingPdfAudits}
+          Lab 共用剩餘額度：{remainingPdfAudits}
         </span>
       </div>
 

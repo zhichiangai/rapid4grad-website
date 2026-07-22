@@ -571,6 +571,10 @@ export type Database = {
           status: AiAuditJobStatus;
           input_prompt: string;
           error_message: string | null;
+          credit_id: string | null;
+          quota_reserved_at: string | null;
+          quota_settled_at: string | null;
+          quota_refunded_at: string | null;
           created_at: string;
           updated_at: string;
           completed_at: string | null;
@@ -586,6 +590,10 @@ export type Database = {
           status?: AiAuditJobStatus;
           input_prompt: string;
           error_message?: string | null;
+          credit_id?: string | null;
+          quota_reserved_at?: string | null;
+          quota_settled_at?: string | null;
+          quota_refunded_at?: string | null;
           created_at?: string;
           updated_at?: string;
           completed_at?: string | null;
@@ -624,6 +632,32 @@ export type Database = {
         Update: Partial<
           Database["public"]["Tables"]["ai_audit_results"]["Insert"]
         >;
+      };
+      audit_summary_shares: {
+        Row: {
+          id: string;
+          document_id: string;
+          student_user_id: string;
+          lab_id: string;
+          consented_at: string;
+          revoked_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          document_id: string;
+          student_user_id: string;
+          lab_id: string;
+          consented_at?: string;
+          revoked_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["audit_summary_shares"]["Insert"]
+        >;
+        Relationships: [];
       };
       ai_usage_credits: {
         Row: {
@@ -668,6 +702,8 @@ export type Database = {
           current_period_start: string;
           current_period_end: string;
           cancel_at_period_end: boolean;
+          last_stripe_event_created_at: string | null;
+          last_stripe_event_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -682,6 +718,8 @@ export type Database = {
           current_period_start: string;
           current_period_end: string;
           cancel_at_period_end?: boolean;
+          last_stripe_event_created_at?: string | null;
+          last_stripe_event_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -719,15 +757,25 @@ export type Database = {
           id: string;
           stripe_event_id: string;
           event_type: string;
-          processed_at: string;
+          processed_at: string | null;
           payload: Json;
+          status: "processing" | "processed" | "failed";
+          processing_started_at: string | null;
+          error_message: string | null;
+          event_created_at: string | null;
+          attempts: number;
         };
         Insert: {
           id?: string;
           stripe_event_id: string;
           event_type: string;
-          processed_at?: string;
+          processed_at?: string | null;
           payload: Json;
+          status?: "processing" | "processed" | "failed";
+          processing_started_at?: string | null;
+          error_message?: string | null;
+          event_created_at?: string | null;
+          attempts?: number;
         };
         Update: Partial<
           Database["public"]["Tables"]["stripe_events"]["Insert"]
@@ -747,6 +795,81 @@ export type Database = {
           target_credit_id: string;
         };
         Returns: Database["public"]["Tables"]["ai_usage_credits"]["Row"];
+      };
+      reserve_pdf_audit_credit: {
+        Args: { target_credit_id: string; target_job_id: string };
+        Returns: boolean;
+      };
+      complete_ai_audit_job: {
+        Args: {
+          target_job_id: string;
+          result_summary: string;
+          result_markdown: string;
+          result_risk_level: string;
+          result_issue_tags: string[];
+          result_token_input: number;
+          result_token_output: number;
+          result_cost_estimate_cents: number;
+        };
+        Returns: boolean;
+      };
+      fail_ai_audit_job: {
+        Args: { target_job_id: string; failure_message: string };
+        Returns: boolean;
+      };
+      claim_stripe_event: {
+        Args: {
+          target_event_id: string;
+          target_event_type: string;
+          target_event_created_at: string;
+          target_payload: Json;
+        };
+        Returns: boolean;
+      };
+      finish_stripe_event: {
+        Args: {
+          target_event_id: string;
+          succeeded: boolean;
+          failure_message?: string | null;
+        };
+        Returns: boolean;
+      };
+      create_email_verification_challenge: {
+        Args: {
+          target_id: string;
+          target_email_hash: string;
+          target_pin_hash: string;
+          target_ip_hash: string;
+          target_expires_at: string;
+          target_cooldown_seconds?: number;
+          target_window_seconds?: number;
+          target_max_email_sends?: number;
+          target_max_ip_sends?: number;
+        };
+        Returns: string;
+      };
+      verify_email_challenge: {
+        Args: {
+          target_id: string;
+          target_email_hash: string;
+          target_pin_hash: string;
+        };
+        Returns: string;
+      };
+      get_shared_audit_summaries: {
+        Args: {
+          target_lab_id: string;
+          target_student_user_id?: string | null;
+        };
+        Returns: Array<{
+          job_id: string;
+          student_user_id: string;
+          summary: string;
+          risk_level: string | null;
+          issue_tags: string[];
+          completed_at: string | null;
+          created_at: string;
+        }>;
       };
     };
     Enums: Record<string, never>;

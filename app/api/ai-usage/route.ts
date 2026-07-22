@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  EMAIL_VERIFIED_SESSION_COOKIE,
+  verifyEmailSession,
+} from "@/lib/email-verification/session";
 import { createAdminClient, createClient } from "@/lib/supabase/server";
 
 type AiUsageRequest = {
-  email?: string;
   isAnonymousTrial?: boolean;
   studentStage?: string;
   meetingContext?: string;
@@ -18,10 +21,12 @@ type AiUsageRequest = {
 };
 
 const ANONYMOUS_TRIAL_COOKIE = "rapid_anon_ai_trial_used";
-
-function normalizeEmail(email?: string) {
-  return email?.trim().toLowerCase() || "";
-}
+const BODY_LIMIT_BYTES = 24 * 1024;
+const ALLOWED_STAGES = new Set(["master_1", "master_2", "master_3_plus", "phd", "part_time"]);
+const ALLOWED_CONTEXTS = new Set(["one_on_one", "group_meeting", "defense_rehearsal", "submission_check", "draft_revision", "other"]);
+const ALLOWED_AIS = new Set(["chatgpt", "claude", "gemini", "grok"]);
+const ALLOWED_INSTRUCTIONS = new Set(["advisor_questions", "logic_check", "presentation_revision", "english_polish"]);
+const ALLOWED_PAIN_POINTS = new Set(["find_gap", "logic_check", "advisor_simulation", "presentation_revision", "english_polish", "figure_check", "other"]);
 
 function isNewDailyWindow(lastResetAt?: string | null) {
   if (!lastResetAt) {
@@ -45,6 +50,55 @@ function badRequest(message: string) {
       message,
     },
     { status: 400 },
+  );
+}
+
+function serverError(context: string, code?: string) {
+  console.error(`[ai-usage] ${context}`, { code });
+  return NextResponse.json(
+    { status: "error", message: "目前無法完成額度檢查，請稍後再試。" },
+    { status: 500 },
+  );
+}
+
+async function parsePayload(request: NextRequest): Promise<AiUsageRequest | null> {
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (declaredLength > BODY_LIMIT_BYTES) return null;
+  const raw = await request.text();
+  if (Buffer.byteLength(raw, "utf8") > BODY_LIMIT_BYTES) return null;
+  try {
+    return JSON.parse(raw) as AiUsageRequest;
+  } catch {
+    return null;
+  }
+}
+
+function validShortArray(value: unknown, allowed: Set<string>, maxItems: number) {
+  return (
+    Array.isArray(value) &&
+    value.length <= maxItems &&
+    value.every((item) => typeof item === "string" && allowed.has(item))
+  );
+}
+
+function isValidPayload(payload: AiUsageRequest) {
+  const prefs = payload.advisorPrefs;
+  return (
+    typeof payload.studentStage === "string" &&
+    ALLOWED_STAGES.has(payload.studentStage) &&
+    typeof payload.meetingContext === "string" &&
+    ALLOWED_CONTEXTS.has(payload.meetingContext) &&
+    typeof payload.selectedAi === "string" &&
+    ALLOWED_AIS.has(payload.selectedAi) &&
+    validShortArray(payload.instructionTypes, ALLOWED_INSTRUCTIONS, 4) &&
+    (payload.instructionTypes?.length ?? 0) > 0 &&
+    validShortArray(payload.painPoints ?? [], ALLOWED_PAIN_POINTS, 7) &&
+    (!payload.generatedPrompt || payload.generatedPrompt.length <= 20_000) &&
+    (!prefs?.preferredStyle || prefs.preferredStyle.length <= 500) &&
+    (!prefs?.customNote || prefs.customNote.length <= 1000) &&
+    (!prefs?.frequentQuestions ||
+      (prefs.frequentQuestions.length <= 20 &&
+        prefs.frequentQuestions.every((item) => item.length <= 500)))
   );
 }
 
@@ -135,27 +189,17 @@ async function hasPaidToolAccess({
 }
 
 export async function POST(request: NextRequest) {
-  let payload: AiUsageRequest;
-
-  try {
-    payload = (await request.json()) as AiUsageRequest;
-  } catch {
-    return badRequest("Invalid JSON payload.");
-  }
-
-  if (
-    !payload.studentStage ||
-    !payload.meetingContext ||
-    !payload.selectedAi ||
-    !payload.instructionTypes?.length
-  ) {
-    return badRequest("Missing AI command usage parameters.");
-  }
+  const payload = await parsePayload(request);
+  if (!payload || !isValidPayload(payload)) return badRequest("無效的 AI 指令參數。");
 
   const authenticatedUser = await getAuthenticatedUser();
-  const email = normalizeEmail(payload.email || authenticatedUser?.email);
   const supabase = createAdminClient();
   const userId = authenticatedUser?.id ?? null;
+  const verifiedSession = await verifyEmailSession(
+    supabase,
+    request.cookies.get(EMAIL_VERIFIED_SESSION_COOKIE)?.value,
+  );
+  const email = authenticatedUser?.email?.trim().toLowerCase() || verifiedSession?.email || "";
 
   if (userId) {
     try {
@@ -176,10 +220,7 @@ export async function POST(request: NextRequest) {
           );
 
         if (usageError) {
-          return NextResponse.json(
-            { status: "error", message: usageError.message },
-            { status: 500 },
-          );
+          return serverError("Paid usage insert failed", usageError.code);
         }
 
         return NextResponse.json({
@@ -189,13 +230,10 @@ export async function POST(request: NextRequest) {
         });
       }
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Paid access check failed.";
-
-      return NextResponse.json(
-        { status: "error", message },
-        { status: 500 },
-      );
+      console.error("[ai-usage] Paid access check failed", {
+        name: error instanceof Error ? error.name : "UnknownError",
+      });
+      return serverError("Paid access check unavailable");
     }
   }
 
@@ -226,10 +264,7 @@ export async function POST(request: NextRequest) {
       );
 
     if (usageError) {
-      return NextResponse.json(
-        { status: "error", message: usageError.message },
-        { status: 500 },
-      );
+      return serverError("Anonymous usage insert failed", usageError.code);
     }
 
     const response = NextResponse.json({
@@ -270,10 +305,7 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (quotaReadError) {
-    return NextResponse.json(
-      { status: "error", message: quotaReadError.message },
-      { status: 500 },
-    );
+    return serverError("Quota read failed", quotaReadError.code);
   }
 
   const now = new Date();
@@ -329,10 +361,7 @@ export async function POST(request: NextRequest) {
   const { error: quotaWriteError } = await quotaQuery;
 
   if (quotaWriteError) {
-    return NextResponse.json(
-      { status: "error", message: quotaWriteError.message },
-      { status: 500 },
-    );
+    return serverError("Quota write failed", quotaWriteError.code);
   }
 
   const { error: usageError } = await supabase
@@ -349,10 +378,7 @@ export async function POST(request: NextRequest) {
     );
 
   if (usageError) {
-    return NextResponse.json(
-      { status: "error", message: usageError.message },
-      { status: 500 },
-    );
+    return serverError("Verified usage insert failed", usageError.code);
   }
 
   return NextResponse.json({

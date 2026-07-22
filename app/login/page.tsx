@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { isSafeNextPath } from "@/lib/workspace/access";
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -11,20 +11,15 @@ export default function LoginPage() {
     setIsLoading(true);
     setErrorMessage("");
 
-    const supabase = createClient();
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`;
+    const rawNextPath = new URLSearchParams(window.location.search).get("next");
+    const nextPath = isSafeNextPath(rawNextPath) ? rawNextPath : null;
+    const loginUrl = new URL("/auth/login", window.location.origin);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: {
-        redirectTo,
-      },
-    });
-
-    if (error) {
-      setErrorMessage(error.message);
-      setIsLoading(false);
+    if (nextPath) {
+      loginUrl.searchParams.set("next", nextPath);
     }
+
+    window.location.href = loginUrl.toString();
   };
 
   return (

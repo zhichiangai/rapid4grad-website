@@ -1,88 +1,50 @@
+import "server-only";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Json, ProductType } from "@/types/database";
+import type {
+  Database,
+  Json,
+} from "@/types/database-v2.generated";
+import type { VerifyWebhookResult } from "./types";
 
-type GrantCourseAccessInput = {
-  userId: string;
-  productId: string;
-  orderId: string;
-  paymentId: string;
-  startsAt: string;
-  endsAt: string;
+type V2SupabaseClient = SupabaseClient<Database>;
+
+export type PaymentEventProcessingResult = {
+  duplicate: boolean;
+  order_id: string;
+  order_status: string;
+  payment_id?: string;
+  payment_status?: string;
+  entitlement_id?: string | null;
+  requires_manual_review?: boolean;
 };
 
-type OrderForEntitlement = {
-  id: string;
-  user_id: string;
-};
-
-type ProductForEntitlement = {
-  id: string;
-  product_type: ProductType;
-  duration_months: number | null;
-  metadata: Json;
-};
-
-type PaymentForEntitlement = {
-  id: string;
-  paid_at: string | null;
-};
-
-function addMonths(date: Date, months: number) {
-  const nextDate = new Date(date);
-  nextDate.setMonth(nextDate.getMonth() + months);
-  return nextDate;
-}
-
-export async function grantCourseEntitlement(
-  supabase: SupabaseClient,
-  input: GrantCourseAccessInput,
+export async function processVerifiedOneTimePayment(
+  supabase: V2SupabaseClient,
+  provider: Database["public"]["Enums"]["payment_provider"],
+  event: VerifyWebhookResult,
 ) {
-  const { error: entitlementError } = await supabase
-    .from("entitlements")
-    .insert({
-      user_id: input.userId,
-      product_id: input.productId,
-      type: "course_access",
-      status: "active",
-      starts_at: input.startsAt,
-      ends_at: input.endsAt,
-      source_order_id: input.orderId,
-      source_payment_id: input.paymentId,
-    });
+  const { data, error } = await supabase.rpc(
+    "process_one_time_payment_event",
+    {
+      target_provider: provider,
+      target_event_id: event.eventId,
+      target_event_type: event.eventType,
+      target_provider_order_id: event.providerOrderId,
+      target_provider_payment_id: event.providerPaymentId,
+      target_outcome: event.outcome,
+      target_amount: event.amount,
+      target_currency: event.currency.toUpperCase(),
+      target_paid_at: event.paidAt ?? new Date().toISOString(),
+      target_payload: event.rawPayload as Json,
+    },
+  );
 
-  if (entitlementError) {
-    throw new Error(entitlementError.message);
-  }
-}
-
-export async function grantEntitlementsForOrder(
-  supabase: SupabaseClient,
-  {
-    order,
-    product,
-    payment,
-  }: {
-    order: OrderForEntitlement;
-    product: ProductForEntitlement;
-    payment: PaymentForEntitlement;
-  },
-) {
-  const startsAt = payment.paid_at ?? new Date().toISOString();
-  const startsAtDate = new Date(startsAt);
-  const durationMonths = product.duration_months ?? 6;
-  const endsAt =
-    product.product_type === "subscription"
-      ? null
-      : addMonths(startsAtDate, durationMonths).toISOString();
-
-  if (product.product_type === "course" || product.product_type === "bundle") {
-    await grantCourseEntitlement(supabase, {
-      userId: order.user_id,
-      productId: product.id,
-      orderId: order.id,
-      paymentId: payment.id,
-      startsAt,
-      endsAt: endsAt ?? addMonths(startsAtDate, durationMonths).toISOString(),
+  if (error) {
+    throw new Error("Verified payment could not be finalized", {
+      cause: error,
     });
   }
+
+  return data as PaymentEventProcessingResult;
 }

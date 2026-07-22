@@ -1,143 +1,182 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import {
+  createV2AdminClient,
+  createV2Client,
+} from "@/lib/supabase/server";
 import { getPaymentProvider } from "@/lib/payments";
 import type {
   CheckoutOrder,
   CheckoutProduct,
   CreateCheckoutResult,
-  PaymentProviderName,
-  ProductSlug,
 } from "@/lib/payments";
-import type { Json } from "@/types/database";
 
 export const runtime = "nodejs";
 
 type CheckoutRequestBody = {
-  productSlug?: unknown;
+  idempotencyKey?: unknown;
 };
 
-const DEFAULT_PRODUCT_SLUG: ProductSlug = "rapid4grad-course";
+type CheckoutOrderRow = {
+  order_id: string;
+  user_id: string;
+  product_id: string;
+  product_price_id: string;
+  product_slug: string;
+  product_name: string;
+  product_type: "course" | "professor_subscription" | "consultation" | "bundle" | "ai_credits";
+  product_metadata: CheckoutProduct["metadata"];
+  amount: number;
+  currency: string;
+  provider: CheckoutOrder["provider"];
+  provider_order_id: string | null;
+  order_status: "pending" | "processing" | "paid" | "failed" | "cancelled" | "expired" | "refunded";
+  checkout_url: string | null;
+  is_lab_discount: boolean;
+};
 
-function jsonError(message: string, status = 400, extra?: Record<string, Json>) {
-  return NextResponse.json(
-    { success: false, error: message, ...extra },
-    { status },
-  );
+function jsonError(message: string, status = 400) {
+  return NextResponse.json({ success: false, error: message }, { status });
 }
 
-function normalizeProductSlug(value: unknown): ProductSlug {
-  if (value === "rapid4grad-course") {
+function normalizeIdempotencyKey(value: unknown) {
+  if (
+    typeof value === "string" &&
+    value.length >= 16 &&
+    value.length <= 128 &&
+    /^[A-Za-z0-9_-]+$/.test(value)
+  ) {
     return value;
   }
 
-  return DEFAULT_PRODUCT_SLUG;
-}
-
-function getSiteUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "http://localhost:3000"
-  );
+  return randomUUID();
 }
 
 function getCheckoutUrl(checkout: CreateCheckoutResult) {
   return checkout.mode === "redirect" ? checkout.checkoutUrl : checkout.actionUrl;
 }
 
+function mapCheckoutRpcError(message: string) {
+  if (message.includes("course_already_owned")) {
+    return { message: "你已經擁有完整課程權限。", status: 409 };
+  }
+
+  if (message.includes("course_price_not_available")) {
+    return { message: "課程價格尚未公告。", status: 503 };
+  }
+
+  return { message: "目前無法建立付款訂單。", status: 500 };
+}
+
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
+  const supabase = await createV2Client();
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
 
   if (userError) {
-    return jsonError(userError.message, 401);
+    console.error("Course checkout authentication failed", {
+      code: userError.code,
+    });
   }
 
   if (!user?.email) {
-    return jsonError("Login is required before checkout.", 401);
+    return jsonError("請先登入再購買課程。", 401);
   }
 
   let body: CheckoutRequestBody = {};
-
   try {
     body = (await request.json()) as CheckoutRequestBody;
   } catch {
     body = {};
   }
 
-  const productSlug = normalizeProductSlug(body.productSlug);
-  const provider = getPaymentProvider();
-  const siteUrl = getSiteUrl();
-  const admin = createAdminClient();
-
-  const { data: productRow, error: productError } = await admin
-    .from("products")
-    .select("id,slug,name,product_type,amount,currency,duration_months,metadata")
-    .eq("slug", productSlug)
-    .eq("is_active", true)
-    .maybeSingle();
-
-  if (productError) {
-    return jsonError(productError.message, 500);
+  let provider;
+  try {
+    provider = getPaymentProvider();
+  } catch (error) {
+    console.error("Course checkout provider unavailable", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("付款服務尚未啟用。", 503);
   }
 
-  if (!productRow) {
-    return jsonError("Product is not available.", 404);
+  const admin = createV2AdminClient();
+  const idempotencyKey = normalizeIdempotencyKey(body.idempotencyKey);
+  const { data, error: orderError } = await admin.rpc(
+    "create_student_course_checkout_order",
+    {
+      target_user_id: user.id,
+      target_provider: provider.name,
+      target_idempotency_key: idempotencyKey,
+    },
+  );
+
+  if (orderError || !data?.[0]) {
+    const mapped = mapCheckoutRpcError(orderError?.message ?? "unknown");
+    console.error("Course checkout order creation failed", {
+      code: orderError?.code ?? "NO_ORDER",
+      userId: user.id,
+    });
+    return jsonError(mapped.message, mapped.status);
   }
 
-  const { data: orderRow, error: orderError } = await admin
-    .from("orders")
-    .insert({
-      user_id: user.id,
-      product_id: productRow.id,
-      amount: productRow.amount,
-      currency: productRow.currency,
-      status: "pending",
-      provider: provider.name,
-    })
-    .select("id,user_id,product_id,amount,currency,provider")
-    .single();
+  const orderRow = data[0] as CheckoutOrderRow;
 
-  if (orderError) {
-    return jsonError(orderError.message, 500);
-  }
-
-  const providerOrderId = `${provider.name}_${orderRow.id}`;
-  const { error: providerOrderError } = await admin
-    .from("orders")
-    .update({ provider_order_id: providerOrderId })
-    .eq("id", orderRow.id);
-
-  if (providerOrderError) {
-    return jsonError(providerOrderError.message, 500, {
-      orderId: orderRow.id,
+  if (
+    orderRow.order_status === "processing" &&
+    orderRow.checkout_url?.startsWith(request.nextUrl.origin)
+  ) {
+    return NextResponse.json({
+      success: true,
+      orderId: orderRow.order_id,
+      pricing: orderRow.is_lab_discount ? "lab_discount" : "standard",
+      checkout: {
+        mode: "redirect",
+        checkoutUrl: orderRow.checkout_url,
+      },
     });
   }
 
-  const product: CheckoutProduct = {
-    id: productRow.id,
-    slug: productRow.slug,
-    name: productRow.name,
-    productType: productRow.product_type,
-    amount: productRow.amount,
-    currency: productRow.currency,
-    durationMonths: productRow.duration_months,
-    metadata: productRow.metadata ?? {},
-  };
+  const providerOrderId =
+    orderRow.provider_order_id ?? `${provider.name}_${orderRow.order_id}`;
+  const { error: providerOrderError } = await admin
+    .from("orders")
+    .update({ provider_order_id: providerOrderId })
+    .eq("id", orderRow.order_id)
+    .eq("user_id", user.id);
 
-  const order: CheckoutOrder = {
-    id: orderRow.id,
-    userId: orderRow.user_id,
-    productId: orderRow.product_id,
+  if (providerOrderError) {
+    console.error("Course checkout provider order update failed", {
+      code: providerOrderError.code,
+      orderId: orderRow.order_id,
+    });
+    return jsonError("目前無法準備付款訂單。", 500);
+  }
+
+  const product: CheckoutProduct = {
+    id: orderRow.product_id,
+    slug: orderRow.product_slug,
+    name: orderRow.product_name,
+    productType: orderRow.product_type,
     amount: orderRow.amount,
     currency: orderRow.currency,
-    provider: orderRow.provider as PaymentProviderName,
+    metadata: orderRow.product_metadata ?? {},
+  };
+  const order: CheckoutOrder = {
+    id: orderRow.order_id,
+    userId: orderRow.user_id,
+    productId: orderRow.product_id,
+    productPriceId: orderRow.product_price_id,
+    amount: orderRow.amount,
+    currency: orderRow.currency,
+    provider: provider.name,
     providerOrderId,
   };
 
   try {
+    const origin = request.nextUrl.origin;
     const checkout = await provider.createCheckout({
       order,
       product,
@@ -145,11 +184,11 @@ export async function POST(request: NextRequest) {
         email: user.email,
         name:
           typeof user.user_metadata?.full_name === "string"
-            ? user.user_metadata.full_name
+            ? user.user_metadata.full_name.slice(0, 120)
             : null,
       },
-      successUrl: `${siteUrl}/payment/success?orderId=${order.id}`,
-      failUrl: `${siteUrl}/payment/fail?orderId=${order.id}`,
+      successUrl: `${origin}/payment/success?orderId=${order.id}`,
+      failUrl: `${origin}/payment/fail?orderId=${order.id}`,
     });
 
     const { error: checkoutUpdateError } = await admin
@@ -160,36 +199,41 @@ export async function POST(request: NextRequest) {
         provider_order_id: checkout.providerOrderId,
         raw_checkout_payload: checkout.rawPayload ?? {},
       })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .eq("user_id", user.id);
 
     if (checkoutUpdateError) {
-      return jsonError(checkoutUpdateError.message, 500, {
+      console.error("Course checkout persistence failed", {
+        code: checkoutUpdateError.code,
         orderId: order.id,
       });
+      return jsonError("目前無法準備付款頁面。", 500);
     }
 
     return NextResponse.json({
       success: true,
       orderId: order.id,
+      pricing: orderRow.is_lab_discount ? "lab_discount" : "standard",
       checkout:
         checkout.mode === "redirect"
-          ? {
-              mode: checkout.mode,
-              checkoutUrl: checkout.checkoutUrl,
-            }
+          ? { mode: "redirect", checkoutUrl: checkout.checkoutUrl }
           : {
-              mode: checkout.mode,
+              mode: "form_post",
               actionUrl: checkout.actionUrl,
               fields: checkout.fields,
             },
     });
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Payment provider failed.";
-
-    return jsonError(message, message === "Not implemented" ? 501 : 500, {
-      orderId: order.id,
+    await admin
+      .from("orders")
+      .update({ status: "failed" })
+      .eq("id", order.id)
+      .eq("user_id", user.id);
+    console.error("Course checkout provider failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
       provider: provider.name,
+      orderId: order.id,
     });
+    return jsonError("付款服務目前無法建立結帳頁面。", 502);
   }
 }

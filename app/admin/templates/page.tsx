@@ -1,5 +1,7 @@
 import { savePromptTemplate } from "../actions";
-import { createClient } from "@/lib/supabase/server";
+import { AdminConfirmAction } from "@/components/admin/AdminConfirmAction";
+import { requireAdminContext } from "@/lib/admin/authorization";
+import { resolveAdminMessage } from "@/lib/admin/messages";
 import type {
   PromptTemplateTargetAi,
   PromptTemplateType,
@@ -24,28 +26,14 @@ type TemplateRow = {
   updated_at: string;
 };
 
-function resolveMessage(message?: string) {
-  if (!message) return "";
-
-  if (message === "template-saved") {
-    return "模板已更新，version 已自動 +1。";
-  }
-
-  if (message === "missing-template-fields") {
-    return "請填完整 system_role、context_template、task_template 與 output_template。";
-  }
-
-  return decodeURIComponent(message);
-}
-
 export default async function AdminTemplatesPage({
   searchParams,
 }: {
   searchParams: AdminTemplatesSearchParams;
 }) {
   const params = await searchParams;
-  const supabase = await createClient();
-  const { data, error } = await supabase
+  const { admin } = await requireAdminContext("/admin/templates");
+  const { data, error } = await admin
     .from("prompt_templates")
     .select(
       "id,target_ai,template_type,system_role,context_template,task_template,output_template,official_doc_notes,is_active,version,updated_at",
@@ -59,7 +47,8 @@ export default async function AdminTemplatesPage({
     templates.find((template) => template.id === params.selected) ??
     templates[0] ??
     null;
-  const message = error?.message ?? resolveMessage(params.message);
+  if (error) console.error("[admin-templates] Template lookup failed", { code: error.code });
+  const message = resolveAdminMessage(params.message);
 
   return (
     <section className="grid gap-5 lg:grid-cols-[20rem_1fr]">
@@ -120,6 +109,11 @@ export default async function AdminTemplatesPage({
         {message ? (
           <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
             {message}
+          </p>
+        ) : null}
+        {error ? (
+          <p className="mt-4 rounded-2xl border border-red-300/20 bg-red-400/10 px-4 py-3 text-sm text-red-100">
+            目前無法讀取 Prompt 模板，請稍後再試。
           </p>
         ) : null}
 
@@ -191,12 +185,13 @@ export default async function AdminTemplatesPage({
               />
             </label>
 
-            <button
-              type="submit"
-              className="rounded-2xl bg-blue-500 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
-            >
-              儲存模板並 version + 1
-            </button>
+            <AdminConfirmAction
+              confirmationToken="CONFIRM_TEMPLATE_UPDATE"
+              buttonLabel="儲存模板並 version + 1"
+              dialogTitle="確認更新 Active Prompt 模板？"
+              dialogDescription="新內容會影響後續 AI 指令產生，但不會修改既有歷史輸出。"
+              reasonPlaceholder="例如：依最新模型官方指引調整輸出格式"
+            />
           </form>
         ) : null}
       </section>

@@ -1,14 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProfessorLabControls } from "@/components/professor/ProfessorLabControls";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
+import { canAccessWorkspace } from "@/lib/workspace/access";
 
 type LabRow = {
   id: string;
   name: string;
   institution: string | null;
+  owner_professor_id: string;
   created_at: string;
   updated_at: string;
+};
+
+type ViewerLabMembershipRow = {
+  lab_id: string;
+  role: "professor" | "assistant";
 };
 
 type MembershipRow = {
@@ -25,20 +32,13 @@ type ProfileRow = {
   research_area: string | null;
 };
 
-type AuditJobRow = {
-  id: string;
-  lab_id: string | null;
-  user_id: string;
-  status: string;
-  updated_at: string;
-  completed_at: string | null;
-};
-
-type AuditResultRow = {
+type SharedAuditSummary = {
   job_id: string;
+  student_user_id: string;
   summary: string;
   risk_level: "low" | "medium" | "high" | null;
   issue_tags: string[];
+  completed_at: string | null;
   created_at: string;
 };
 
@@ -46,8 +46,7 @@ type StudentOverview = {
   labId: string;
   profile: ProfileRow;
   joinedAt: string;
-  latestJob: AuditJobRow | null;
-  latestResult: AuditResultRow | null;
+  latestSummary: SharedAuditSummary | null;
 };
 
 function riskBadgeClass(riskLevel: string | null | undefined) {
@@ -76,7 +75,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 async function getProfessorUser() {
-  const supabase = await createClient();
+  const supabase = await createV2Client();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -85,7 +84,7 @@ async function getProfessorUser() {
     redirect("/login?next=/professor/dashboard");
   }
 
-  const admin = createAdminClient();
+  const admin = createV2AdminClient();
   const { data: profile, error } = await admin
     .from("profiles")
     .select("id,email,full_name,role")
@@ -101,28 +100,93 @@ async function getProfessorUser() {
     throw new Error(error.message);
   }
 
-  if (profile?.role !== "professor") {
+  if (!profile || !canAccessWorkspace(profile.role, "professor")) {
     redirect("/dashboard");
   }
 
-  return { user, profile, admin };
+  return { user, profile, admin, supabase };
 }
 
 export default async function ProfessorDashboardPage() {
-  const { user, profile, admin } = await getProfessorUser();
+  const { user, profile, admin, supabase } = await getProfessorUser();
 
-  const { data: labsData, error: labsError } = await admin
+  const { data: currentSubscription, error: subscriptionError } = await admin
+    .from("subscriptions")
+    .select(
+      "id,lab_id,plan_key,status,current_period_end,grace_ends_at,cancel_at_period_end",
+    )
+    .eq("payer_user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (subscriptionError) {
+    console.error("Professor subscription lookup failed", {
+      code: subscriptionError.code,
+    });
+  }
+
+  const now = Date.now();
+  const subscriptionFunctional = Boolean(
+    currentSubscription &&
+      (((currentSubscription.status === "active" ||
+        currentSubscription.status === "trialing") &&
+        new Date(currentSubscription.current_period_end).getTime() > now) ||
+        (currentSubscription.status === "past_due" &&
+          currentSubscription.grace_ends_at &&
+          new Date(currentSubscription.grace_ends_at).getTime() > now)),
+  );
+  const subscriptionMode: "functional" | "read_only" | "none" =
+    subscriptionFunctional
+      ? "functional"
+      : currentSubscription
+        ? "read_only"
+        : "none";
+
+  const { data: ownedLabsData, error: ownedLabsError } = await admin
     .from("labs")
-    .select("id,name,institution,created_at,updated_at")
+    .select("id,name,institution,owner_professor_id,created_at,updated_at")
     .eq("owner_professor_id", user.id)
     .order("created_at", { ascending: false })
     .returns<LabRow[]>();
 
-  if (labsError) {
-    throw new Error(labsError.message);
+  if (ownedLabsError) {
+    throw new Error(ownedLabsError.message);
   }
 
+  const { data: viewerMembershipsData, error: viewerMembershipsError } =
+    profile.role === "professor"
+      ? await admin
+          .from("lab_memberships")
+          .select("lab_id,role")
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .in("role", ["professor", "assistant"])
+          .returns<ViewerLabMembershipRow[]>()
+      : { data: [], error: null };
+  if (viewerMembershipsError) {
+    throw new Error(viewerMembershipsError.message);
+  }
+
+  const visibleLabIds = [
+    ...new Set([
+      ...(ownedLabsData ?? []).map((lab) => lab.id),
+      ...(viewerMembershipsData ?? []).map((membership) => membership.lab_id),
+    ]),
+  ];
+  const { data: labsData, error: labsError } =
+    visibleLabIds.length > 0
+      ? await admin
+          .from("labs")
+          .select("id,name,institution,owner_professor_id,created_at,updated_at")
+          .in("id", visibleLabIds)
+          .order("created_at", { ascending: false })
+          .returns<LabRow[]>()
+      : { data: [], error: null };
+  if (labsError) throw new Error(labsError.message);
+
   const labs = labsData ?? [];
+  const ownedLabs = labs.filter((lab) => lab.owner_professor_id === user.id);
   const labIds = labs.map((lab) => lab.id);
   const { data: membershipsData, error: membershipsError } =
     labIds.length > 0
@@ -154,55 +218,29 @@ export default async function ProfessorDashboardPage() {
     throw new Error(profilesError.message);
   }
 
-  const { data: jobsData, error: jobsError } =
-    studentIds.length > 0 && labIds.length > 0
-      ? await admin
-          .from("ai_audit_jobs")
-          .select("id,lab_id,user_id,status,updated_at,completed_at")
-          .in("lab_id", labIds)
-          .in("user_id", studentIds)
-          .order("updated_at", { ascending: false })
-          .returns<AuditJobRow[]>()
-      : { data: [], error: null };
-
-  if (jobsError) {
-    throw new Error(jobsError.message);
-  }
-
-  const jobs = jobsData ?? [];
-  const jobIds = jobs.map((job) => job.id);
-  const { data: resultsData, error: resultsError } =
-    jobIds.length > 0
-      ? await admin
-          .from("ai_audit_results")
-          .select("job_id,summary,risk_level,issue_tags,created_at")
-          .in("job_id", jobIds)
-          .returns<AuditResultRow[]>()
-      : { data: [], error: null };
-
-  if (resultsError) {
-    throw new Error(resultsError.message);
-  }
+  const summaryResponses = await Promise.all(
+    labIds.map((labId) =>
+      supabase.rpc("get_shared_audit_summaries", {
+        target_lab_id: labId,
+      }),
+    ),
+  );
+  const summaryError = summaryResponses.find((response) => response.error)?.error;
+  if (summaryError) throw new Error(summaryError.message);
 
   const profilesById = new Map(
     (profilesData ?? []).map((studentProfile) => [studentProfile.id, studentProfile]),
   );
-  const resultsByJobId = new Map(
-    (resultsData ?? []).map((result) => [result.job_id, result]),
-  );
-  const latestJobByLabStudent = new Map<string, AuditJobRow>();
-
-  for (const job of jobs) {
-    if (!job.lab_id) {
-      continue;
+  const latestSummaryByLabStudent = new Map<string, SharedAuditSummary>();
+  summaryResponses.forEach((response, index) => {
+    const labId = labIds[index];
+    for (const summary of (response.data ?? []) as SharedAuditSummary[]) {
+      const key = `${labId}:${summary.student_user_id}`;
+      if (!latestSummaryByLabStudent.has(key)) {
+        latestSummaryByLabStudent.set(key, summary);
+      }
     }
-
-    const key = `${job.lab_id}:${job.user_id}`;
-
-    if (!latestJobByLabStudent.has(key)) {
-      latestJobByLabStudent.set(key, job);
-    }
-  }
+  });
 
   const studentsByLabId = new Map<string, StudentOverview[]>();
 
@@ -213,15 +251,14 @@ export default async function ProfessorDashboardPage() {
       continue;
     }
 
-    const latestJob = latestJobByLabStudent.get(
+    const latestSummary = latestSummaryByLabStudent.get(
       `${membership.lab_id}:${membership.user_id}`,
     );
     const overview: StudentOverview = {
       labId: membership.lab_id,
       profile: studentProfile,
       joinedAt: membership.joined_at,
-      latestJob: latestJob ?? null,
-      latestResult: latestJob ? (resultsByJobId.get(latestJob.id) ?? null) : null,
+      latestSummary: latestSummary ?? null,
     };
     const current = studentsByLabId.get(membership.lab_id) ?? [];
     current.push(overview);
@@ -242,24 +279,66 @@ export default async function ProfessorDashboardPage() {
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
                 這是正式的多租戶教授端入口，和 Phase 1 隱藏展示頁
-                /professor 分開。教授只能看到自己擁有的 Lab 與透過邀請碼加入的學生。
+                /professor 分開。你只能看到自己擁有或以 Professor/assistant
+                身分加入的 Lab，以及學生主動分享的安全摘要。
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
-              登入教授：{profile.full_name ?? profile.email}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Link
+                href="/learn"
+                className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-center text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15"
+              >
+                觀看 Lab 課程
+              </Link>
+              <Link
+                href="/billing"
+                className="rounded-2xl border border-blue-300/20 bg-blue-400/10 px-4 py-3 text-center text-sm font-semibold text-blue-100 transition hover:bg-blue-400/15"
+              >
+                管理訂閱
+              </Link>
+              <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
+                登入教授：{profile.full_name ?? profile.email}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-6">
-          <ProfessorLabControls
-            labs={labs.map((lab) => ({
-              id: lab.id,
-              name: lab.name,
-              institution: lab.institution,
-            }))}
-          />
+        <div className={`mt-6 rounded-3xl border p-5 ${subscriptionMode === "functional" ? "border-emerald-300/20 bg-emerald-400/10" : "border-amber-300/20 bg-amber-400/10"}`}>
+          <p className="text-sm font-semibold text-white">
+            {ownedLabs.length === 0 && labs.length > 0
+              ? "你目前以 Professor/assistant 成員身分加入 Lab"
+              : subscriptionMode === "functional"
+              ? `${currentSubscription?.plan_key === "professor_lab_plus" ? "Plus" : "Standard"} · ${currentSubscription?.status === "trialing" ? "30 天試用中" : currentSubscription?.status === "past_due" ? "15 天付款寬限中" : "訂閱使用中"}`
+              : subscriptionMode === "none"
+                ? "尚未啟用 Professor Lab 試用或訂閱"
+                : "訂閱目前為唯讀狀態"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-300">
+            {ownedLabs.length === 0 && labs.length > 0
+              ? "你可以查看同 Lab 成員與 consent summary，但不能建立邀請碼、移除成員或管理訂閱。"
+              : subscriptionMode === "functional"
+              ? "可管理 Lab、建立邀請碼並使用 Lab 指定影片。"
+              : "既有 Lab 與歷史安全摘要仍可查看；新增成員、Lab 影片與新 PDF 稽核會停用。"}
+          </p>
+          {ownedLabs.length > 0 && subscriptionMode !== "functional" ? (
+            <Link href="/pricing" className="mt-3 inline-flex text-sm font-semibold text-cyan-100 hover:text-white">
+              查看 Standard／Plus 與 30 天免綁卡試用 →
+            </Link>
+          ) : null}
         </div>
+
+        {profile.role === "professor" ? (
+          <div className="mt-6">
+            <ProfessorLabControls
+              labs={ownedLabs.map((lab) => ({
+                id: lab.id,
+                name: lab.name,
+                institution: lab.institution,
+              }))}
+              subscriptionMode={subscriptionMode}
+            />
+          </div>
+        ) : null}
 
         <section className="mt-8 space-y-5">
           {labs.length === 0 ? (
@@ -281,7 +360,8 @@ export default async function ProfessorDashboardPage() {
                         {lab.name}
                       </h2>
                       <p className="mt-1 text-sm text-slate-400">
-                        {lab.institution ?? "未設定單位"} · 學生 {students.length} 位
+                        {lab.institution ?? "未設定單位"} · 學生 {students.length} 位 ·{" "}
+                        {lab.owner_professor_id === user.id ? "Owner" : "Member"}
                       </p>
                     </div>
                     <Link
@@ -333,20 +413,20 @@ export default async function ProfessorDashboardPage() {
                                 </p>
                               </td>
                               <td className="max-w-xs px-4 py-4 text-slate-300">
-                                {student.latestResult?.summary ?? "尚無 AI 稽核摘要"}
+                                {student.latestSummary?.summary ?? "尚無 AI 稽核摘要"}
                               </td>
                               <td className="px-4 py-4">
                                 <span
                                   className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskBadgeClass(
-                                    student.latestResult?.risk_level,
+                                    student.latestSummary?.risk_level,
                                   )}`}
                                 >
-                                  {student.latestResult?.risk_level ?? "low"}
+                                  {student.latestSummary?.risk_level ?? "low"}
                                 </span>
                               </td>
                               <td className="px-4 py-4">
                                 <div className="flex flex-wrap gap-1">
-                                  {(student.latestResult?.issue_tags ?? [
+                                  {(student.latestSummary?.issue_tags ?? [
                                     "no_audit_yet",
                                   ]).map((tag) => (
                                     <span
@@ -360,8 +440,8 @@ export default async function ProfessorDashboardPage() {
                               </td>
                               <td className="px-4 py-4 text-slate-400">
                                 {formatDate(
-                                  student.latestJob?.completed_at ??
-                                    student.latestJob?.updated_at ??
+                                  student.latestSummary?.completed_at ??
+                                    student.latestSummary?.created_at ??
                                     student.joinedAt,
                                 )}
                               </td>

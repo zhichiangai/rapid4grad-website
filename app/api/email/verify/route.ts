@@ -1,212 +1,171 @@
-import { createHmac, randomInt, timingSafeEqual } from "crypto";
+import { randomInt, randomUUID } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
+import {
+  createVerifiedSessionToken,
+  EMAIL_CHALLENGE_COOKIE,
+  EMAIL_VERIFIED_SESSION_COOKIE,
+  EMAIL_VERIFIED_SESSION_TTL_SECONDS,
+  keyedHash,
+} from "@/lib/email-verification/session";
+import { createAdminClient } from "@/lib/supabase/server";
 
-type VerifyEmailPayload = {
-  action?: unknown;
-  email?: unknown;
-  token?: unknown;
-  pin?: unknown;
-};
-
+type VerifyEmailPayload = { action?: unknown; email?: unknown; pin?: unknown };
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PIN_PATTERN = /^\d{6}$/;
-const TOKEN_TTL_MS = 10 * 60 * 1000;
-
-function normalizeEmail(value: unknown) {
-  return typeof value === "string" ? value.trim().toLowerCase() : "";
-}
+const BODY_LIMIT_BYTES = 4096;
+const CHALLENGE_TTL_MS = 10 * 60 * 1000;
+const SEND_COOLDOWN_MS = 60 * 1000;
+const RATE_WINDOW_MS = 15 * 60 * 1000;
+const MAX_EMAIL_SENDS = 3;
+const MAX_IP_SENDS = 8;
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ success: false, error: message }, { status });
 }
 
-function getSigningSecret() {
-  const secret = process.env.SUPABASE_SECRET_KEY;
+function normalizeEmail(value: unknown) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
 
-  if (!secret) {
-    throw new Error("SUPABASE_SECRET_KEY is not configured.");
+function requestIp(request: NextRequest) {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "unknown"
+  );
+}
+
+async function parsePayload(request: NextRequest): Promise<VerifyEmailPayload | null> {
+  const declaredLength = Number(request.headers.get("content-length") ?? "0");
+  if (declaredLength > BODY_LIMIT_BYTES) return null;
+  const raw = await request.text();
+  if (Buffer.byteLength(raw, "utf8") > BODY_LIMIT_BYTES) return null;
+  try {
+    return JSON.parse(raw) as VerifyEmailPayload;
+  } catch {
+    return null;
   }
-
-  return secret;
-}
-
-function getResendClient() {
-  const apiKey = process.env.RESEND_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("RESEND_API_KEY is not configured.");
-  }
-
-  return new Resend(apiKey);
-}
-
-function signVerificationState({
-  email,
-  pin,
-  expiresAt,
-}: {
-  email: string;
-  pin: string;
-  expiresAt: number;
-}) {
-  return createHmac("sha256", getSigningSecret())
-    .update(`${email}.${pin}.${expiresAt}`, "utf8")
-    .digest("hex");
-}
-
-function buildToken({
-  email,
-  pin,
-  expiresAt,
-}: {
-  email: string;
-  pin: string;
-  expiresAt: number;
-}) {
-  const signature = signVerificationState({ email, pin, expiresAt });
-  return `${expiresAt}.${signature}`;
-}
-
-function isSignatureValid({
-  expected,
-  received,
-}: {
-  expected: string;
-  received: string;
-}) {
-  const expectedBuffer = Buffer.from(expected, "hex");
-  const receivedBuffer = Buffer.from(received, "hex");
-
-  if (expectedBuffer.length !== receivedBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(expectedBuffer, receivedBuffer);
-}
-
-function generatePin() {
-  return randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 
 function buildEmailHtml(pin: string) {
-  return `
-    <div style="margin:0;padding:32px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
-      <div style="max-width:640px;margin:0 auto;border:1px solid rgba(148,163,184,0.18);border-radius:28px;background:linear-gradient(180deg,#0f172a,#020617);padding:32px;box-shadow:0 24px 80px rgba(30,64,175,0.24);">
-        <p style="margin:0;color:#93c5fd;font-size:12px;font-weight:700;letter-spacing:0.24em;text-transform:uppercase;">RAPID4GRAD</p>
-        <h1 style="margin:18px 0 0;color:#ffffff;font-size:28px;line-height:1.35;">AI 指令產生器免費額度驗證碼</h1>
-        <p style="margin:16px 0 0;color:#cbd5e1;font-size:15px;line-height:1.8;">
-          你正在驗證 RAPID4GRAD 研究報告 AI 指令產生器的免費使用額度。請在 10 分鐘內回到頁面輸入以下 6 位數驗證碼。
-        </p>
-        <div style="margin:28px 0;padding:24px;border-radius:24px;background:rgba(37,99,235,0.16);border:1px solid rgba(147,197,253,0.26);text-align:center;">
-          <p style="margin:0;color:#bfdbfe;font-size:13px;letter-spacing:0.16em;text-transform:uppercase;">Verification Code</p>
-          <p style="margin:12px 0 0;color:#ffffff;font-size:42px;line-height:1;font-weight:800;letter-spacing:0.22em;font-family:'SFMono-Regular',Consolas,monospace;">${pin}</p>
-        </div>
-        <p style="margin:0;color:#94a3b8;font-size:13px;line-height:1.8;">
-          若你沒有要求這封信，可以直接忽略。此驗證碼只用於 RAPID4GRAD Phase 1 免費額度解鎖，不會要求你回覆密碼或付款資訊。
-        </p>
-      </div>
-    </div>
-  `;
+  return `<div style="margin:0;padding:32px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><div style="max-width:640px;margin:0 auto;border:1px solid rgba(148,163,184,.18);border-radius:28px;background:#0f172a;padding:32px"><p style="color:#93c5fd;font-weight:700;letter-spacing:.24em">RAPID4GRAD</p><h1 style="color:#fff">AI 指令產生器免費額度驗證碼</h1><p>請在 10 分鐘內輸入以下驗證碼：</p><p style="font-size:42px;font-weight:800;letter-spacing:.22em;color:#fff;text-align:center">${pin}</p><p style="color:#94a3b8">若你沒有要求這封信，可以直接忽略。</p></div></div>`;
 }
 
-async function handleSend(email: string) {
-  const pin = generatePin();
-  const expiresAt = Date.now() + TOKEN_TTL_MS;
-  const token = buildToken({ email, pin, expiresAt });
-  const resend = getResendClient();
+async function sendChallenge(request: NextRequest, email: string) {
+  const supabase = createAdminClient();
+  const emailHash = keyedHash("email", email);
+  const ipHash = keyedHash("ip", requestIp(request));
+  const now = Date.now();
+  const challengeId = randomUUID();
+  const pin = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const expiresAt = new Date(now + CHALLENGE_TTL_MS).toISOString();
+  const { data: createStatus, error: createError } = await supabase.rpc(
+    "create_email_verification_challenge",
+    {
+      target_id: challengeId,
+      target_email_hash: emailHash,
+      target_pin_hash: keyedHash("pin", `${challengeId}:${pin}`),
+      target_ip_hash: ipHash,
+      target_expires_at: expiresAt,
+      target_cooldown_seconds: SEND_COOLDOWN_MS / 1000,
+      target_window_seconds: RATE_WINDOW_MS / 1000,
+      target_max_email_sends: MAX_EMAIL_SENDS,
+      target_max_ip_sends: MAX_IP_SENDS,
+    },
+  );
 
-  const { error } = await resend.emails.send({
+  if (createError) {
+    console.error("[email-verify] Atomic challenge creation failed", {
+      code: createError.code,
+    });
+    return jsonError("目前無法發送驗證碼，請稍後再試。", 503);
+  }
+  if (createStatus === "cooldown") {
+    return jsonError("請稍候一分鐘再重新發送驗證碼。", 429);
+  }
+  if (createStatus !== "created") {
+    return jsonError("驗證碼請求過於頻繁，請稍後再試。", 429);
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return jsonError("目前無法發送驗證碼，請稍後再試。", 503);
+  const { error: resendError } = await new Resend(apiKey).emails.send({
     from: process.env.RESEND_FROM_EMAIL || "RAPID4GRAD <onboarding@resend.dev>",
     to: email,
     subject: "【RAPID4GRAD】你的 AI 指令產生器免費額度驗證碼",
     html: buildEmailHtml(pin),
   });
-
-  if (error) {
-    return NextResponse.json(
-      { success: false, error: "Failed to send verification email." },
-      { status: 502 },
-    );
+  if (resendError) {
+    console.error("[email-verify] Resend delivery failed");
+    await supabase.from("email_verification_challenges").delete().eq("id", challengeId);
+    return jsonError("驗證碼寄送失敗，請稍後再試。", 502);
   }
 
-  return NextResponse.json({ success: true, token });
+  const response = NextResponse.json({ success: true });
+  response.cookies.set(EMAIL_CHALLENGE_COOKIE, challengeId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: CHALLENGE_TTL_MS / 1000,
+    path: "/",
+  });
+  return response;
 }
 
-function handleVerify({
-  email,
-  token,
-  pin,
-}: {
-  email: string;
-  token: string;
-  pin: string;
-}) {
-  const [expiresAtRaw, receivedSignature] = token.split(".");
-  const expiresAt = Number(expiresAtRaw);
-
-  if (!expiresAtRaw || !receivedSignature || !Number.isFinite(expiresAt)) {
-    return jsonError("Invalid verification token.");
+async function verifyChallenge(request: NextRequest, email: string, pin: string) {
+  const challengeId = request.cookies.get(EMAIL_CHALLENGE_COOKIE)?.value;
+  if (!challengeId || !/^[0-9a-f-]{36}$/i.test(challengeId)) {
+    return jsonError("驗證流程已失效，請重新發送驗證碼。", 400);
   }
 
-  if (Date.now() > expiresAt) {
-    return jsonError("Verification code has expired.");
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("verify_email_challenge", {
+    target_id: challengeId,
+    target_email_hash: keyedHash("email", email),
+    target_pin_hash: keyedHash("pin", `${challengeId}:${pin}`),
+  });
+  if (error) {
+    console.error("[email-verify] Challenge verification failed", { code: error.code });
+    return jsonError("目前無法完成驗證，請稍後再試。", 503);
+  }
+  if (data !== "verified") {
+    const message = data === "expired" ? "驗證碼已過期，請重新發送。" : data === "locked" ? "驗證錯誤次數過多，請重新發送驗證碼。" : "驗證碼錯誤。";
+    return jsonError(message, 400);
   }
 
-  const expectedSignature = signVerificationState({ email, pin, expiresAt });
-
-  if (
-    !isSignatureValid({
-      expected: expectedSignature,
-      received: receivedSignature,
-    })
-  ) {
-    return jsonError("Invalid verification code.");
-  }
-
-  return NextResponse.json({ success: true });
+  const expiresAt = Date.now() + EMAIL_VERIFIED_SESSION_TTL_SECONDS * 1000;
+  const token = createVerifiedSessionToken({ challengeId, email, expiresAt });
+  const response = NextResponse.json({ success: true });
+  response.cookies.set(EMAIL_VERIFIED_SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: EMAIL_VERIFIED_SESSION_TTL_SECONDS,
+    path: "/",
+  });
+  response.cookies.delete(EMAIL_CHALLENGE_COOKIE);
+  return response;
 }
 
 export async function POST(request: NextRequest) {
-  let payload: VerifyEmailPayload;
-
-  try {
-    payload = (await request.json()) as VerifyEmailPayload;
-  } catch {
-    return jsonError("Invalid JSON payload.");
-  }
-
-  const action = payload.action;
+  const payload = await parsePayload(request);
+  if (!payload) return jsonError("無效的請求格式。", 400);
   const email = normalizeEmail(payload.email);
-
-  if (action !== "send" && action !== "verify") {
-    return jsonError("Invalid action.");
-  }
-
-  if (!EMAIL_PATTERN.test(email)) {
-    return jsonError("Invalid email format.");
-  }
+  if (email.length > 254 || !EMAIL_PATTERN.test(email)) return jsonError("請輸入有效的 Email。", 400);
 
   try {
-    if (action === "send") {
-      return await handleSend(email);
+    if (payload.action === "send") return await sendChallenge(request, email);
+    if (payload.action === "verify") {
+      const pin = typeof payload.pin === "string" ? payload.pin.trim() : "";
+      if (!PIN_PATTERN.test(pin)) return jsonError("請輸入 6 位數驗證碼。", 400);
+      return await verifyChallenge(request, email, pin);
     }
-
-    const token = typeof payload.token === "string" ? payload.token : "";
-    const pin = typeof payload.pin === "string" ? payload.pin.trim() : "";
-
-    if (!token || !PIN_PATTERN.test(pin)) {
-      return jsonError("Token and 6-digit PIN are required.");
-    }
-
-    return handleVerify({ email, token, pin });
+    return jsonError("無效的驗證動作。", 400);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Email verification failed.";
-
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 },
-    );
+    console.error("[email-verify] Unexpected failure", {
+      name: error instanceof Error ? error.name : "UnknownError",
+    });
+    return jsonError("目前無法完成驗證，請稍後再試。", 500);
   }
 }
