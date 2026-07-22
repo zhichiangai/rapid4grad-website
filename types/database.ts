@@ -848,6 +848,14 @@ export type Database = {
         };
         Returns: string;
       };
+      verify_email_challenge: {
+        Args: {
+          target_id: string;
+          target_email_hash: string;
+          target_pin_hash: string;
+        };
+        Returns: string;
+      };
       get_shared_audit_summaries: {
         Args: {
           target_lab_id: string;
