@@ -172,6 +172,48 @@ SELECT :'lab_one'::UUID,
   'student', 'active'
 FROM generate_series(1, 15) AS series;
 
+UPDATE public.profiles
+SET role = 'professor'
+WHERE id IN (
+  'b1000000-0000-0000-0000-000000000028'::UUID,
+  'b1000000-0000-0000-0000-000000000029'::UUID,
+  'b1000000-0000-0000-0000-000000000030'::UUID,
+  'b1000000-0000-0000-0000-000000000031'::UUID
+);
+
+INSERT INTO public.lab_memberships(lab_id, user_id, role, status)
+SELECT
+  :'lab_one'::UUID,
+  ('b1000000-0000-0000-0000-' || lpad(series::TEXT, 12, '0'))::UUID,
+  'assistant',
+  'active'
+FROM generate_series(28, 30) AS series;
+
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.lab_memberships(lab_id, user_id, role, status)
+    VALUES (
+      (SELECT id FROM public.labs
+       WHERE owner_professor_id = 'a1000000-0000-0000-0000-000000000001'::UUID
+         AND status = 'active'),
+      'b1000000-0000-0000-0000-000000000031'::UUID,
+      'assistant',
+      'active'
+    );
+    RAISE EXCEPTION 'fourth active assistant unexpectedly succeeded';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%assistant_limit_reached%' THEN RAISE; END IF;
+  END;
+END;
+$$;
+
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 3 FROM public.lab_memberships
+   WHERE lab_id = :'lab_one'::UUID AND role = 'assistant' AND status = 'active'),
+  'A Lab must allow at most three active assistants'
+);
+
 DO $$
 BEGIN
   BEGIN

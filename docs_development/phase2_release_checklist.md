@@ -842,3 +842,79 @@ app/dashboard/ai-audit/history/page.tsx
 - 本機可解決的 Phase 2 schema、RLS、RPC、concurrency、Storage isolation、OAuth純邏輯與編譯工作已完成，未發現新的本機程式阻塞。
 - Repo可安全進入 GitHub push/PR候選階段，但本輪不 push。
 - Phase 2尚不可宣告 Production-ready；外部 E2E與隔離 Supabase migration驗收仍是 release gate。
+
+---
+
+## 15. 2026-07-22 V2 Task 9 Local Integration Validation
+
+本節記錄 `v2/lab-pdf-shared-pool` branch 的 V2 Task 9 本機驗收。驗收基準為 commit `dc4a5ca` 加上尚未提交的 Task 8 Admin、Email verification P0 修補與測試變更。本輪沒有執行 commit、push、merge、deploy、remote SQL 或任何雲端設定修改。
+
+### 15.1 P0 Email verification 修補
+
+新增 local-only migration：
+
+```text
+supabase/migrations/20260722190000_restore_email_verification_rpcs.sql
+```
+
+修補內容：
+
+- 建立 `create_email_verification_challenge` 原子 RPC。
+- 以 transaction advisory lock 保護相同 Email/IP 的 cooldown 與 rate limit。
+- 建立 `verify_email_challenge` 原子 RPC，以 row lock 累加 `failed_attempts`。
+- 第 5 次錯誤 PIN 會鎖定 challenge，過期 challenge 不可再驗證。
+- 兩個 RPC 均使用固定 `search_path`、撤銷 `PUBLIC`、`anon`、`authenticated` 執行權，只授權 `service_role`。
+- `types/database.ts` 已同步 RPC 型別。
+- 新增 Local integration fixture、並行測試 runner 與 contract test。
+
+此 migration 尚未套用任何 remote Supabase 環境。
+
+### 15.2 Local integration matrix
+
+| 領域 | 狀態 | 本機驗證結果 |
+|---|---|---|
+| V2 migration replay | Passed | 從空白 Local Supabase 依序重播 V2 baseline、Task 3 至 Task 8 與 Email P0 migration，共 15 份 migration 成功。 |
+| Profiles 權限 | Passed | 基本個人欄位可更新；role、billing、entitlement 等敏感欄位不可由一般 authenticated user 更新。 |
+| Email verification | Passed | cooldown、Email/IP 次數限制、錯誤 PIN、5 次鎖定、過期與平行請求均通過；相同 Email/IP 平行建立只產生一筆 challenge。 |
+| Student 永久課程 | Passed | `course_full` 永久 entitlement、payment idempotency、並行付款與人工退款審查規則通過。 |
+| 三層課程內容 | Passed | `public_preview`、`lab_basic`、`full_course` 權限隔離通過；Professor/assistant 不可查看學生影片進度。 |
+| Professor subscription | Passed | 單一 owned Lab、單一 current subscription、30 天免綁卡 trial、15 天 past_due grace 與唯讀失效 workspace 通過。 |
+| Lab seats 與 assistants | Passed | Standard 第 16 位被阻擋、Plus 上限 30、active assistant 最多 3 位。 |
+| Lab invite/join/remove | Passed | 每位 student 僅一個 active Lab；final-slot concurrency 只允許一人成功；移除 member 會同步撤銷 consent 並留下 action log。 |
+| Lab shared PDF credits | Passed | reserve、settle、refund、idempotency 與最後額度 concurrency 通過。 |
+| Private PDF isolation | Passed | 僅 owner 可讀 private PDF；Professor、assistant、admin 不可讀 Storage PDF object 或 raw audit。 |
+| Summary consent | Passed | same-Lab active staff 只可讀固定七欄 summary；cross-Lab、inactive assistant 與 revoke 後皆為 0 rows。 |
+| Admin control plane | Passed | mutation 必須有 reason、server-side role check、二次確認與 action log；log 不保存 raw audit/PDF/secret。 |
+| Stripe local lifecycle | Passed | ordering、duplicate、retry、同秒 restrictive state 與 terminal subscription 防恢復 contract/integration 測試通過。 |
+| OAuth/workspace 邏輯 | Passed | callback 使用 current origin；safe `next` 拒絕 `https://` 與 `//`；student/professor/admin fallback 通過靜態測試。 |
+| Phase 1 Prompt Builder fallback | Passed | `/ai-command` 與 `/dashboard/ai-command` route、匿名試用、CMS fallback、外部執行指引與零後端 LLM contract 通過。 |
+
+### 15.3 Quality gates
+
+```text
+npm test                                  Passed: 67/67
+npm run lint                              Passed
+npx tsc --noEmit --incremental false      Passed
+npm run build                             Passed: Next.js 15.5.19, 60 pages
+git diff --check                          Passed
+```
+
+第一次 sandbox build 因無法寫入 `.next/trace` 回傳 `EPERM`；取得本機專案建置輸出寫入權限後完整 build 通過。此為執行環境權限，不是程式缺陷。
+
+### 15.4 Blocked External
+
+以下項目不可由本機驗收取代，目前仍是外部 release gate：
+
+- 真實 Google OAuth provider 登入、cookie/session 交換與 Preview workspace redirect。
+- Resend OTP 與 Quiz 結果信的實際投遞、退信與寄件網域行為。
+- ECPay 真實 checkout、付款通知、取消與重送事件。
+- 真實 AI provider PDF streaming、runtime persistence、token/cost 與失敗恢復。
+- Vercel Preview environment scope、middleware、Server Components、function logs 與 deployment protection。
+- Remote Supabase migration、RLS、Storage bucket/policy 與 Auth 整合。
+
+### 15.5 Gate conclusion
+
+- V2 Task 9 可在本機完成的 migration replay、RLS、RPC、concurrency、Storage isolation、OAuth 純邏輯、Phase 1 fallback 與 production build 均已通過。
+- Task 8 Admin 與本輪 Email P0 修補仍未 commit，必須先由使用者審核 Git scope。
+- 本機驗收完成不代表 Preview 或 Production 已完成。
+- 下一步只能在另行明確授權後進行 commit/push、V2 Preview Supabase migration 與 Vercel Preview E2E。

@@ -21,6 +21,14 @@ const checkoutRoute = readFileSync(
   new URL("../app/api/billing/checkout/route.ts", import.meta.url),
   "utf8",
 );
+const professorDashboard = readFileSync(
+  new URL("../app/professor/dashboard/page.tsx", import.meta.url),
+  "utf8",
+);
+const professorLabPage = readFileSync(
+  new URL("../app/professor/labs/[labId]/page.tsx", import.meta.url),
+  "utf8",
+);
 
 test("official ECPay checksum example matches", () => {
   const fields = {
@@ -147,5 +155,12 @@ test("idempotent checkout retries return every provider input field", () => {
   assert.ok(reuseBranch);
   for (const field of ["productName", "planKey", "billingInterval"]) {
     assert.match(reuseBranch, new RegExp(`'${field}'`));
+  }
+});
+
+test("expired Professor subscriptions retain a read-only workspace", () => {
+  for (const source of [professorDashboard, professorLabPage]) {
+    assert.match(source, /const subscriptionMode: "functional" \| "read_only" \| "none"/);
+    assert.match(source, /currentSubscription\s*\?\s*"read_only"\s*:\s*"none"/);
   }
 });
