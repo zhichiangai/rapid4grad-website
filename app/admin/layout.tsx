@@ -9,6 +9,7 @@ const adminLinks = [
   { href: "/admin/subscriptions", label: "訂閱" },
   { href: "/admin/orders", label: "訂單" },
   { href: "/admin/pdf-credits", label: "PDF 額度" },
+  { href: "/admin/previews", label: "介面預覽" },
   { href: "/admin/action-logs", label: "操作紀錄" },
   { href: "/admin/leads", label: "Leads" },
   { href: "/admin/quotas", label: "Legacy 額度" },
