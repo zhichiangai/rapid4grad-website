@@ -24,11 +24,9 @@ import { UsageGateModal } from "./UsageGateModal";
 type UsageStatus =
   | "allowed"
   | "verification_required"
-  | "quota_exceeded"
   | "error";
 
 interface AiCommandContainerProps {
-  initialAnonymousTrialUsed: boolean;
   isDashboardRoute?: boolean;
   activePromptTemplates?: PromptTemplate[];
   promptTemplateLoadError?: string;
@@ -43,7 +41,6 @@ function splitLines(value: string) {
 }
 
 export function AiCommandContainer({
-  initialAnonymousTrialUsed,
   isDashboardRoute = false,
   activePromptTemplates = [],
   promptTemplateLoadError,
@@ -68,16 +65,11 @@ export function AiCommandContainer({
   const [error, setError] = useState<string | null>(null);
   const [hasVerifiedEmailSession, setHasVerifiedEmailSession] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [anonymousTrialUsed, setAnonymousTrialUsed] = useState(
-    initialAnonymousTrialUsed,
-  );
   const [usageGate, setUsageGate] = useState<{
     isOpen: boolean;
-    reason: "verification_required" | "quota_exceeded" | null;
     message: string;
   }>({
     isOpen: false,
-    reason: null,
     message: "",
   });
 
@@ -119,15 +111,6 @@ export function AiCommandContainer({
       return;
     }
 
-    if (!canUseVerifiedSession && anonymousTrialUsed) {
-      setUsageGate({
-        isOpen: true,
-        reason: "verification_required",
-        message: "免費試用已使用 1 次，請輸入 Email 驗證後繼續使用。",
-      });
-      return;
-    }
-
     setIsSubmitting(true);
     setError(null);
 
@@ -156,21 +139,14 @@ export function AiCommandContainer({
       };
 
       if (result.status === "allowed") {
-        if (result.isAnonymousTrial) {
-          setAnonymousTrialUsed(true);
-        }
         setGeneratedPrompt(prompt);
         setError(null);
         return;
       }
 
-      if (
-        result.status === "verification_required" ||
-        result.status === "quota_exceeded"
-      ) {
+      if (result.status === "verification_required") {
         setUsageGate({
           isOpen: true,
-          reason: result.status,
           message: result.message || "",
         });
         return;
@@ -192,7 +168,6 @@ export function AiCommandContainer({
     setHasVerifiedEmailSession(true);
     setUsageGate({
       isOpen: false,
-      reason: null,
       message: "",
     });
     void generateWithUsageCheck(true);
@@ -270,7 +245,7 @@ export function AiCommandContainer({
               disabled={isSubmitting}
               className="w-full rounded-2xl bg-blue-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              {isSubmitting ? "檢查免費額度中..." : "產生 AI 指令"}
+              {isSubmitting ? "確認使用資格中..." : "產生 AI 指令"}
             </button>
           </div>
         </div>
@@ -280,20 +255,18 @@ export function AiCommandContainer({
 
       {!isDashboardRoute ? (
         <div className="mx-auto mt-6 w-full max-w-6xl rounded-[2rem] border border-blue-300/15 bg-blue-500/10 p-5 text-sm leading-6 text-blue-50">
-          免費試用入口：第一次可免登入生成。若你已購買課程，請使用 Google 登入後進入 Dashboard，即可使用付費權限。
+          免費工具：未登入可產生 20 次。完成 Email 驗證或使用 Google 登入後，即可不限次使用；不需要購買課程。
         </div>
       ) : null}
 
       {!previewMode ? (
         <UsageGateModal
           isOpen={usageGate.isOpen}
-          reason={usageGate.reason}
           message={usageGate.message}
           onVerified={handleUsageVerified}
           onClose={() =>
             setUsageGate({
               isOpen: false,
-              reason: null,
               message: "",
             })
           }

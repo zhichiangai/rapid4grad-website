@@ -59,8 +59,8 @@ const adminCards = [
   {
     href: "/admin/quotas",
     eyebrow: "Legacy Prompt",
-    title: "免費額度管理",
-    description: "保留 Phase 1 Prompt Builder 免費額度解鎖。",
+    title: "舊版額度紀錄",
+    description: "僅供查看 Phase 1 歷史紀錄；V2 Prompt Builder 不再依此限制。",
   },
   {
     href: "/admin/templates",

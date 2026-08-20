@@ -15,8 +15,17 @@ const builder = readSource("../lib/prompt-builder/builder.ts");
 test("Phase 1 Prompt Builder keeps public and authenticated entry points", () => {
   assert.match(publicPage, /AiCommandContainer/);
   assert.match(dashboardPage, /AiCommandContainer/);
-  assert.match(publicPage, /hasUsedAnonymousTrial/);
+  assert.match(publicPage, /20 次/);
   assert.match(dashboardPage, /prompt_templates/);
+});
+
+test("Prompt Builder uses a 20-use anonymous browser allowance and unlimited verified access", () => {
+  const usageRoute = readSource("../app/api/ai-usage/route.ts");
+
+  assert.match(usageRoute, /ANONYMOUS_TRIAL_LIMIT = 20/);
+  assert.match(usageRoute, /if \(userId \|\| verifiedSession\)/);
+  assert.doesNotMatch(usageRoute, /\.from\("free_usage_quotas"\)/);
+  assert.doesNotMatch(usageRoute, /hasPaidToolAccess/);
 });
 
 test("Phase 1 Prompt Builder retains local template fallback and external execution", () => {

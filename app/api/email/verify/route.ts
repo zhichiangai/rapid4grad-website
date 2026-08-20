@@ -49,7 +49,7 @@ async function parsePayload(request: NextRequest): Promise<VerifyEmailPayload | 
 }
 
 function buildEmailHtml(pin: string) {
-  return `<div style="margin:0;padding:32px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><div style="max-width:640px;margin:0 auto;border:1px solid rgba(148,163,184,.18);border-radius:28px;background:#0f172a;padding:32px"><p style="color:#93c5fd;font-weight:700;letter-spacing:.24em">RAPID4GRAD</p><h1 style="color:#fff">AI 指令產生器免費額度驗證碼</h1><p>請在 10 分鐘內輸入以下驗證碼：</p><p style="font-size:42px;font-weight:800;letter-spacing:.22em;color:#fff;text-align:center">${pin}</p><p style="color:#94a3b8">若你沒有要求這封信，可以直接忽略。</p></div></div>`;
+  return `<div style="margin:0;padding:32px;background:#020617;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"><div style="max-width:640px;margin:0 auto;border:1px solid rgba(148,163,184,.18);border-radius:28px;background:#0f172a;padding:32px"><p style="color:#93c5fd;font-weight:700;letter-spacing:.24em">RAPID4GRAD</p><h1 style="color:#fff">AI 指令產生器 Email 驗證碼</h1><p>完成驗證後，你可以不限次使用免費 AI 指令產生器。請在 10 分鐘內輸入以下驗證碼：</p><p style="font-size:42px;font-weight:800;letter-spacing:.22em;color:#fff;text-align:center">${pin}</p><p style="color:#94a3b8">若你沒有要求這封信，可以直接忽略。</p></div></div>`;
 }
 
 async function sendChallenge(request: NextRequest, email: string) {
@@ -93,7 +93,7 @@ async function sendChallenge(request: NextRequest, email: string) {
   const { error: resendError } = await new Resend(apiKey).emails.send({
     from: process.env.RESEND_FROM_EMAIL || "RAPID4GRAD <onboarding@resend.dev>",
     to: email,
-    subject: "【RAPID4GRAD】你的 AI 指令產生器免費額度驗證碼",
+    subject: "【RAPID4GRAD】你的 AI 指令產生器 Email 驗證碼",
     html: buildEmailHtml(pin),
   });
   if (resendError) {

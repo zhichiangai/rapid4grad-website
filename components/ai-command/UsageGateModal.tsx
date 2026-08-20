@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 
-type UsageGateReason = "verification_required" | "quota_exceeded";
-
 type ApiResponse = {
   success?: boolean;
   error?: string;
@@ -11,7 +9,6 @@ type ApiResponse = {
 
 interface UsageGateModalProps {
   isOpen: boolean;
-  reason?: UsageGateReason | null;
   message?: string;
   onVerified: () => void;
   onClose: () => void;
@@ -22,7 +19,6 @@ const PIN_PATTERN = /^\d{6}$/;
 
 export function UsageGateModal({
   isOpen,
-  reason,
   message,
   onVerified,
   onClose,
@@ -143,9 +139,7 @@ export function UsageGateModal({
               Usage Gate
             </p>
             <h2 className="mt-3 text-2xl font-semibold tracking-tight">
-              {reason === "quota_exceeded"
-                ? "免費額度已用完"
-                : "請先完成 Email 驗證"}
+              請先完成 Email 驗證
             </h2>
           </div>
           <button
@@ -159,18 +153,10 @@ export function UsageGateModal({
 
         <p className="mt-4 text-sm leading-6 text-slate-400">
           {message ||
-            "匿名免費試用已使用。輸入 Email 驗證後，每日可生成 2 次，總共 3 次免費額度。"}
+            "完成 Email 驗證後，即可不限次使用 AI 指令產生器。"}
         </p>
 
-        {reason === "quota_exceeded" ? (
-          <a
-            href="/course"
-            className="mt-6 inline-flex w-full justify-center rounded-2xl bg-blue-500 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:bg-blue-400"
-          >
-            查看課程方案
-          </a>
-        ) : (
-          <div className="mt-6 space-y-4">
+        <div className="mt-6 space-y-4">
             <label className="block">
               <span className="text-sm font-medium text-slate-200">Email</span>
               <div className="mt-2 flex gap-2">
@@ -216,8 +202,7 @@ export function UsageGateModal({
             >
               {isVerifying ? "驗證中..." : "驗證並解鎖生成"}
             </button>
-          </div>
-        )}
+        </div>
 
         {localMessage ? (
           <p className="mt-4 rounded-2xl border border-emerald-300/20 bg-emerald-500/10 px-4 py-3 text-sm leading-6 text-emerald-100">

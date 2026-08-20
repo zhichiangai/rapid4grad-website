@@ -1,14 +1,8 @@
-import { cookies } from "next/headers";
 import { AiCommandContainer } from "@/components/ai-command/AiCommandContainer";
 import { createClient } from "@/lib/supabase/server";
 import type { PromptTemplate } from "@/lib/prompt-builder/types";
 
-const ANONYMOUS_TRIAL_COOKIE = "rapid_anon_ai_trial_used";
-
 export default async function AiCommandPage() {
-  const cookieStore = await cookies();
-  const hasUsedAnonymousTrial =
-    cookieStore.get(ANONYMOUS_TRIAL_COOKIE)?.value === "true";
   const supabase = await createClient();
   const { data: promptTemplates, error: promptTemplateError } = await supabase
     .from("prompt_templates")
@@ -48,7 +42,6 @@ export default async function AiCommandPage() {
       </div>
 
       <AiCommandContainer
-        initialAnonymousTrialUsed={hasUsedAnonymousTrial}
         isDashboardRoute
         activePromptTemplates={activePromptTemplates}
         promptTemplateLoadError={promptTemplateError?.message}

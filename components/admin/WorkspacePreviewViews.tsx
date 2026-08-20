@@ -325,7 +325,7 @@ export function StudentWorkspacePreview({
         <div className="mx-auto w-full max-w-6xl px-4 pt-10">
           <PreviewPageHeader eyebrow="RAPID4GRAD TOOL" title="🎓 研究報告 AI 指令產生器" description="選擇研究情境，產生可貼到外部 AI 的學術指令。Preview 會在瀏覽器內完成拼接。" />
         </div>
-        <AiCommandContainer previewMode initialAnonymousTrialUsed={false} isDashboardRoute />
+          <AiCommandContainer previewMode isDashboardRoute />
       </main>
     );
   } else if (activeHref === "/dashboard/ai-audit") {

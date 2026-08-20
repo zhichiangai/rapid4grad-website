@@ -1,5 +1,3 @@
-import { unlockQuota } from "../actions";
-import { AdminConfirmAction } from "@/components/admin/AdminConfirmAction";
 import { requireAdminContext } from "@/lib/admin/authorization";
 import { resolveAdminMessage } from "@/lib/admin/messages";
 
@@ -47,7 +45,7 @@ export default async function AdminQuotasPage({
       quota = data as QuotaRow | null;
       if (!quota && !message) {
         message =
-          "找不到這個 Email 的免費額度紀錄，可直接按下方按鈕建立並解鎖。";
+          "找不到這個 Email 的舊版額度紀錄。V2 AI 指令產生器不再建立或使用此資料。";
       }
     }
   }
@@ -55,9 +53,12 @@ export default async function AdminQuotasPage({
   return (
     <section className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-blue-950/20">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
-        Free Usage Quotas
+        Legacy Usage Archive
       </p>
-      <h2 className="mt-2 text-2xl font-semibold">免費額度管理</h2>
+      <h2 className="mt-2 text-2xl font-semibold">舊版免費額度紀錄</h2>
+      <p className="mt-2 text-sm leading-6 text-slate-400">
+        V2 AI 指令產生器改為匿名 20 次、Email 驗證或 Google 登入後不限次使用；此頁只保留 Phase 1 相容資料。
+      </p>
 
       <form
         action="/admin/quotas"
@@ -78,20 +79,9 @@ export default async function AdminQuotasPage({
         </button>
       </form>
 
-      <form action={unlockQuota} className="mt-3">
-        <input type="hidden" name="email" value={normalizedEmail} />
-        {normalizedEmail ? (
-          <AdminConfirmAction
-            confirmationToken="CONFIRM_QUOTA_UNLOCK"
-            buttonLabel="解鎖並增加次數"
-            dialogTitle="確認解鎖 Legacy 免費額度？"
-            dialogDescription="此操作只影響 Phase 1 免費額度相容層，並會留下管理操作紀錄。"
-            reasonPlaceholder="例如：客服補償一次免費使用"
-          />
-        ) : (
-          <p className="text-sm text-slate-500">請先輸入 Email。</p>
-        )}
-      </form>
+      <p className="mt-3 rounded-2xl border border-amber-300/15 bg-amber-400/[0.06] px-4 py-3 text-sm leading-6 text-amber-50">
+        此頁已改為唯讀歷史檔案。V2 AI 指令產生器不再依賴或修改這些額度資料。
+      </p>
 
       {message ? (
         <p className="mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">

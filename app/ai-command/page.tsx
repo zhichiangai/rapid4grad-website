@@ -1,15 +1,9 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { AiCommandContainer } from "@/components/ai-command/AiCommandContainer";
 import { createClient } from "@/lib/supabase/server";
 import type { PromptTemplate } from "@/lib/prompt-builder/types";
 
-const ANONYMOUS_TRIAL_COOKIE = "rapid_anon_ai_trial_used";
-
 export default async function PublicAiCommandPage() {
-  const cookieStore = await cookies();
-  const hasUsedAnonymousTrial =
-    cookieStore.get(ANONYMOUS_TRIAL_COOKIE)?.value === "true";
   const supabase = await createClient();
   const { data: promptTemplates, error: promptTemplateError } = await supabase
     .from("prompt_templates")
@@ -45,7 +39,7 @@ export default async function PublicAiCommandPage() {
                 研究報告 AI 指令產生器
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                第一次可免登入直接試用。第 2 次起需完成 Email 驗證；付費學員登入後可解除免費額度限制。
+                未登入可免費產生 20 次。完成 Email 驗證或使用 Google 登入後，即可不限次使用；不需購買課程。
               </p>
             </div>
             <Link
@@ -59,7 +53,6 @@ export default async function PublicAiCommandPage() {
       </div>
 
       <AiCommandContainer
-        initialAnonymousTrialUsed={hasUsedAnonymousTrial}
         isDashboardRoute={false}
         activePromptTemplates={activePromptTemplates}
         promptTemplateLoadError={promptTemplateError?.message}

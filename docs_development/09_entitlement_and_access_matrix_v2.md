@@ -45,6 +45,17 @@
 | 訂閱失效 Lab 成員 | 是 | 否 | 個人已買斷者保留 | 否 | Professor/Admin 可唯讀歷史 |
 | Admin | 是 | 否，role 不自動授權 | 否，role 不自動授權 | 不代表 PDF 本文權限 | Admin control plane |
 
+### 免費 AI 指令產生器（獨立於上表）
+
+| 狀態 | 可用範圍 |
+|---|---|
+| 未登入訪客 | 同一瀏覽器 20 次匿名生成 |
+| Email 驗證完成 | 不限次 |
+| Google 登入帳號 | 不限次 |
+| 課程買斷、Lab、Professor、assistant、Admin | 不因產品或角色額外改變 Prompt Builder 用量 |
+
+Prompt Builder 只在前端組合可複製到外部 AI 的文字，不執行 RAPID 平台內 LLM 呼叫。它不讀取 `course_full` entitlement、Professor subscription、Lab PDF credit 或 `free_usage_quotas`；後者僅保留 Phase 1 歷史相容資料。
+
 ## 4. Entitlement 類型
 
 | Entitlement key | 對象 | 時效 | 用途 |

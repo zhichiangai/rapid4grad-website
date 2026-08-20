@@ -3,7 +3,7 @@
 > 狀態：現行程式分層、實體路徑與 V2 目標架構的 Source of Truth
 > 更新日期：2026-07-19
 > 適用專案：`/Users/fengfeng/rapid 本機開發/build`
-> 本文件描述程式放在哪裡、各層負責什麼，以及資料如何流動；產品與商業規則仍以 `08_product_business_model_v2.md` 至 `12_admin_control_plane_v2.md` 為準。
+> 本文件描述程式放在哪裡、各層負責什麼，以及資料如何流動；產品與商業規則仍以 `08_product_business_model_v2.md` 至 `13_free_prompt_builder_policy_v2.md` 為準。
 
 ## 1. AI 閱讀規則
 
@@ -175,7 +175,7 @@ build/
 | `/login` | `app/login/page.tsx` | Client | `IMPLEMENTED` | Google OAuth 登入 |
 | `/auth/login` | `app/auth/login/route.ts` | Route GET | `IMPLEMENTED` | 以 request origin 建立 OAuth redirect |
 | `/auth/callback` | `app/auth/callback/route.ts` | Route GET | `IMPLEMENTED` | Exchange session、safe next、workspace fallback |
-| `/ai-command` | `app/ai-command/page.tsx` | Server | `IMPLEMENTED` | 匿名一次試用的公開 Prompt Builder |
+| `/ai-command` | `app/ai-command/page.tsx` | Server | `IMPLEMENTED` | 公開 Prompt Builder：匿名瀏覽器 20 次，Email 驗證或 Google 登入後不限次 |
 | `/payment/success` | `app/payment/success/page.tsx` | Server + Client status panel | `IMPLEMENTED` V2 | 登入後以 owner-scoped API 輪詢訂單與永久權限開通狀態 |
 | `/payment/fail` | `app/payment/fail/page.tsx` | Server | `IMPLEMENTED` | 中性付款失敗頁 |
 | `/payment/test-checkout` | `app/payment/test-checkout/page.tsx` | Server + Client | `LOCAL TEST ONLY` | 本機簽章測試 provider 的成功／失敗／取消模擬頁；Production 回傳 404 |
@@ -256,7 +256,7 @@ V2 Task 6 已完成 Local closure：
 | `/admin/previews` | `app/admin/previews/page.tsx` | `IMPLEMENTED` local UI closure | 以共用工作台與 feature 元件呈現固定 Demo 學生／教授狀態；Canvas 導覽與表單可互動，但不 impersonate、不讀真實資料、不呼叫 mutation API |
 | `/admin/action-logs` | `app/admin/action-logs/page.tsx` | `IMPLEMENTED` V2 local closure | 最近 200 筆安全 before/after 操作紀錄 |
 | `/admin/leads` | `app/admin/leads/page.tsx` | `IMPLEMENTED` compatibility | Lead 狀態管理，已納入 reason、二次確認與 action log |
-| `/admin/quotas` | `app/admin/quotas/page.tsx` | `LEGACY` compatibility | Phase 1 Prompt 免費額度，已納入受控 RPC 與 action log |
+| `/admin/quotas` | `app/admin/quotas/page.tsx` | `HISTORICAL` compatibility | Phase 1 Prompt 額度歷史紀錄；V2 Prompt Builder 不再讀取或更新此表 |
 | `/admin/templates` | `app/admin/templates/page.tsx` | `IMPLEMENTED` compatibility | Prompt Template CMS，已納入受控 RPC 與 action log |
 
 `docs_development/13_admin_preview_center.md` 定義 Preview Center 的資料邊界、支援狀態與共用元件契約。
@@ -336,7 +336,7 @@ app/professor/page.tsx (hidden demo)
 | `/api/quiz/submit` | `app/api/quiz/submit/route.ts` | POST | `quiz_answers`, `leads`, Resend | `IMPLEMENTED` |
 | `/api/consultation` | `app/api/consultation/route.ts` | POST | `leads` | `IMPLEMENTED` |
 | `/api/email/verify` | `app/api/email/verify/route.ts` | POST | Resend, `email_verification_challenges` | `IMPLEMENTED` |
-| `/api/ai-usage` | `app/api/ai-usage/route.ts` | POST | `free_usage_quotas`, `ai_instruction_usages` | `LEGACY` Phase 1 gate |
+| `/api/ai-usage` | `app/api/ai-usage/route.ts` | POST | `ai_instruction_usages`, HttpOnly cookie、Email 驗證 session | `IMPLEMENTED`：匿名 20 次；已驗證／登入後不限次 |
 | `/api/documents/upload-url` | `app/api/documents/upload-url/route.ts` | POST | private Storage, subscription/credits | `IMPLEMENTED` Phase 2 |
 | `/api/documents/complete` | `app/api/documents/complete/route.ts` | POST | actual PDF validation, `student_documents` | `IMPLEMENTED` Phase 2 |
 | `/api/documents/share` | `app/api/documents/share/route.ts` | POST | `audit_summary_shares` | `IMPLEMENTED` Phase 2 |
@@ -445,7 +445,7 @@ V2 實作時 quiz score 應在 server 依答案重算，不能只信任 client s
 → user copies prompt to external AI
 ```
 
-此流程不在 RAPID 上傳 PDF、不呼叫後端 LLM，必須保留作 fallback。
+此流程不在 RAPID 上傳 PDF、不呼叫後端 LLM。匿名瀏覽器可使用 20 次；Email 驗證或 Google 登入後不限次。它與學生課程買斷、Professor 訂閱與 Lab PDF shared pool 完全分離，必須保留作 fallback。
 
 ### 12.3 PDF AI Audit
 

@@ -13,8 +13,9 @@ RAPID4GRAD 是研究生課程、Professor Lab 管理與團隊 PDF AI 稽核平�
 5. 教授／Lab 功能：`docs_development/10_professor_subscription_and_seat_rules.md`
 6. 資料庫重建：`docs_development/11_database_baseline_v2_plan.md`
 7. 系統管理者：`docs_development/12_admin_control_plane_v2.md`
-8. Workspace：`docs_development/06_workspace_role_architecture.md`
-9. 歷史驗收：`docs_development/phase2_release_checklist.md`
+8. 免費 Prompt Builder：`docs_development/13_free_prompt_builder_policy_v2.md`
+9. Workspace：`docs_development/06_workspace_role_architecture.md`
+10. 歷史驗收：`docs_development/phase2_release_checklist.md`
 
 ## 現行產品決策
 
@@ -29,6 +30,7 @@ RAPID4GRAD 是研究生課程、Professor Lab 管理與團隊 PDF AI 稽核平�
 - 每位學生同一時間只能加入一個 active Lab。
 - 平台內 PDF AI 稽核只提供給有效訂閱 Professor Lab 的 active students；Standard 每月共用 30 次、Plus 每月共用 100 次，按月重設且不結轉。
 - 學生個人課程買斷不包含 PDF AI 稽核。
+- AI 指令產生器是獨立免費工具：匿名瀏覽器 20 次，Email 驗證或 Google 登入後不限次；不依課程、Lab 或角色計費。
 - Professor/assistant 不得直接讀學生 private PDF 或 raw audit，只能讀取學生明確同意分享的安全摘要。
 - Admin 是內部營運控制台；敏感權限異動必須經 server-side 操作並留下 action log，且預設不可讀 private PDF 或 raw audit。
 - Professor/assistant 不查看學生影片觀看或完成紀錄；訂閱失效後 Professor Dashboard 只保留唯讀歷史。

@@ -23,10 +23,10 @@ Admin 是 RAPID4GRAD 內部營運、客服、安全與驗收控制台，不是�
 |---|---|---|
 | `/admin` | 三個管理模組入口 | 保留並重整為 V2 總覽 |
 | `/admin/leads` | Lead、風險、標籤與跟進狀態 | 保留 |
-| `/admin/quotas` | Phase 1 免費 Prompt 額度 | 保留並標示 Legacy |
+| `/admin/quotas` | Phase 1 免費 Prompt 額度紀錄 | 保留為歷史相容頁；V2 Prompt Builder 不再讀取或更新 |
 | `/admin/templates` | Prompt Template CMS | 保留 |
 
-上述 compatibility 頁面已納入 active Admin recheck、必填 reason、二次確認、service-only RPC 與 action log；`/admin/quotas` 仍只屬於 Phase 1 Legacy 額度。
+上述 compatibility 頁面已納入 active Admin recheck、必填 reason、二次確認、service-only RPC 與 action log；`/admin/quotas` 只屬於 Phase 1 歷史額度紀錄，不影響 V2 免費 Prompt Builder。
 
 ## 3. V2 Admin MVP 路由
 
