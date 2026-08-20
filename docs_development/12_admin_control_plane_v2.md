@@ -64,11 +64,14 @@ Admin MVP 不提供：
 
 ## 4.1 學生／教授介面預覽中心
 
-`/admin/previews` 是提供內部產品驗收的唯讀 UI Preview Center：
+`/admin/previews` 是提供內部產品驗收的安全互動 UI Preview Center：
 
 - 可切換學生與 Professor Lab Dashboard 預覽。
 - 左側狀態控制台可切換學生課程權限、Lab 狀態、Professor 試用／Standard／Plus／付款寬限／唯讀狀態，以及 Demo 席位與 assistant 數量。
-- 右側完整畫布使用 `components/workspace/StudentWorkspaceHome.tsx`、`StudentWorkspaceNavigation.tsx` 與 `ProfessorWorkspaceHome.tsx`；這些展示元件同時供正式 `/dashboard` 與 `/professor/dashboard` 使用，避免預覽畫面與正式首頁逐漸分岔。
+- 學生導覽列的七個項目會在同一個 Canvas 內切換，不離開 `/admin/previews`。
+- AI 指令、PDF 上傳／稽核、Lab 加入與課程播放器直接重用正式功能元件的 `previewMode`；可測試 UI 狀態，但所有 API、Storage、付款、額度與資料庫 mutation 都會被本機模擬攔截。
+- Professor Dashboard 的課程、帳務與 Lab 詳情同樣在 Canvas 內切換，成員與訂閱操作只回傳示範訊息。
+- 右側完整畫布使用 `components/workspace/` 與正式 feature components；正式共用元件更新時，Preview 同步取得畫面與互動更新，避免另做一套可漂移的靜態 mock。
 - 預覽資料固定在 UI，不能連到任意真實帳號、真實 Lab、PDF、稽核結果或付款資料。
 - Preview 中所有可能產生副作用的按鈕均停用；不可建立邀請碼、修改 membership、付款、寄信、上傳 PDF 或寫入 action log。
 - 真實 Lab 的客服／營運檢查仍使用 `/admin/labs` 的唯讀觀察入口。

@@ -1,13 +1,17 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 import {
+  ProfessorSecondaryPreview,
+  StudentWorkspacePreview,
+} from "@/components/admin/WorkspacePreviewViews";
+import {
+  ProfessorPreviewView,
   ProfessorWorkspaceHome,
   ProfessorWorkspaceLab,
   ProfessorSubscriptionMode,
 } from "@/components/workspace/ProfessorWorkspaceHome";
-import { StudentWorkspaceHome } from "@/components/workspace/StudentWorkspaceHome";
-import { StudentWorkspaceNavigation } from "@/components/workspace/StudentWorkspaceNavigation";
+import type { StudentWorkspaceHref } from "@/components/workspace/StudentWorkspaceNavigation";
 
 type PreviewWorkspace = "student" | "professor";
 type StudentCourseState = "locked" | "lab_basic" | "course_full";
@@ -82,10 +86,12 @@ function PreviewManagerPanel({
   studentCount,
   assistantCount,
   subscriptionMode,
+  onAction,
 }: {
   studentCount: number;
   assistantCount: number;
   subscriptionMode: ProfessorSubscriptionMode;
+  onAction: (message: string) => void;
 }) {
   const disabled = subscriptionMode !== "functional";
 
@@ -97,8 +103,8 @@ function PreviewManagerPanel({
         <p className="mt-3 text-sm leading-6 text-slate-400">
           Preview 顯示目前權限下能否建立或管理 Lab；不會建立任何真實資料。
         </p>
-        <button type="button" disabled className="mt-5 w-full rounded-2xl bg-blue-500/60 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70">
-          {disabled ? "唯讀狀態不可建立" : "Preview 中不可建立 Lab"}
+        <button type="button" disabled={disabled} onClick={() => onAction("已模擬建立 Lab 的成功狀態；沒有新增任何資料。")} className="mt-5 w-full rounded-2xl bg-blue-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-50">
+          {disabled ? "唯讀狀態不可建立" : "模擬建立 Lab"}
         </button>
       </div>
       <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
@@ -108,8 +114,8 @@ function PreviewManagerPanel({
           <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4"><p className="text-xs text-slate-400">Active students</p><p className="mt-2 text-2xl font-semibold">{studentCount}</p></div>
           <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4"><p className="text-xs text-slate-400">Active assistants</p><p className="mt-2 text-2xl font-semibold">{assistantCount} / 3</p></div>
         </div>
-        <button type="button" disabled className="mt-4 w-full rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-70">
-          {disabled ? "訂閱失效，不可產生邀請碼" : "Preview 中不可產生邀請碼"}
+        <button type="button" disabled={disabled} onClick={() => onAction("已模擬產生邀請碼 RAPID-DEMO-2026；不會建立或消耗真實邀請碼。")} className="mt-4 w-full rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20 disabled:cursor-not-allowed disabled:opacity-50">
+          {disabled ? "訂閱失效，不可產生邀請碼" : "模擬產生邀請碼"}
         </button>
       </div>
     </section>
@@ -186,12 +192,17 @@ function buildPreviewLab(studentCount: number): ProfessorWorkspaceLab[] {
 
 export function AdminPreviewCenter() {
   const [workspace, setWorkspace] = useState<PreviewWorkspace>("student");
+  const [studentPreviewHref, setStudentPreviewHref] =
+    useState<StudentWorkspaceHref>("/dashboard");
+  const [professorPreviewView, setProfessorPreviewView] =
+    useState<ProfessorPreviewView>("dashboard");
   const [studentCourse, setStudentCourse] = useState<StudentCourseState>("lab_basic");
   const [studentLab, setStudentLab] = useState<StudentLabState>("active");
   const [professorSubscription, setProfessorSubscription] =
     useState<ProfessorSubscriptionState>("trial");
   const [studentCount, setStudentCount] = useState(12);
   const [assistantCount, setAssistantCount] = useState(2);
+  const [previewActionMessage, setPreviewActionMessage] = useState<string | null>(null);
 
   const professorSubscriptionMode: ProfessorSubscriptionMode =
     professorSubscription === "trial" ||
@@ -223,10 +234,6 @@ export function AdminPreviewCenter() {
         : "PDF AI 稽核需加入有效訂閱 Lab",
   };
 
-  function preventPreviewSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-  }
-
   return (
     <section className="space-y-6">
       <header className="rounded-[2rem] border border-cyan-300/20 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.13),transparent_28rem),rgba(8,47,73,0.28)] p-6">
@@ -245,7 +252,10 @@ export function AdminPreviewCenter() {
             <SelectField
               label="預覽工作台"
               value={workspace}
-              onChange={setWorkspace}
+              onChange={(value) => {
+                setWorkspace(value);
+                setPreviewActionMessage(null);
+              }}
               options={[{ value: "student", label: "學生工作台" }, { value: "professor", label: "教授 Lab Dashboard" }]}
             />
 
@@ -294,22 +304,27 @@ export function AdminPreviewCenter() {
           <div className="border-b border-white/10 bg-white/[0.035] px-6 py-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">Live workspace canvas</p>
             <p className="mt-1 text-sm text-slate-400">目前情境：{workspace === "student" ? `${studentCourseLabels[studentCourse]} · ${studentLabLabels[studentLab]}` : professorSubscriptionLabels[professorSubscription]}</p>
+            <p className="mt-2 text-xs text-cyan-200">
+              目前頁面：{workspace === "student" ? studentPreviewHref : professorPreviewView}
+            </p>
           </div>
-          {workspace === "student" ? (
-            <div className="bg-slate-950">
-              <StudentWorkspaceNavigation previewMode />
-              <StudentWorkspaceHome
-                previewMode
-                leadSummary={{ quiz_result: "medium", quiz_score: 6, main_tags: ["tag_literature_blocked", "tag_advisor_meeting_blocked"] }}
-                advisorStyle="重視前後邏輯；報告先講結論，再回到證據與限制。"
-                frequentQuestions={"你的 control group 是什麼？\n這個指標如何定義？\n和前人研究的差異在哪裡？"}
-                onAdvisorStyleChange={() => undefined}
-                onFrequentQuestionsChange={() => undefined}
-                onSubmitAdvisorMemory={preventPreviewSubmit}
-                accessSummary={studentAccess}
-              />
+          {previewActionMessage ? (
+            <div className="border-b border-amber-300/20 bg-amber-300/10 px-6 py-3 text-sm text-amber-50">
+              {previewActionMessage}
             </div>
-          ) : (
+          ) : null}
+          {workspace === "student" ? (
+            <StudentWorkspacePreview
+              activeHref={studentPreviewHref}
+              onNavigate={setStudentPreviewHref}
+              courseLabel={studentAccess.course}
+              labLabel={studentAccess.lab}
+              auditLabel={studentAccess.audit}
+              canUseAudit={studentLab === "active"}
+              hasFullCourse={studentCourse === "course_full"}
+              hasLabCourse={studentCourse === "lab_basic" || studentLab === "active"}
+            />
+          ) : professorPreviewView === "dashboard" ? (
             <ProfessorWorkspaceHome
               previewMode
               viewerName="王教授"
@@ -320,7 +335,17 @@ export function AdminPreviewCenter() {
               subscriptionPlanKey={professorPlanKey}
               subscriptionStatus={professorStatus}
               canManage={previewLabs.length > 0}
-              managerControls={<PreviewManagerPanel studentCount={studentCount} assistantCount={assistantCount} subscriptionMode={professorSubscriptionMode} />}
+              onPreviewNavigate={setProfessorPreviewView}
+              managerControls={<PreviewManagerPanel studentCount={studentCount} assistantCount={assistantCount} subscriptionMode={professorSubscriptionMode} onAction={setPreviewActionMessage} />}
+            />
+          ) : (
+            <ProfessorSecondaryPreview
+              view={professorPreviewView}
+              onNavigate={setProfessorPreviewView}
+              labs={previewLabs}
+              subscriptionMode={professorSubscriptionMode}
+              planLabel={professorPlanKey === "professor_lab_plus" ? "Plus" : "Standard"}
+              statusLabel={professorSubscriptionLabels[professorSubscription]}
             />
           )}
         </section>

@@ -39,10 +39,12 @@ export function CourseLearningExperience({
   course,
   lessons,
   isAuthenticated,
+  previewMode = false,
 }: {
   course: { title: string; description: string | null };
   lessons: CourseLessonView[];
   isAuthenticated: boolean;
+  previewMode?: boolean;
 }) {
   const [selectedLessonId, setSelectedLessonId] = useState(
     lessons[0]?.id ?? null,
@@ -62,6 +64,14 @@ export function CourseLearningExperience({
 
   useEffect(() => {
     if (!selectedLessonId) return;
+
+    if (previewMode) {
+      setIsLoading(false);
+      setPlayback(null);
+      setPlaybackError(null);
+      lastSyncedSecond.current = 0;
+      return;
+    }
 
     const controller = new AbortController();
     setIsLoading(true);
@@ -93,13 +103,13 @@ export function CourseLearningExperience({
 
     void loadPlayback();
     return () => controller.abort();
-  }, [selectedLessonId]);
+  }, [previewMode, selectedLessonId]);
 
   async function persistProgress(
     status: "in_progress" | "completed",
     progressSeconds: number,
   ) {
-    if (!isAuthenticated || !selectedLessonId) return;
+    if (previewMode || !isAuthenticated || !selectedLessonId) return;
 
     try {
       await fetch("/api/course/progress", {
@@ -203,9 +213,26 @@ export function CourseLearningExperience({
       </aside>
 
       <div className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-cyan-950/20">
+        {previewMode ? (
+          <p className="mb-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-50">
+            Admin Preview Mode：課程選單與權限狀態可操作；不會取得真實影片來源、寫入觀看進度或開啟教材。
+          </p>
+        ) : null}
         <div className="flex aspect-video items-center justify-center overflow-hidden rounded-[1.5rem] border border-white/10 bg-black">
           {isLoading ? (
             <p className="text-sm text-slate-400">正在確認影片權限...</p>
+          ) : previewMode ? (
+            <div className="px-6 text-center">
+              <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">
+                Video Player Preview
+              </p>
+              <p className="mt-3 text-lg font-semibold text-white">
+                {selectedLesson?.title ?? "請選擇課程單元"}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-400">
+                正式使用者在此區域播放受權限保護的網頁影片。
+              </p>
+            </div>
           ) : playback ? (
             <video
               key={playback.src}
@@ -247,7 +274,7 @@ export function CourseLearningExperience({
                 </p>
               ) : null}
             </div>
-            {selectedLesson.materialUrl ? (
+            {selectedLesson.materialUrl && !previewMode ? (
               <a
                 href={selectedLesson.materialUrl}
                 target="_blank"

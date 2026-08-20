@@ -40,6 +40,10 @@ type DocumentUploadFormProps = {
   canUpload: boolean;
   reason: string | null;
   remainingPdfAudits: number;
+  previewMode?: boolean;
+  onPreviewNavigate?: (
+    href: "/dashboard/lab-join" | "/dashboard/ai-command",
+  ) => void;
 };
 
 const documentTypeLabels: Record<UploadDocumentType, string> = {
@@ -57,6 +61,8 @@ export function DocumentUploadForm({
   canUpload,
   reason,
   remainingPdfAudits,
+  previewMode = false,
+  onPreviewNavigate,
 }: DocumentUploadFormProps) {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -115,6 +121,20 @@ export function DocumentUploadForm({
     setIsUploading(true);
     setMessage(null);
     setUploadedDocument(null);
+
+    if (previewMode) {
+      setUploadedDocument({
+        id: "preview-document",
+        original_filename: file.name,
+        upload_status: "ready",
+        created_at: new Date().toISOString(),
+      });
+      setMessage(
+        "Preview 模擬完成：畫面已驗證選檔與成功狀態，但檔案沒有離開你的瀏覽器，也沒有寫入 Storage。",
+      );
+      setIsUploading(false);
+      return;
+    }
 
     try {
       const uploadUrlResponse = await fetch("/api/documents/upload-url", {
@@ -209,18 +229,17 @@ export function DocumentUploadForm({
           {reason ?? "需要 active student membership、有效 Lab 訂閱與剩餘共用額度。"}
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
-          <Link
-            href="/dashboard/lab-join"
-            className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200"
-          >
-            加入 Professor Lab
-          </Link>
-          <Link
-            href="/dashboard/ai-command"
-            className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
-          >
-            改用 Phase 1 AI 指令產生器
-          </Link>
+          {previewMode ? (
+            <>
+              <button type="button" onClick={() => onPreviewNavigate?.("/dashboard/lab-join")} className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">加入 Professor Lab</button>
+              <button type="button" onClick={() => onPreviewNavigate?.("/dashboard/ai-command")} className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]">改用 Phase 1 AI 指令產生器</button>
+            </>
+          ) : (
+            <>
+              <Link href="/dashboard/lab-join" className="rounded-2xl bg-amber-300 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-200">加入 Professor Lab</Link>
+              <Link href="/dashboard/ai-command" className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08]">改用 Phase 1 AI 指令產生器</Link>
+            </>
+          )}
         </div>
       </div>
     );
@@ -245,6 +264,12 @@ export function DocumentUploadForm({
           Lab 共用剩餘額度：{remainingPdfAudits}
         </span>
       </div>
+
+      {previewMode ? (
+        <p className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-50">
+          Admin Preview Mode：你可以選擇本機 PDF 並測試完整表單回饋，但系統不會上傳檔案、不會建立 metadata，也不會扣除 Lab 額度。
+        </p>
+      ) : null}
 
       <div className="mt-8 grid gap-5 lg:grid-cols-[0.75fr_1.25fr]">
         <label className="block">

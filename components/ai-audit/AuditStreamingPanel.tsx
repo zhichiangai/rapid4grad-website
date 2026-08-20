@@ -28,6 +28,8 @@ type AuditDocument = {
 type AuditStreamingPanelProps = {
   documents: AuditDocument[];
   canAudit: boolean;
+  previewMode?: boolean;
+  onPreviewFallback?: () => void;
 };
 
 function formatDate(value: string) {
@@ -42,6 +44,8 @@ function formatDate(value: string) {
 export function AuditStreamingPanel({
   documents,
   canAudit,
+  previewMode = false,
+  onPreviewFallback,
 }: AuditStreamingPanelProps) {
   const router = useRouter();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -71,6 +75,18 @@ export function AuditStreamingPanel({
     setMessage(null);
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
+
+    if (previewMode) {
+      setStreamedText(
+        `# Preview 稽核結果\n\n## 主要發現\n- 研究問題與方法選擇之間需要補上更清楚的因果連結。\n- 圖表結論應標註樣本條件與限制。\n- Meeting 前建議準備對照組與替代解釋。\n\n## 教授可能追問\n1. 這個研究缺口如何從文獻證據推導？\n2. 為什麼選擇目前的分析方法？\n3. 結果是否存在其他合理解釋？`,
+      );
+      setMessage(
+        `Preview 模擬完成：已套用 ${AI_AUDIT_PROVIDERS[provider].label} 與 ${AI_AUDIT_TYPES[auditType].label} 畫面，不會呼叫 AI、讀取 PDF 或扣除額度。`,
+      );
+      abortControllerRef.current = null;
+      setIsStreaming(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/ai/audit", {
@@ -145,13 +161,18 @@ export function AuditStreamingPanel({
             端讀取 private PDF 並以 Base64 多模態格式交給模型。
           </p>
         </div>
-        <Link
-          href="/dashboard/ai-command"
-          className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10"
-        >
-          Phase 1 fallback
-        </Link>
+        {previewMode ? (
+          <button type="button" onClick={onPreviewFallback} className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10">Phase 1 fallback</button>
+        ) : (
+          <Link href="/dashboard/ai-command" className="rounded-2xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10">Phase 1 fallback</Link>
+        )}
       </div>
+
+      {previewMode ? (
+        <p className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-50">
+          Admin Preview Mode：選擇文件、模型與模式後可產生模擬結果；不會呼叫任何 AI provider 或修改 Lab shared pool。
+        </p>
+      ) : null}
 
       <form onSubmit={handleAudit} className="mt-8 grid gap-5 lg:grid-cols-3">
         <label className="block">

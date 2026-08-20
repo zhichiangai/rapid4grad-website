@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 
 export type ProfessorWorkspaceRole = "professor" | "assistant" | "admin";
 export type ProfessorSubscriptionMode = "functional" | "read_only" | "none";
+export type ProfessorPreviewView = "dashboard" | "course" | "billing" | "lab";
 
 export type ProfessorWorkspaceStudent = {
   id: string;
@@ -39,6 +40,7 @@ type ProfessorWorkspaceHomeProps = {
   canManage: boolean;
   managerControls?: ReactNode;
   previewMode?: boolean;
+  onPreviewNavigate?: (view: ProfessorPreviewView) => void;
 };
 
 function riskBadgeClass(riskLevel: string | null | undefined) {
@@ -64,11 +66,21 @@ function formatDate(value: string | null | undefined) {
   });
 }
 
-function PreviewDisabledControl({ children }: { children: ReactNode }) {
+function PreviewControl({
+  children,
+  onClick,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+}) {
   return (
-    <span className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-semibold text-slate-400">
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-center text-sm font-semibold text-slate-200 transition hover:border-cyan-300/30 hover:bg-cyan-400/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70"
+    >
       {children}
-    </span>
+    </button>
   );
 }
 
@@ -83,6 +95,7 @@ export function ProfessorWorkspaceHome({
   canManage,
   managerControls,
   previewMode = false,
+  onPreviewNavigate,
 }: ProfessorWorkspaceHomeProps) {
   const isFunctional = subscriptionMode === "functional";
   const hasMemberOnlyAccess = ownedLabCount === 0 && labs.length > 0;
@@ -118,8 +131,8 @@ export function ProfessorWorkspaceHome({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               {previewMode ? (
                 <>
-                  <PreviewDisabledControl>觀看 Lab 課程</PreviewDisabledControl>
-                  <PreviewDisabledControl>管理訂閱</PreviewDisabledControl>
+                  <PreviewControl onClick={() => onPreviewNavigate?.("course")}>觀看 Lab 課程</PreviewControl>
+                  <PreviewControl onClick={() => onPreviewNavigate?.("billing")}>管理訂閱</PreviewControl>
                 </>
               ) : (
                 <>
@@ -178,7 +191,7 @@ export function ProfessorWorkspaceHome({
                     </p>
                   </div>
                   {previewMode ? (
-                    <PreviewDisabledControl>查看 Lab 詳情</PreviewDisabledControl>
+                    <PreviewControl onClick={() => onPreviewNavigate?.("lab")}>查看 Lab 詳情</PreviewControl>
                   ) : (
                     <Link href={`/professor/labs/${lab.id}`} className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20">查看 Lab 詳情</Link>
                   )}
@@ -195,7 +208,7 @@ export function ProfessorWorkspaceHome({
                         lab.students.map((student) => (
                           <tr key={`${lab.id}:${student.id}`}>
                             <td className="px-4 py-4">
-                              {previewMode ? <span className="font-semibold text-cyan-100">{student.name}</span> : <Link href={`/professor/labs/${lab.id}/students/${student.id}`} className="font-semibold text-cyan-100 hover:text-cyan-200">{student.name}</Link>}
+                              {previewMode ? <button type="button" onClick={() => onPreviewNavigate?.("lab")} className="font-semibold text-cyan-100 transition hover:text-cyan-200">{student.name}</button> : <Link href={`/professor/labs/${lab.id}/students/${student.id}`} className="font-semibold text-cyan-100 hover:text-cyan-200">{student.name}</Link>}
                               <p className="mt-1 text-xs text-slate-500">{student.email}</p>
                             </td>
                             <td className="px-4 py-4 text-slate-300">{student.degree ?? "未設定"}<p className="mt-1 text-xs text-slate-500">{student.researchArea ?? "未設定研究領域"}</p></td>

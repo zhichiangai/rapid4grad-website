@@ -130,7 +130,7 @@ build/
 │   ├── labs/
 │   ├── professor/
 │   ├── quiz/
-│   └── workspace/              # Student／Professor 共用工作台展示層與唯讀 Preview shell
+│   └── workspace/              # Student／Professor 共用工作台展示層與安全互動 Preview shell
 ├── lib/
 │   ├── admin/                  # Admin session guard、訊息與安全快照
 │   ├── ai/
@@ -253,7 +253,7 @@ V2 Task 6 已完成 Local closure：
 | `/admin/subscriptions` | `app/admin/subscriptions/page.tsx` | `IMPLEMENTED` V2 local closure | 有效訂閱客服延長，單次上限 30 天 |
 | `/admin/orders` | `app/admin/orders/page.tsx` | `IMPLEMENTED` V2 local closure | 訂單與付款安全摘要，只讀 |
 | `/admin/pdf-credits` | `app/admin/pdf-credits/page.tsx` | `IMPLEMENTED` V2 local closure | 當期 PDF limit 補償，單次 1–100 |
-| `/admin/previews` | `app/admin/previews/page.tsx` | `IMPLEMENTED` local UI closure | 以共用工作台展示層呈現固定 Demo 學生／教授狀態；不 impersonate、不讀真實使用者資料、不執行 mutation |
+| `/admin/previews` | `app/admin/previews/page.tsx` | `IMPLEMENTED` local UI closure | 以共用工作台與 feature 元件呈現固定 Demo 學生／教授狀態；Canvas 導覽與表單可互動，但不 impersonate、不讀真實資料、不呼叫 mutation API |
 | `/admin/action-logs` | `app/admin/action-logs/page.tsx` | `IMPLEMENTED` V2 local closure | 最近 200 筆安全 before/after 操作紀錄 |
 | `/admin/leads` | `app/admin/leads/page.tsx` | `IMPLEMENTED` compatibility | Lead 狀態管理，已納入 reason、二次確認與 action log |
 | `/admin/quotas` | `app/admin/quotas/page.tsx` | `LEGACY` compatibility | Phase 1 Prompt 免費額度，已納入受控 RPC 與 action log |

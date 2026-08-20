@@ -20,7 +20,7 @@ type JoinLabResponse =
       error: string;
     };
 
-export function LabJoinForm() {
+export function LabJoinForm({ previewMode = false }: { previewMode?: boolean }) {
   const [inviteCode, setInviteCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -32,6 +32,19 @@ export function LabJoinForm() {
     setIsSubmitting(true);
     setMessage(null);
     setJoinedLab(null);
+
+    if (previewMode) {
+      setJoinedLab({
+        id: "preview-lab",
+        name: "智慧製造研究室",
+        institution: "臺灣科技大學",
+        role: "student",
+      });
+      setMessage("Preview 模擬成功：已顯示加入後狀態，但不會建立真實 Lab membership 或消耗邀請碼。");
+      setInviteCode("");
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/labs/join", {
@@ -73,6 +86,12 @@ export function LabJoinForm() {
         請輸入 Lab owner 提供的邀請碼。系統會依邀請碼指定的角色加入，且只儲存雜湊後的邀請碼。
       </p>
 
+      {previewMode ? (
+        <p className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/10 px-4 py-3 text-sm leading-6 text-amber-50">
+          Admin Preview Mode：可輸入任意 8 字元以上邀請碼測試成功畫面；不會查詢或修改真實 Lab。
+        </p>
+      ) : null}
+
       <label className="mt-6 block text-sm text-slate-300">
         Lab 邀請碼
         <input
@@ -105,18 +124,24 @@ export function LabJoinForm() {
               <p className="mt-1 text-xs text-slate-400">
                 Lab 角色：{joinedLab.role}
               </p>
-              <Link
-                href={
-                  joinedLab.role === "student"
-                    ? "/dashboard/ai-audit"
-                    : "/professor/dashboard"
-                }
-                className="mt-3 inline-flex rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300"
-              >
-                {joinedLab.role === "student"
-                  ? "前往 PDF AI 稽核"
-                  : "前往 Professor Dashboard"}
-              </Link>
+              {previewMode ? (
+                <span className="mt-3 inline-flex rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950">
+                  Preview 加入狀態已完成
+                </span>
+              ) : (
+                <Link
+                  href={
+                    joinedLab.role === "student"
+                      ? "/dashboard/ai-audit"
+                      : "/professor/dashboard"
+                  }
+                  className="mt-3 inline-flex rounded-full bg-cyan-400 px-4 py-2 text-xs font-semibold text-slate-950 transition hover:bg-cyan-300"
+                >
+                  {joinedLab.role === "student"
+                    ? "前往 PDF AI 稽核"
+                    : "前往 Professor Dashboard"}
+                </Link>
+              )}
             </div>
           ) : null}
         </div>

@@ -32,6 +32,7 @@ interface AiCommandContainerProps {
   isDashboardRoute?: boolean;
   activePromptTemplates?: PromptTemplate[];
   promptTemplateLoadError?: string;
+  previewMode?: boolean;
 }
 
 function splitLines(value: string) {
@@ -46,6 +47,7 @@ export function AiCommandContainer({
   isDashboardRoute = false,
   activePromptTemplates = [],
   promptTemplateLoadError,
+  previewMode = false,
 }: AiCommandContainerProps) {
   const [studentStage, setStudentStage] = useState<StudentStage>("master_2");
   const [meetingContext, setMeetingContext] =
@@ -110,6 +112,12 @@ export function AiCommandContainer({
     const params = buildParams();
     const prompt = buildPrompt(params, activePromptTemplates);
     const canUseVerifiedSession = verifiedSession || hasVerifiedEmailSession;
+
+    if (previewMode) {
+      setGeneratedPrompt(prompt);
+      setError(null);
+      return;
+    }
 
     if (!canUseVerifiedSession && anonymousTrialUsed) {
       setUsageGate({
@@ -204,7 +212,11 @@ export function AiCommandContainer({
             第一版不需要在 RAPID 上傳 PDF，也不呼叫後端 LLM。你只需要選擇情境，系統會在前端產生可貼到外部 AI 的學術指令。
           </p>
           <div className="mt-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3 text-xs leading-5 text-slate-400">
-            {promptTemplateLoadError ? (
+            {previewMode ? (
+              <span className="text-amber-100">
+                Admin Preview Mode：所有選項與指令生成都可操作，但不會檢查或扣除真實額度，也不會寫入使用紀錄。
+              </span>
+            ) : promptTemplateLoadError ? (
               <span>
                 CMS 模板讀取失敗，將使用本地 fallback 模板：
                 {promptTemplateLoadError}
@@ -272,19 +284,21 @@ export function AiCommandContainer({
         </div>
       ) : null}
 
-      <UsageGateModal
-        isOpen={usageGate.isOpen}
-        reason={usageGate.reason}
-        message={usageGate.message}
-        onVerified={handleUsageVerified}
-        onClose={() =>
-          setUsageGate({
-            isOpen: false,
-            reason: null,
-            message: "",
-          })
-        }
-      />
+      {!previewMode ? (
+        <UsageGateModal
+          isOpen={usageGate.isOpen}
+          reason={usageGate.reason}
+          message={usageGate.message}
+          onVerified={handleUsageVerified}
+          onClose={() =>
+            setUsageGate({
+              isOpen: false,
+              reason: null,
+              message: "",
+            })
+          }
+        />
+      ) : null}
     </section>
   );
 }
