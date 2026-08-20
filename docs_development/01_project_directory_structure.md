@@ -129,7 +129,8 @@ build/
 │   ├── course/
 │   ├── labs/
 │   ├── professor/
-│   └── quiz/
+│   ├── quiz/
+│   └── workspace/              # Student／Professor 共用工作台展示層與唯讀 Preview shell
 ├── lib/
 │   ├── admin/                  # Admin session guard、訊息與安全快照
 │   ├── ai/
@@ -156,7 +157,7 @@ build/
 └── README.md
 ```
 
-目前沒有 `components/ui/`、`components/dashboard/`、`components/landing/`、`components/result/` 或 `hooks/`。`components/admin/` 已由 V2 Task 8 建立；AI 不得因舊文件曾列出其他路徑，就假設它們已實作。
+目前沒有 `components/ui/`、`components/dashboard/`、`components/landing/`、`components/result/` 或 `hooks/`。`components/admin/` 已由 V2 Task 8 建立；`components/workspace/` 供正式學生／教授首頁與 Admin Preview Center 共用展示層。AI 不得因舊文件曾列出其他路徑，就假設它們已實作。
 
 ## 4. Public Routes
 
@@ -252,11 +253,13 @@ V2 Task 6 已完成 Local closure：
 | `/admin/subscriptions` | `app/admin/subscriptions/page.tsx` | `IMPLEMENTED` V2 local closure | 有效訂閱客服延長，單次上限 30 天 |
 | `/admin/orders` | `app/admin/orders/page.tsx` | `IMPLEMENTED` V2 local closure | 訂單與付款安全摘要，只讀 |
 | `/admin/pdf-credits` | `app/admin/pdf-credits/page.tsx` | `IMPLEMENTED` V2 local closure | 當期 PDF limit 補償，單次 1–100 |
-| `/admin/previews` | `app/admin/previews/page.tsx` | `IMPLEMENTED` local UI closure | 固定 Demo 資料的學生／教授唯讀介面預覽；不 impersonate、不讀真實使用者資料、不執行 mutation |
+| `/admin/previews` | `app/admin/previews/page.tsx` | `IMPLEMENTED` local UI closure | 以共用工作台展示層呈現固定 Demo 學生／教授狀態；不 impersonate、不讀真實使用者資料、不執行 mutation |
 | `/admin/action-logs` | `app/admin/action-logs/page.tsx` | `IMPLEMENTED` V2 local closure | 最近 200 筆安全 before/after 操作紀錄 |
 | `/admin/leads` | `app/admin/leads/page.tsx` | `IMPLEMENTED` compatibility | Lead 狀態管理，已納入 reason、二次確認與 action log |
 | `/admin/quotas` | `app/admin/quotas/page.tsx` | `LEGACY` compatibility | Phase 1 Prompt 免費額度，已納入受控 RPC 與 action log |
 | `/admin/templates` | `app/admin/templates/page.tsx` | `IMPLEMENTED` compatibility | Prompt Template CMS，已納入受控 RPC 與 action log |
+
+`docs_development/13_admin_preview_center.md` 定義 Preview Center 的資料邊界、支援狀態與共用元件契約。
 | `/admin/course-content` | 尚未建立 | `V2 PLANNED` | 後續課程內容管理 |
 | `/admin/audit-consents` | 尚未建立 | `V2 PLANNED` | 後續 consent 異常觀察，不顯示 PDF／raw audit |
 
