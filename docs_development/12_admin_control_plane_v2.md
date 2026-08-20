@@ -39,6 +39,7 @@ Admin 是 RAPID4GRAD 內部營運、客服、安全與驗收控制台，不是�
 | `/admin/orders` | 查看一次性訂單與付款安全摘要 | `IMPLEMENTED` Local closure |
 | `/admin/pdf-credits` | 查看及受控補充 Lab PDF 額度 | `IMPLEMENTED` Local closure |
 | `/admin/action-logs` | 查看敏感管理操作紀錄安全快照 | `IMPLEMENTED` Local closure |
+| `/admin/previews` | 使用固定 Demo 資料預覽學生／教授介面與權限狀態 | `IMPLEMENTED` local UI closure |
 | `/admin/course-content` | 管理影片存取層級 | 後續 |
 | `/admin/audit-consents` | 查看 consent 狀態與異常，不顯示 PDF 本文 | 後續 |
 
@@ -60,6 +61,18 @@ Admin MVP 不提供：
 - 模擬登入或 impersonation。
 - 不留紀錄的 role 修改。
 - 將自己加入任意 Lab 以取得 Professor 權限。
+
+## 4.1 學生／教授介面預覽中心
+
+`/admin/previews` 是提供內部產品驗收的唯讀 UI Preview Center：
+
+- 可切換學生與 Professor Lab Dashboard 預覽。
+- 可切換固定 Demo 權限情境，例如未購買、有效 Lab 成員、完整課程買斷、Professor 試用、Standard 與訂閱失效唯讀。
+- 預覽資料固定在 UI，不能連到任意真實帳號、真實 Lab、PDF、稽核結果或付款資料。
+- Preview 中所有可能產生副作用的按鈕均停用；不可建立邀請碼、修改 membership、付款、寄信、上傳 PDF 或寫入 action log。
+- 真實 Lab 的客服／營運檢查仍使用 `/admin/labs` 的唯讀觀察入口。
+
+此功能不是 impersonation，亦不得用於繞過 RLS 或查看學生 private PDF、raw audit、完整 prompt、影片觀看紀錄。
 
 ## 5. Entitlement 管理
 

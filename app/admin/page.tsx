@@ -39,6 +39,12 @@ const adminCards = [
     description: "查看 shared pool，並只增加當期 limit，不直接修改 used／reserved。",
   },
   {
+    href: "/admin/previews",
+    eyebrow: "QA",
+    title: "學生／教授介面預覽",
+    description: "用固定 Demo 資料切換學生與教授權限情境，不讀取或修改真實使用者資料。",
+  },
+  {
     href: "/admin/action-logs",
     eyebrow: "Audit",
     title: "管理操作紀錄",

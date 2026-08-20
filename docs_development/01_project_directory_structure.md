@@ -252,6 +252,7 @@ V2 Task 6 已完成 Local closure：
 | `/admin/subscriptions` | `app/admin/subscriptions/page.tsx` | `IMPLEMENTED` V2 local closure | 有效訂閱客服延長，單次上限 30 天 |
 | `/admin/orders` | `app/admin/orders/page.tsx` | `IMPLEMENTED` V2 local closure | 訂單與付款安全摘要，只讀 |
 | `/admin/pdf-credits` | `app/admin/pdf-credits/page.tsx` | `IMPLEMENTED` V2 local closure | 當期 PDF limit 補償，單次 1–100 |
+| `/admin/previews` | `app/admin/previews/page.tsx` | `IMPLEMENTED` local UI closure | 固定 Demo 資料的學生／教授唯讀介面預覽；不 impersonate、不讀真實使用者資料、不執行 mutation |
 | `/admin/action-logs` | `app/admin/action-logs/page.tsx` | `IMPLEMENTED` V2 local closure | 最近 200 筆安全 before/after 操作紀錄 |
 | `/admin/leads` | `app/admin/leads/page.tsx` | `IMPLEMENTED` compatibility | Lead 狀態管理，已納入 reason、二次確認與 action log |
 | `/admin/quotas` | `app/admin/quotas/page.tsx` | `LEGACY` compatibility | Phase 1 Prompt 免費額度，已納入受控 RPC 與 action log |
