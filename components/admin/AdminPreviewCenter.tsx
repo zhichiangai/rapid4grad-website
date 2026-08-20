@@ -1,261 +1,330 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
+import {
+  ProfessorWorkspaceHome,
+  ProfessorWorkspaceLab,
+  ProfessorSubscriptionMode,
+} from "@/components/workspace/ProfessorWorkspaceHome";
+import { StudentWorkspaceHome } from "@/components/workspace/StudentWorkspaceHome";
+import { StudentWorkspaceNavigation } from "@/components/workspace/StudentWorkspaceNavigation";
 
 type PreviewWorkspace = "student" | "professor";
-type StudentScenario = "no_access" | "lab_member" | "full_course";
-type ProfessorScenario = "trial" | "standard" | "readonly";
+type StudentCourseState = "locked" | "lab_basic" | "course_full";
+type StudentLabState = "none" | "active" | "readonly";
+type ProfessorSubscriptionState =
+  | "trial"
+  | "standard"
+  | "plus"
+  | "grace"
+  | "readonly"
+  | "none";
 
-const studentScenarios: Record<
-  StudentScenario,
-  { label: string; description: string; course: string; audit: string }
-> = {
-  no_access: {
-    label: "未購買／未加入 Lab",
-    description: "顯示個人研究工具與課程方案入口。",
-    course: "完整課程尚未解鎖",
-    audit: "PDF AI 稽核需先加入有效訂閱 Lab",
-  },
-  lab_member: {
-    label: "有效 Lab 學生",
-    description: "可觀看 Lab 基礎影片，並使用 Lab 共用 PDF 額度。",
-    course: "可觀看 Lab 指定影片",
-    audit: "可使用 Lab shared pool：本月剩餘 18 次",
-  },
-  full_course: {
-    label: "已買斷完整課程",
-    description: "完整課程永久解鎖；PDF AI 仍取決於 Lab 訂閱。",
-    course: "完整課程永久解鎖",
-    audit: "未加入有效 Lab 時不可使用 PDF AI 稽核",
-  },
+const studentCourseLabels: Record<StudentCourseState, string> = {
+  locked: "未購買完整課程",
+  lab_basic: "Lab 指定影片",
+  course_full: "完整課程永久買斷",
 };
 
-const professorScenarios: Record<
-  ProfessorScenario,
-  { label: string; description: string; plan: string; action: string }
-> = {
-  trial: {
-    label: "30 天免綁卡試用",
-    description: "可建立 Lab、邀請學生並使用完整 Professor 管理功能。",
-    plan: "Standard 試用中 · 剩餘 22 天 · 6 / 15 位學生",
-    action: "可建立邀請碼與管理成員",
-  },
-  standard: {
-    label: "Standard 訂閱中",
-    description: "正式團隊管理狀態，學生數達 15 位前可維持 Standard。",
-    plan: "Standard 月繳 · 14 / 15 位學生",
-    action: "第 16 位學生加入前須升級 Plus",
-  },
-  readonly: {
-    label: "訂閱失效後唯讀",
-    description: "保留 Lab 與歷史摘要檢視，但停用新增與變更操作。",
-    plan: "付款寬限結束 · 唯讀模式",
-    action: "不可建立邀請碼、加入成員或建立新 PDF 稽核",
-  },
+const studentLabLabels: Record<StudentLabState, string> = {
+  none: "未加入 Lab",
+  active: "有效訂閱 Lab 成員",
+  readonly: "Lab 訂閱失效唯讀",
 };
 
-function ScenarioButton({
-  active,
+const professorSubscriptionLabels: Record<ProfessorSubscriptionState, string> = {
+  trial: "30 天免綁卡試用",
+  standard: "Standard 訂閱中",
+  plus: "Plus 訂閱中",
+  grace: "付款寬限 15 天",
+  readonly: "訂閱失效唯讀",
+  none: "尚未啟用訂閱",
+};
+
+function FieldLabel({ children }: { children: string }) {
+  return (
+    <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+      {children}
+    </label>
+  );
+}
+
+function SelectField<T extends string>({
   label,
-  onClick,
+  value,
+  onChange,
+  options,
 }: {
-  active: boolean;
   label: string;
-  onClick: () => void;
+  value: T;
+  onChange: (value: T) => void;
+  options: ReadonlyArray<{ value: T; label: string }>;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${
-        active
-          ? "border-cyan-200/50 bg-cyan-300/15 text-cyan-50"
-          : "border-white/10 bg-white/[0.03] text-slate-300 hover:border-white/20 hover:bg-white/[0.06]"
-      }`}
-    >
-      {label}
-    </button>
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as T)}
+        className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none transition focus:border-cyan-300/50"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
   );
+}
+
+function PreviewManagerPanel({
+  studentCount,
+  assistantCount,
+  subscriptionMode,
+}: {
+  studentCount: number;
+  assistantCount: number;
+  subscriptionMode: ProfessorSubscriptionMode;
+}) {
+  const disabled = subscriptionMode !== "functional";
+
+  return (
+    <section className="grid gap-4 lg:grid-cols-[1fr_1.15fr]">
+      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-200">Create Lab</p>
+        <h2 className="mt-2 text-xl font-semibold text-white">建立正式實驗室</h2>
+        <p className="mt-3 text-sm leading-6 text-slate-400">
+          Preview 顯示目前權限下能否建立或管理 Lab；不會建立任何真實資料。
+        </p>
+        <button type="button" disabled className="mt-5 w-full rounded-2xl bg-blue-500/60 px-4 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-70">
+          {disabled ? "唯讀狀態不可建立" : "Preview 中不可建立 Lab"}
+        </button>
+      </div>
+      <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5">
+        <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-200">Invite & Seats</p>
+        <h2 className="mt-2 text-xl font-semibold text-white">學生與助手管理</h2>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4"><p className="text-xs text-slate-400">Active students</p><p className="mt-2 text-2xl font-semibold">{studentCount}</p></div>
+          <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-4"><p className="text-xs text-slate-400">Active assistants</p><p className="mt-2 text-2xl font-semibold">{assistantCount} / 3</p></div>
+        </div>
+        <button type="button" disabled className="mt-4 w-full rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-3 text-sm font-semibold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-70">
+          {disabled ? "訂閱失效，不可產生邀請碼" : "Preview 中不可產生邀請碼"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function buildPreviewLab(studentCount: number): ProfessorWorkspaceLab[] {
+  const demoStudents = [
+    {
+      id: "preview-student-01",
+      name: "林同學",
+      email: "lin.student@example.test",
+      degree: "碩二",
+      researchArea: "智慧製造",
+      joinedAt: "2026-08-02T09:00:00.000Z",
+      latestSummary: {
+        summary: "文獻缺口與方法選擇仍待聚焦，建議下次 Meeting 先確認研究問題。",
+        riskLevel: "medium" as const,
+        issueTags: ["literature_gap", "meeting_prep"],
+        completedAt: "2026-08-20T08:30:00.000Z",
+        createdAt: "2026-08-20T08:00:00.000Z",
+      },
+    },
+    {
+      id: "preview-student-02",
+      name: "王同學",
+      email: "wang.student@example.test",
+      degree: "碩一",
+      researchArea: "資料分析",
+      joinedAt: "2026-08-04T09:00:00.000Z",
+      latestSummary: {
+        summary: "實驗結果邏輯已完成第一輪修正，可準備與指導教授確認下一步。",
+        riskLevel: "low" as const,
+        issueTags: ["experiment_logic"],
+        completedAt: "2026-08-19T08:30:00.000Z",
+        createdAt: "2026-08-19T08:00:00.000Z",
+      },
+    },
+    {
+      id: "preview-student-03",
+      name: "陳同學",
+      email: "chen.student@example.test",
+      degree: "博士班",
+      researchArea: "系統工程",
+      joinedAt: "2026-08-08T09:00:00.000Z",
+      latestSummary: {
+        summary: "口試前簡報需要重新安排論證順序，建議優先修正圖表與結論對應。",
+        riskLevel: "high" as const,
+        issueTags: ["presentation", "logic_gap"],
+        completedAt: "2026-08-18T08:30:00.000Z",
+        createdAt: "2026-08-18T08:00:00.000Z",
+      },
+    },
+  ];
+
+  return [
+    {
+      id: "preview-lab",
+      name: "智慧製造研究室",
+      institution: "臺灣科技大學",
+      isOwner: true,
+      students: Array.from({ length: studentCount }, (_, index) => {
+        const source = demoStudents[index % demoStudents.length];
+        return {
+          ...source,
+          id: `${source.id}-${index + 1}`,
+          name: index < demoStudents.length ? source.name : `研究生 ${index + 1}`,
+          email: index < demoStudents.length ? source.email : `student-${index + 1}@example.test`,
+        };
+      }),
+    },
+  ];
 }
 
 export function AdminPreviewCenter() {
   const [workspace, setWorkspace] = useState<PreviewWorkspace>("student");
-  const [studentScenario, setStudentScenario] =
-    useState<StudentScenario>("lab_member");
-  const [professorScenario, setProfessorScenario] =
-    useState<ProfessorScenario>("trial");
+  const [studentCourse, setStudentCourse] = useState<StudentCourseState>("lab_basic");
+  const [studentLab, setStudentLab] = useState<StudentLabState>("active");
+  const [professorSubscription, setProfessorSubscription] =
+    useState<ProfessorSubscriptionState>("trial");
+  const [studentCount, setStudentCount] = useState(12);
+  const [assistantCount, setAssistantCount] = useState(2);
 
-  const student = studentScenarios[studentScenario];
-  const professor = professorScenarios[professorScenario];
-  const professorReadonly = professorScenario === "readonly";
+  const professorSubscriptionMode: ProfessorSubscriptionMode =
+    professorSubscription === "trial" ||
+    professorSubscription === "standard" ||
+    professorSubscription === "plus" ||
+    professorSubscription === "grace"
+      ? "functional"
+      : professorSubscription === "none"
+        ? "none"
+        : "read_only";
+  const professorPlanKey =
+    professorSubscription === "plus" ? "professor_lab_plus" : "professor_lab_standard";
+  const professorStatus =
+    professorSubscription === "trial"
+      ? "trialing"
+      : professorSubscription === "grace"
+        ? "past_due"
+        : professorSubscription === "standard" || professorSubscription === "plus"
+          ? "active"
+          : "canceled";
+  const previewLabs =
+    professorSubscription === "none" ? [] : buildPreviewLab(studentCount);
+  const studentAccess = {
+    course: studentCourseLabels[studentCourse],
+    lab: studentLabLabels[studentLab],
+    audit:
+      studentLab === "active"
+        ? "可使用 Lab shared pool：本月剩餘 18 次"
+        : "PDF AI 稽核需加入有效訂閱 Lab",
+  };
+
+  function preventPreviewSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+  }
 
   return (
-    <section className="space-y-5">
-      <header className="rounded-[2rem] border border-cyan-300/20 bg-cyan-400/[0.07] p-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">
-          Read-only Interface Preview
-        </p>
-        <h2 className="mt-3 text-2xl font-semibold text-white">
-          學生與教授介面預覽中心
-        </h2>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
-          此頁僅使用固定 Demo 資料呈現權限狀態與介面結構，不會讀取其他真實使用者資料，亦不會建立訂單、Lab、邀請碼、PDF 或任何操作紀錄。
+    <section className="space-y-6">
+      <header className="rounded-[2rem] border border-cyan-300/20 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.13),transparent_28rem),rgba(8,47,73,0.28)] p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">Read-only Interface Preview</p>
+        <h2 className="mt-3 text-3xl font-semibold text-white">學生與教授介面預覽中心</h2>
+        <p className="mt-3 max-w-4xl text-sm leading-6 text-slate-300">
+          在左側選擇角色與目前權限狀態，右側會以與正式首頁共用的畫面元件完整呈現工作台。這裡永遠使用假資料，不能建立訂單、Lab、邀請碼、PDF、付款或操作紀錄。
         </p>
       </header>
 
-      <div className="flex flex-wrap gap-2" role="tablist" aria-label="預覽工作介面">
-        <ScenarioButton
-          active={workspace === "student"}
-          label="學生工作台"
-          onClick={() => setWorkspace("student")}
-        />
-        <ScenarioButton
-          active={workspace === "professor"}
-          label="教授 Lab Dashboard"
-          onClick={() => setWorkspace("professor")}
-        />
+      <div className="grid gap-6 2xl:grid-cols-[320px_minmax(0,1fr)]">
+        <aside className="h-fit rounded-[2rem] border border-white/10 bg-slate-950/80 p-5 shadow-2xl shadow-blue-950/20 2xl:sticky 2xl:top-6">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">目前狀態設定</p>
+          <h3 className="mt-2 text-xl font-semibold text-white">選擇工作台與權限</h3>
+          <div className="mt-6 space-y-5">
+            <SelectField
+              label="預覽工作台"
+              value={workspace}
+              onChange={setWorkspace}
+              options={[{ value: "student", label: "學生工作台" }, { value: "professor", label: "教授 Lab Dashboard" }]}
+            />
+
+            {workspace === "student" ? (
+              <>
+                <SelectField
+                  label="課程權限"
+                  value={studentCourse}
+                  onChange={setStudentCourse}
+                  options={(Object.entries(studentCourseLabels) as [StudentCourseState, string][]).map(([value, label]) => ({ value, label }))}
+                />
+                <SelectField
+                  label="Lab / 訂閱狀態"
+                  value={studentLab}
+                  onChange={setStudentLab}
+                  options={(Object.entries(studentLabLabels) as [StudentLabState, string][]).map(([value, label]) => ({ value, label }))}
+                />
+              </>
+            ) : (
+              <>
+                <SelectField
+                  label="Professor 訂閱狀態"
+                  value={professorSubscription}
+                  onChange={setProfessorSubscription}
+                  options={(Object.entries(professorSubscriptionLabels) as [ProfessorSubscriptionState, string][]).map(([value, label]) => ({ value, label }))}
+                />
+                <div>
+                  <FieldLabel>Lab active students</FieldLabel>
+                  <input type="number" min={0} max={30} value={studentCount} onChange={(event) => setStudentCount(Math.max(0, Math.min(30, Number(event.target.value) || 0)))} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-300/50" />
+                  <p className="mt-2 text-xs leading-5 text-slate-500">Standard：0–15；Plus：0–30；第 16 位前需升級 Plus。</p>
+                </div>
+                <div>
+                  <FieldLabel>Lab active assistants</FieldLabel>
+                  <input type="number" min={0} max={3} value={assistantCount} onChange={(event) => setAssistantCount(Math.max(0, Math.min(3, Number(event.target.value) || 0)))} className="mt-2 w-full rounded-xl border border-white/10 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-300/50" />
+                  <p className="mt-2 text-xs leading-5 text-slate-500">每個 Lab 最多 3 位 active assistants。</p>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="mt-6 rounded-2xl border border-amber-300/20 bg-amber-300/[0.07] p-4 text-xs leading-5 text-amber-50">
+            預覽不會存取或修改真實會員資料。若要觀察真實 Lab，請使用管理者後台的「Labs」唯讀觀察頁。
+          </div>
+        </aside>
+
+        <section className="min-w-0 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl shadow-blue-950/30">
+          <div className="border-b border-white/10 bg-white/[0.035] px-6 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">Live workspace canvas</p>
+            <p className="mt-1 text-sm text-slate-400">目前情境：{workspace === "student" ? `${studentCourseLabels[studentCourse]} · ${studentLabLabels[studentLab]}` : professorSubscriptionLabels[professorSubscription]}</p>
+          </div>
+          {workspace === "student" ? (
+            <div className="bg-slate-950">
+              <StudentWorkspaceNavigation previewMode />
+              <StudentWorkspaceHome
+                previewMode
+                leadSummary={{ quiz_result: "medium", quiz_score: 6, main_tags: ["tag_literature_blocked", "tag_advisor_meeting_blocked"] }}
+                advisorStyle="重視前後邏輯；報告先講結論，再回到證據與限制。"
+                frequentQuestions={"你的 control group 是什麼？\n這個指標如何定義？\n和前人研究的差異在哪裡？"}
+                onAdvisorStyleChange={() => undefined}
+                onFrequentQuestionsChange={() => undefined}
+                onSubmitAdvisorMemory={preventPreviewSubmit}
+                accessSummary={studentAccess}
+              />
+            </div>
+          ) : (
+            <ProfessorWorkspaceHome
+              previewMode
+              viewerName="王教授"
+              viewerRole="professor"
+              labs={previewLabs}
+              ownedLabCount={previewLabs.length}
+              subscriptionMode={professorSubscriptionMode}
+              subscriptionPlanKey={professorPlanKey}
+              subscriptionStatus={professorStatus}
+              canManage={previewLabs.length > 0}
+              managerControls={<PreviewManagerPanel studentCount={studentCount} assistantCount={assistantCount} subscriptionMode={professorSubscriptionMode} />}
+            />
+          )}
+        </section>
       </div>
-
-      {workspace === "student" ? (
-        <div className="grid gap-5 xl:grid-cols-[280px_1fr]">
-          <aside className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              學生情境
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-              {(Object.keys(studentScenarios) as StudentScenario[]).map((key) => (
-                <ScenarioButton
-                  key={key}
-                  active={studentScenario === key}
-                  label={studentScenarios[key].label}
-                  onClick={() => setStudentScenario(key)}
-                />
-              ))}
-            </div>
-            <p className="mt-5 text-xs leading-5 text-slate-500">
-              用於驗收課程與 Lab 衍生權限的顯示邏輯，不代表實際登入者。
-            </p>
-          </aside>
-
-          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl shadow-blue-950/20">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.035] px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">
-                  RAPID4GRAD Dashboard Preview
-                </p>
-                <h3 className="mt-1 text-xl font-semibold text-white">研究工作台</h3>
-              </div>
-              <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-100">
-                Demo mode
-              </span>
-            </div>
-            <div className="grid gap-4 p-5 lg:grid-cols-3">
-              <article className="rounded-3xl border border-white/10 bg-white/[0.035] p-5 lg:col-span-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">
-                  本週研究狀態
-                </p>
-                <h4 className="mt-3 text-2xl font-semibold text-white">Meeting 前提問準備</h4>
-                <p className="mt-3 text-sm leading-6 text-slate-300">
-                  本週先整理研究缺口、實驗邏輯與教授可能追問的三項問題。
-                </p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {['文獻缺口', 'Meeting 準備', '簡報結構'].map((tag) => (
-                    <span key={tag} className="rounded-full bg-blue-400/10 px-3 py-1 text-xs text-blue-100">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              </article>
-              <article className="rounded-3xl border border-emerald-300/20 bg-emerald-300/[0.07] p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-100">課程權限</p>
-                <p className="mt-3 text-lg font-semibold text-white">{student.course}</p>
-                <button type="button" disabled className="mt-5 w-full rounded-2xl border border-white/10 bg-white/[0.06] px-4 py-2 text-sm font-semibold text-slate-400">
-                  Preview 中不可播放
-                </button>
-              </article>
-              <article className="rounded-3xl border border-cyan-300/20 bg-cyan-300/[0.06] p-5 lg:col-span-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-100">PDF AI 稽核</p>
-                <p className="mt-3 text-lg font-semibold text-white">{student.audit}</p>
-                <p className="mt-2 text-sm leading-6 text-slate-300">{student.description}</p>
-              </article>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-5 xl:grid-cols-[280px_1fr]">
-          <aside className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              教授情境
-            </p>
-            <div className="mt-4 flex flex-col gap-2">
-              {(Object.keys(professorScenarios) as ProfessorScenario[]).map((key) => (
-                <ScenarioButton
-                  key={key}
-                  active={professorScenario === key}
-                  label={professorScenarios[key].label}
-                  onClick={() => setProfessorScenario(key)}
-                />
-              ))}
-            </div>
-            <p className="mt-5 text-xs leading-5 text-slate-500">
-              使用虛構 Lab 與學生摘要。真實 Lab 的唯讀檢查請使用 Admin 的 Lab 營運觀察。
-            </p>
-          </aside>
-
-          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl shadow-blue-950/20">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 bg-white/[0.035] px-5 py-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">
-                  Professor Workspace Preview
-                </p>
-                <h3 className="mt-1 text-xl font-semibold text-white">真實教授端 Lab Dashboard</h3>
-              </div>
-              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${professorReadonly ? "border-slate-400/30 bg-slate-400/10 text-slate-200" : "border-emerald-300/30 bg-emerald-300/10 text-emerald-100"}`}>
-                {professorReadonly ? "Read-only" : "Functional"}
-              </span>
-            </div>
-            <div className="p-5">
-              <article className="rounded-3xl border border-white/10 bg-white/[0.035] p-5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">Demo Lab</p>
-                    <h4 className="mt-2 text-2xl font-semibold text-white">智慧製造研究室</h4>
-                    <p className="mt-2 text-sm text-slate-400">臺灣科技大學 · 12 位學生 · 2 位 assistants</p>
-                  </div>
-                  <button type="button" disabled className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-100 disabled:cursor-not-allowed disabled:opacity-60">
-                    產生學生邀請碼
-                  </button>
-                </div>
-                <div className="mt-5 rounded-2xl border border-blue-300/20 bg-blue-300/[0.07] p-4">
-                  <p className="text-sm font-semibold text-white">{professor.plan}</p>
-                  <p className="mt-2 text-sm text-slate-300">{professor.action}</p>
-                </div>
-              </article>
-              <div className="mt-5 overflow-hidden rounded-3xl border border-white/10">
-                <table className="w-full min-w-[650px] text-left text-sm">
-                  <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.16em] text-slate-400">
-                    <tr><th className="px-4 py-3">學生</th><th className="px-4 py-3">最新安全摘要</th><th className="px-4 py-3">風險</th><th className="px-4 py-3">狀態</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/10 text-slate-300">
-                    {[
-                      ["林同學", "文獻缺口與方法選擇仍待聚焦", "medium"],
-                      ["王同學", "實驗結果邏輯已完成第一輪修正", "low"],
-                      ["陳同學", "口試前簡報需要重新安排論證順序", "high"],
-                    ].map(([name, summary, risk]) => (
-                      <tr key={name}>
-                        <td className="px-4 py-4 font-semibold text-white">{name}</td>
-                        <td className="max-w-sm px-4 py-4">{summary}</td>
-                        <td className="px-4 py-4"><span className={`rounded-full px-3 py-1 text-xs font-semibold ${risk === "high" ? "bg-red-400/15 text-red-100" : risk === "medium" ? "bg-amber-300/15 text-amber-100" : "bg-emerald-300/15 text-emerald-100"}`}>{risk}</span></td>
-                        <td className="px-4 py-4 text-slate-400">僅 consent summary</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }
