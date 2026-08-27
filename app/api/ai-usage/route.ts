@@ -92,23 +92,17 @@ function buildUsagePayload({
   payload,
   email,
   userId = null,
-  emailVerified,
   isAnonymousTrial,
-  isFreeUser,
 }: {
   payload: AiUsageRequest;
   email: string | null;
   userId?: string | null;
-  emailVerified: boolean;
   isAnonymousTrial: boolean;
-  isFreeUser: boolean;
 }) {
   return {
     user_id: userId,
     email,
-    email_verified: emailVerified,
     is_anonymous_trial: isAnonymousTrial,
-    is_free_user: isFreeUser,
     student_stage: payload.studentStage,
     meeting_context: payload.meetingContext,
     pain_points: payload.painPoints ?? [],
@@ -161,9 +155,7 @@ export async function POST(request: NextRequest) {
           payload,
           email,
           userId,
-          emailVerified: true,
           isAnonymousTrial: false,
-          isFreeUser: false,
         }),
       );
 
@@ -199,9 +191,7 @@ export async function POST(request: NextRequest) {
         buildUsagePayload({
           payload,
           email: null,
-          emailVerified: false,
           isAnonymousTrial: true,
-          isFreeUser: true,
         }),
       );
 
