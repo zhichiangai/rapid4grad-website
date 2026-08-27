@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PromptPackResult, PromptPlatform } from "@/lib/prompt-builder/prompt-pack-types";
 import { PLATFORM_LABELS } from "@/lib/prompt-builder/prompt-pack-config";
 
@@ -10,6 +10,9 @@ interface PromptPackDisplayProps { result: PromptPackResult | null; }
 export function PromptPackDisplay({ result }: PromptPackDisplayProps) {
   const [activePlatform, setActivePlatform] = useState<PromptPlatform>(result?.recommendedPlatform ?? "chatgpt");
   const [copied, setCopied] = useState<string | null>(null);
+  useEffect(() => {
+    if (result) setActivePlatform(result.recommendedPlatform);
+  }, [result]);
   if (!result) return null;
   const pack = result.packs[activePlatform];
   const copy = async (value: string, key: string) => { await navigator.clipboard.writeText(value); setCopied(key); window.setTimeout(() => setCopied((current) => current === key ? null : current), 2000); };

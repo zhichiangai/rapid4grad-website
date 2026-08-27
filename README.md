@@ -2,6 +2,8 @@
 
 RAPID4GRAD 是研究生課程、Professor Lab 管理與團隊 PDF AI 稽核平台；免費研究工具現行產品為 RAPID AI Navigator，支援 V3 Chat Prompt Pack 與 V4 Agent Execution Pack。
 
+Agent Mode 會自動檢查 RAPID 核准 Skills，優先使用 `gh skill preview` 與 pinned project install；若安裝失敗，不會阻斷研究任務。
+
 ## AI / 開發者必讀順序
 
 修改產品、付款、影片、Professor Dashboard、Lab、PDF AI 稽核或資料庫前，必須依序閱讀：

@@ -41,7 +41,7 @@ Skills are an allowlist, not an open-ended GitHub search feature. At most two Sk
 | `K-Dense-AI/scientific-agent-skills` | `36d8f13a1e754618794bf42f417884940077b4ae` | MIT | 2026-08-28 |
 | `obra/superpowers` | `b36e0829c6d0140e93cfef2ca599b1b07d4a7797` | MIT | 2026-08-28 |
 
-Allowed catalog IDs are `literature-review`, `citation-management`, `scientific-writing`, `statistical-analysis`, `scientific-visualization`, `scientific-slides`, `experimental-design`, `scientific-brainstorming`, and `superpowers`. The catalog must never include `Imbad0202` or substitute repositories.
+Allowed catalog IDs are `literature-review`, `citation-management`, `scientific-writing`, `statistical-analysis`, `scientific-visualization`, `scientific-slides`, `experimental-design`, `scientific-brainstorming`, `test-driven-development`, and `verification-before-completion`. The catalog must never include a synthetic `superpowers` entry, `Imbad0202`, or substitute repositories.
 
 | Task | Skills |
 |---|---|
@@ -51,10 +51,22 @@ Allowed catalog IDs are `literature-review`, `citation-management`, `scientific-
 | `figure` | `scientific-visualization` |
 | `slides` | `scientific-slides`, `scientific-visualization` |
 | `experiment` | `experimental-design`, `scientific-brainstorming` |
-| `coding` | `superpowers` |
-| `reproducibility` | `superpowers` |
+| `coding` | `test-driven-development`, `verification-before-completion` |
+| `reproducibility` | `verification-before-completion` |
 
-The generated bootstrap section checks whether the exact Skill is already installed and discoverable, does not reinstall an available Skill, inspects `SKILL.md`, prefers project-scoped installation, and does not execute bundled scripts merely because they exist. It forbids `curl | sh`, `wget | bash`, and `irm ... | iex`, and instructs the Agent to report when installation is unavailable. It must not search GitHub for substitutes.
+The generated platform-specific bootstrap uses GitHub CLI `gh skill` as the preferred installer. It checks whether the exact Skill is already installed and discoverable, does not reinstall an available Skill, previews before installing, inspects `SKILL.md`, prefers project-scoped installation, and does not execute bundled scripts merely because they exist. It pins the approved SHA and exact path, never uses global scope, `--force`, `--all`, or update commands. If `gh skill` is unavailable, the prompt describes a temporary-checkout, project-local manual fallback without cloning and copying the whole repository. It forbids `curl | sh`, `wget | bash`, and `irm ... | iex`, and instructs the Agent to report when installation is unavailable. It must not search GitHub for substitutes.
+
+## Platform Adapter
+
+| Platform | Agent host | Project Skill directory | Instruction files |
+|---|---|---|---|
+| Codex | `codex` | `.agents/skills` | `AGENTS.md` |
+| Claude Code | `claude-code` | `.claude/skills` | `CLAUDE.md` |
+| Cursor | `cursor` | `.agents/skills` | `AGENTS.md`, `.cursor/rules` |
+| GitHub Copilot | `github-copilot` | `.agents/skills` | `.github/copilot-instructions.md`, `AGENTS.md` |
+| OpenCode | `opencode` | `.agents/skills` | `AGENTS.md`, `opencode.json`, `opencode.jsonc` |
+
+Each platform receives a different bootstrap prompt. Every Skill is dynamically represented with `gh skill list`, `gh skill preview`, `gh skill install`, `--scope project`, `--pin`, its approved repository, exact path, and the corresponding project target directory. Conflicting same-name Skills are not overwritten or deleted.
 
 ## Prompt Phases
 

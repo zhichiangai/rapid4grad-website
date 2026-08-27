@@ -19,7 +19,8 @@ export const APPROVED_SKILLS: Record<string, ApprovedSkillReference> = {
   "scientific-slides": scientific("scientific-slides", "研究簡報與口試", "建立研究故事線與簡報檢查。", ["slides"]),
   "experimental-design": scientific("experimental-design", "實驗設計", "規劃變項、控制、混淆因子與分析方案。", ["experiment"]),
   "scientific-brainstorming": scientific("scientific-brainstorming", "研究方向推演", "在不假裝完成實驗的前提下推演研究方向。", ["experiment"]),
-  superpowers: { id: "superpowers", displayName: "軟體開發與驗證流程", description: "Inspect、Plan、Implement、Test、Review、Verify 的工程工作流。", repository: SUPERPOWERS, path: ".", commitSha: SUPERPOWERS_SHA, license: "MIT", reviewedAt: REVIEWED_AT, supportedTasks: ["coding", "reproducibility"] },
+  "test-driven-development": { id: "test-driven-development", displayName: "測試驅動開發", description: "以測試驅動 Inspect、Plan、Implement 與迭代。", repository: SUPERPOWERS, path: "skills/test-driven-development", commitSha: SUPERPOWERS_SHA, license: "MIT", reviewedAt: REVIEWED_AT, supportedTasks: ["coding"] },
+  "verification-before-completion": { id: "verification-before-completion", displayName: "完成前驗證", description: "在宣稱完成前執行證據化驗證與檢查。", repository: SUPERPOWERS, path: "skills/verification-before-completion", commitSha: SUPERPOWERS_SHA, license: "MIT", reviewedAt: REVIEWED_AT, supportedTasks: ["coding", "reproducibility"] },
 };
 
 export const AGENT_SKILL_MAPPING: Record<AgentTask, string[]> = {
@@ -29,8 +30,8 @@ export const AGENT_SKILL_MAPPING: Record<AgentTask, string[]> = {
   figure: ["scientific-visualization"],
   slides: ["scientific-slides", "scientific-visualization"],
   experiment: ["experimental-design", "scientific-brainstorming"],
-  coding: ["superpowers"],
-  reproducibility: ["superpowers"],
+  coding: ["test-driven-development", "verification-before-completion"],
+  reproducibility: ["verification-before-completion"],
 };
 
 export function getApprovedSkills(task: AgentTask) {

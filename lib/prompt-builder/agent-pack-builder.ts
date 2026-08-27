@@ -1,5 +1,7 @@
 import { AGENT_PLATFORM_LABELS, AGENT_RECOMMENDATION_REASONS, AGENT_RECOMMENDATIONS } from "./agent-pack-config";
 import { getApprovedSkills } from "./agent-skill-catalog";
+import { buildPlatformSkillBootstrap } from "./agent-skill-adapter";
+import { AGENT_TASK_LABELS } from "./agent-pack-config";
 import type { AgentPackInput, AgentPackResult, AgentPlatform, AgentTask } from "./agent-pack-types";
 
 const PLATFORMS: AgentPlatform[] = ["codex", "claude_code", "cursor", "github_copilot", "opencode"];
@@ -24,17 +26,14 @@ const TASK_WORKFLOWS: Record<AgentTask, string> = {
 };
 
 function integrity() { return "不捏造文獻、DOI、數據、實驗或 reference；不把推論寫成事實；資訊不足就標示；分開 evidence 與 interpretation；保留原始資料，不覆蓋 raw data；修改前先確認檔案用途；優先 reproducible workflow；回覆使用繁體中文，專有學術名詞可保留 English。"; }
-function skillBootstrap(skills: ReturnType<typeof getApprovedSkills>) { return `Before beginning the actual task, prepare the required RAPID-approved skills.\n\nFor every required skill:\n1. Check whether the exact skill is already installed and discoverable by this agent.\n2. If the approved version is available, do not reinstall it.\n3. If missing, use only the exact approved repository and pinned revision below.\n4. Do not search GitHub for substitutes or install similarly named skills.\n5. Inspect SKILL.md and the skill file tree before installation or execution.\n6. Do not execute bundled scripts merely because they exist.\n7. Prefer project-scoped installation and verify discovery after installation.\n8. If installation is unavailable in this agent surface, continue with this workflow and report that manual installation is needed.\n\nApproved skills:\n${skills.map((skill) => `- ${skill.displayName} (${skill.id}) | ${skill.repository} @ ${skill.commitSha} | ${skill.license} | ${skill.path}`).join("\n")}`; }
-
 function adapter(platform: AgentPlatform, input: AgentPackInput) {
   const skills = getApprovedSkills(input.task);
   const context = input.agentContext?.trim() ? `## User Request\n${input.agentContext.trim()}` : "## User Request\nNo additional context was provided. Inspect the available workspace/files and complete the selected task without inventing missing information.";
   const path = input.workingPath?.trim() ? `\n## Working Path Hint\n${input.workingPath.trim()}` : "";
   const constraints = input.constraints?.trim() ? `\n## Constraints\n${input.constraints.trim()}` : "";
-  const bootstrap = skillBootstrap(skills);
-  const task = `PHASE 3 — Execute Research Task\n${TASK_WORKFLOWS[input.task]}`;
-  const fullPrompt = `# RAPID Agent Task\n\n## Goal\n完成「${input.task}」研究任務，先準備核准能力，再讀取工作區、執行、驗證並交付。\n\n## Approved Skills\n${skills.map((skill) => skill.id).join(", ")}\n\nPHASE 0 — Safety & Capability Preflight\n${PLATFORM_WORKFLOWS[platform]}\n不要把平台名稱當成權限；任何修改、安裝或外部操作都先遵守目前 agent 的 permission boundary。\n\nPHASE 1 — Skill Bootstrap\n${bootstrap}\n\nPHASE 2 — Inspect Workspace\n先確認工作目錄、檔案用途、依賴、設定與現有輸出；不要猜測缺少的資訊。${path}\n\n${task}\n\nPHASE 4 — Verify\n檢查輸出是否符合任務目標，執行可用的測試或重現步驟，檢查檔案差異與敏感資料；研究結果要標出 evidence location、限制與不確定性。\n\nPHASE 5 — Deliver\n回報完成內容、變更檔案、測試結果、Remaining Risks 與下一步；除非使用者明確要求，不要 push 或 deploy。${constraints}\n\n## Research Integrity Rules\n${integrity()}\n\n${context}`;
-  const taskPrompt = `PHASE 3 — Execute Research Task\n${TASK_WORKFLOWS[input.task]}${path}${constraints}\n\n${context}`;
+  const bootstrap = buildPlatformSkillBootstrap(platform, skills);
+  const fullPrompt = `# RAPID Agent Task\n\n## Goal\n完成「${AGENT_TASK_LABELS[input.task]}」研究任務，先準備核准能力，再讀取工作區、執行、驗證並交付。\n\n## Approved Skills\n${skills.map((skill) => skill.id).join(", ")}\n\n## PHASE 0 — Capability Preflight\n${PLATFORM_WORKFLOWS[platform]}\n不要把平台名稱當成權限；任何修改、安裝或外部操作都先遵守目前 agent 的 permission boundary。\n\n${bootstrap}\n\n## PHASE 2 — Inspect Workspace\n先確認工作目錄、檔案用途、依賴、設定與現有輸出；不要猜測缺少的資訊。${path}\n\n## PHASE 3 — Execute Task\n${TASK_WORKFLOWS[input.task]}\n\n## PHASE 4 — Verify\n檢查輸出是否符合任務目標，執行可用的測試或重現步驟，檢查檔案差異與敏感資料；研究結果要標出 evidence location、限制與不確定性。\n\n## PHASE 5 — Deliver\n回報完成內容、變更檔案、測試結果、Remaining Risks 與下一步；除非使用者明確要求，不要 push 或 deploy。${constraints}\n\n## Research Integrity Rules\n${integrity()}\n\n${context}`;
+  const taskPrompt = `## PHASE 3 — Execute Task\n${TASK_WORKFLOWS[input.task]}${path}${constraints}\n\n${context}`;
   return { platform, task: input.task, recommended: AGENT_RECOMMENDATIONS[input.task] === platform, skills, fullPrompt, skillBootstrapPrompt: bootstrap, taskPrompt };
 }
 
