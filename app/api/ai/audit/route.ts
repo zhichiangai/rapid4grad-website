@@ -20,7 +20,8 @@ import {
   MAX_PDF_SIZE_BYTES,
   STUDENT_DOCUMENTS_BUCKET,
 } from "@/lib/documents/validation";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -149,14 +150,9 @@ async function refundReservedAudit(
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return jsonError("請先登入學生帳號後再執行 AI 稽核。", 401);
-  }
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth.context;
 
   const body = await parseBody(request);
   if (

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createV2Client } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 
 type ProgressBody = {
   lessonId?: unknown;
@@ -12,17 +12,9 @@ const UUID_PATTERN =
 const ALLOWED_STATUSES = ["not_started", "in_progress", "completed"] as const;
 
 export async function POST(request: NextRequest) {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { success: false, error: "請先登入再記錄觀看進度。" },
-      { status: 401 },
-    );
-  }
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user, supabase } = auth.context;
 
   let body: ProgressBody;
   try {

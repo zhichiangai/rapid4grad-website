@@ -3,7 +3,8 @@ import {
   EMAIL_VERIFIED_SESSION_COOKIE,
   verifyEmailSession,
 } from "@/lib/email-verification/session";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 
 type AiUsageRequest = {
   isAnonymousTrial?: boolean;
@@ -117,15 +118,6 @@ function buildUsagePayload({
   };
 }
 
-async function getAuthenticatedUser() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  return user;
-}
-
 function getAnonymousTrialCount(value?: string) {
   const count = Number.parseInt(value ?? "0", 10);
   return Number.isSafeInteger(count) && count > 0 ? count : 0;
@@ -135,7 +127,13 @@ export async function POST(request: NextRequest) {
   const payload = await parsePayload(request);
   if (!payload || !isValidPayload(payload)) return badRequest("無效的 AI 指令參數。");
 
-  const authenticatedUser = await getAuthenticatedUser();
+  const auth = await getActiveApiUser();
+  let authenticatedUser: { id: string; email?: string } | null = null;
+  if ("response" in auth && auth.response) {
+    if (auth.response.status === 403) return auth.response;
+  } else {
+    authenticatedUser = auth.context.user;
+  }
   const supabase = createAdminClient();
   const userId = authenticatedUser?.id ?? null;
   const verifiedSession = await verifyEmailSession(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
-import { canAccessWorkspace } from "@/lib/workspace/access";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 
 export const runtime = "nodejs";
 
@@ -11,13 +11,9 @@ function jsonError(message: string, status: number) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) return jsonError("請先登入教授帳號。", 401);
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth.context;
 
   let body: CreateLabBody;
   try {
@@ -44,7 +40,7 @@ export async function POST(request: NextRequest) {
     console.error("Professor profile lookup failed", { code: profileError.code });
     return jsonError("目前無法驗證教授帳號。", 503);
   }
-  if (!canAccessWorkspace(profile?.role, "professor") || profile?.role !== "professor") {
+  if (profile?.role !== "professor") {
     return jsonError("只有 Professor 帳號可以建立 Lab。", 403);
   }
 

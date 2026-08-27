@@ -1,20 +1,12 @@
-import { redirect } from "next/navigation";
 import { StudentWorkspaceNavigation } from "@/components/workspace/StudentWorkspaceNavigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireStudentWorkspace } from "@/lib/auth/authorization";
 
 export default async function DashboardLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login?next=/dashboard");
-  }
+  await requireStudentWorkspace("/dashboard");
 
   return (
     <div className="min-h-screen bg-slate-950 text-white">

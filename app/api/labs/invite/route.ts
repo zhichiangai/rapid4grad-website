@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateInviteCode, hashInviteCode } from "@/lib/labs/invite-code";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 import type { LabRole } from "@/types/database";
 
 export const runtime = "nodejs";
@@ -69,15 +70,9 @@ function mapInviteMutationError(message: string) {
 }
 
 async function requireProfessorOwnerAccount() {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return { error: jsonError("請先登入 Professor 帳號。", 401) } as const;
-  }
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return { error: auth.response } as const;
+  const { user } = auth.context;
 
   const admin = createV2AdminClient();
   const { data: profile, error: profileError } = await admin
@@ -93,7 +88,7 @@ async function requireProfessorOwnerAccount() {
     return { error: jsonError("目前無法驗證 Professor 帳號。", 503) } as const;
   }
 
-  if (profile?.role !== "professor" || profile.account_status !== "active") {
+  if (profile?.role !== "professor") {
     return { error: jsonError("只有啟用中的 Professor 帳號可以管理邀請碼。", 403) } as const;
   }
 

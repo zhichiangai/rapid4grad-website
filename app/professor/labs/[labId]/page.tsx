@@ -6,8 +6,8 @@ import {
   type ProfessorLabMember,
 } from "@/components/professor/LabMemberManagement";
 import { ProfessorLabControls } from "@/components/professor/ProfessorLabControls";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
-import { canAccessWorkspace } from "@/lib/workspace/access";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { requireProfessorWorkspace } from "@/lib/auth/authorization";
 import type { LabMembershipStatus, LabRole } from "@/types/database";
 
 type LabRow = {
@@ -75,31 +75,13 @@ function riskClass(riskLevel: string | null | undefined) {
 }
 
 async function requireProfessor() {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login?next=/professor/dashboard");
-  }
-
-  const admin = createV2AdminClient();
-  const { data: profile, error } = await admin
-    .from("profiles")
-    .select("id,role")
-    .eq("id", user.id)
-    .maybeSingle<{ id: string; role: string }>();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!canAccessWorkspace(profile?.role, "professor")) {
-    redirect("/dashboard");
-  }
-
-  return { user, profile, admin, supabase };
+  const context = await requireProfessorWorkspace("/professor/dashboard");
+  return {
+    user: context.user,
+    profile: context.profile,
+    admin: createV2AdminClient(),
+    supabase: context.supabase,
+  };
 }
 
 export default async function ProfessorLabPage({ params }: LabPageProps) {

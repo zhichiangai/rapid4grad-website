@@ -88,7 +88,13 @@ async function executeAdminRpc({
       operation: rpcName,
       code: error.code,
     });
-    redirect(withMessage(nextPath, errorMessage));
+    const message =
+      error.message.includes("active_student_membership_blocks_professor_role")
+        ? "此學生仍在 active Lab 中，不能轉為 Professor。"
+        : error.message.includes("professor_resources_block_student_role")
+          ? "此 Professor 仍持有 Lab、成員或訂閱資源，不能轉為 Student。"
+          : errorMessage;
+    redirect(withMessage(nextPath, message));
   }
 
   for (const path of revalidate) {

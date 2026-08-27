@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createAdminClient, createClient } from "@/lib/supabase/server";
-import { canAccessWorkspace } from "@/lib/workspace/access";
+import { createAdminClient } from "@/lib/supabase/server";
+import { requireProfessorWorkspace } from "@/lib/auth/authorization";
 
 type StudentPageProps = {
   params: Promise<{
@@ -59,31 +59,13 @@ function riskClass(riskLevel: string | null | undefined) {
 }
 
 async function requireProfessor() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login?next=/professor/dashboard");
-  }
-
-  const admin = createAdminClient();
-  const { data: profile, error } = await admin
-    .from("profiles")
-    .select("id,role")
-    .eq("id", user.id)
-    .maybeSingle<{ id: string; role: string }>();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!canAccessWorkspace(profile?.role, "professor")) {
-    redirect("/dashboard");
-  }
-
-  return { user, profile, admin, supabase };
+  const context = await requireProfessorWorkspace("/professor/dashboard");
+  return {
+    user: context.user,
+    profile: context.profile,
+    admin: createAdminClient(),
+    supabase: context.supabase,
+  };
 }
 
 export default async function ProfessorStudentPage({ params }: StudentPageProps) {

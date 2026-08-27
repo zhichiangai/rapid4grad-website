@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createV2Client } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 
 type RouteContext = {
   params: Promise<{ orderId: string }>;
@@ -17,17 +17,9 @@ export async function GET(_request: Request, context: RouteContext) {
     );
   }
 
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json(
-      { success: false, error: "請先登入。" },
-      { status: 401 },
-    );
-  }
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user, supabase } = auth.context;
 
   const { data: order, error } = await supabase
     .from("orders")

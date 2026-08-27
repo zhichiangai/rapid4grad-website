@@ -1,11 +1,10 @@
-import { redirect } from "next/navigation";
 import { ProfessorLabControls } from "@/components/professor/ProfessorLabControls";
 import {
   ProfessorWorkspaceHome,
   ProfessorWorkspaceLab,
 } from "@/components/workspace/ProfessorWorkspaceHome";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
-import { canAccessWorkspace } from "@/lib/workspace/access";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { requireProfessorWorkspace } from "@/lib/auth/authorization";
 
 type LabRow = {
   id: string;
@@ -45,36 +44,13 @@ type SharedAuditSummary = {
 };
 
 async function getProfessorUser() {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login?next=/professor/dashboard");
-  }
-
-  const admin = createV2AdminClient();
-  const { data: profile, error } = await admin
-    .from("profiles")
-    .select("id,email,full_name,role")
-    .eq("id", user.id)
-    .maybeSingle<{
-      id: string;
-      email: string;
-      full_name: string | null;
-      role: string;
-    }>();
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  if (!profile || !canAccessWorkspace(profile.role, "professor")) {
-    redirect("/dashboard");
-  }
-
-  return { user, profile, admin, supabase };
+  const context = await requireProfessorWorkspace("/professor/dashboard");
+  return {
+    user: context.user,
+    profile: context.profile,
+    admin: createV2AdminClient(),
+    supabase: context.supabase,
+  };
 }
 
 export default async function ProfessorDashboardPage() {
@@ -233,14 +209,8 @@ export default async function ProfessorDashboardPage() {
 
   return (
     <ProfessorWorkspaceHome
-      viewerName={profile.full_name ?? profile.email}
-      viewerRole={
-        profile.role === "admin"
-          ? "admin"
-          : profile.role === "assistant"
-            ? "assistant"
-            : "professor"
-      }
+      viewerName={profile.full_name ?? profile.email ?? user.email ?? "Professor"}
+      viewerRole={profile.role === "admin" ? "admin" : "professor"}
       labs={workspaceLabs}
       ownedLabCount={ownedLabs.length}
       subscriptionMode={subscriptionMode}

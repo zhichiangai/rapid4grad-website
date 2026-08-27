@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import {
   createV2AdminClient,
-  createV2Client,
 } from "@/lib/supabase/server";
 import { getPaymentProvider } from "@/lib/payments";
 import type {
@@ -10,6 +9,7 @@ import type {
   CheckoutProduct,
   CreateCheckoutResult,
 } from "@/lib/payments";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 
 export const runtime = "nodejs";
 
@@ -69,21 +69,10 @@ function mapCheckoutRpcError(message: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError) {
-    console.error("Course checkout authentication failed", {
-      code: userError.code,
-    });
-  }
-
-  if (!user?.email) {
-    return jsonError("請先登入再購買課程。", 401);
-  }
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth.context;
+  if (!user.email) return jsonError("請先登入再購買課程。", 401);
 
   let body: CheckoutRequestBody = {};
   try {

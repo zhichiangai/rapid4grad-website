@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hashInviteCode, normalizeInviteCode } from "@/lib/labs/invite-code";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 import type { LabRole } from "@/types/database";
 
 export const runtime = "nodejs";
@@ -62,9 +63,9 @@ function mapJoinError(message: string) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createV2Client();
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) return jsonError("請先登入帳號。", 401);
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth.context;
 
   const body = await parseBody(request);
   const inviteCode =

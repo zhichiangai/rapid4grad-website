@@ -85,7 +85,7 @@ test("stream completion waits for settlement and failures await refunds", () => 
 });
 
 test("signed upload and completion validate actual private PDF metadata", () => {
-  assert.match(uploadRoute, /auth\.getUser\(\)/);
+  assert.match(uploadRoute, /getActiveApiUser\(\)/);
   assert.match(uploadRoute, /getLabPdfAuditEligibility/);
   assert.match(uploadRoute, /createV2AdminClient\(\)/);
   assert.match(uploadRoute, /createSignedUploadUrl/);

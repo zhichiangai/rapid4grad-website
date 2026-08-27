@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 import type { LabRole } from "@/types/database";
 
 export const runtime = "nodejs";
@@ -107,12 +108,9 @@ async function getSeatUsage(
 }
 
 export async function PATCH(request: NextRequest) {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-  if (userError || !user) return jsonError("請先登入 Professor 帳號。", 401);
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth.context;
 
   const body = await parseBody(request);
   if (!body) return jsonError("請求格式不正確。", 400);

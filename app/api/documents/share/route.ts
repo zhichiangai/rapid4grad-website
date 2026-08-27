@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 
 export const runtime = "nodejs";
 
@@ -35,11 +36,9 @@ function isUuid(value: unknown): value is string {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return jsonError("請先登入。", 401);
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth.context;
 
   const body = await parseBody(request);
   if (

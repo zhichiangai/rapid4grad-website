@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSubscriptionProvider } from "@/lib/subscriptions";
-import { createV2AdminClient, createV2Client } from "@/lib/supabase/server";
+import { createV2AdminClient } from "@/lib/supabase/server";
+import { getActiveApiUser } from "@/lib/auth/authorization";
 
 type CancelBody = { subscriptionId?: unknown };
 
@@ -9,11 +10,9 @@ function jsonError(message: string, status: number) {
 }
 
 export async function POST(request: NextRequest) {
-  const supabase = await createV2Client();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return jsonError("請先登入教授帳號。", 401);
+  const auth = await getActiveApiUser();
+  if ("response" in auth) return auth.response;
+  const { user } = auth.context;
 
   let body: CancelBody;
   try {

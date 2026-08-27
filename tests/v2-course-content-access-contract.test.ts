@@ -45,7 +45,7 @@ test("lesson metadata and playback source cross separate server boundaries", asy
 test("progress writes are owner scoped and require access to the lesson", async () => {
   const progressRoute = await source(files.progressRoute);
 
-  assert.match(progressRoute, /supabase\.auth\.getUser\(\)/);
+  assert.match(progressRoute, /getActiveApiUser\(\)/);
   assert.match(progressRoute, /user_id: user\.id/);
   assert.match(progressRoute, /from\("course_lessons"\)/);
   assert.match(progressRoute, /from\("course_progress"\)/);

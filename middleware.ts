@@ -9,6 +9,10 @@ function isAdminPath(pathname: string) {
   return pathname === "/admin" || pathname.startsWith("/admin/");
 }
 
+function isProfessorPath(pathname: string) {
+  return pathname === "/professor" || pathname.startsWith("/professor/");
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -44,8 +48,9 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  const isProtected = isProtectedPath(pathname) || isAdminPath(pathname) || isProfessorPath(pathname);
 
-  if (!user && (isProtectedPath(pathname) || isAdminPath(pathname))) {
+  if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("next", pathname);
@@ -55,13 +60,57 @@ export async function middleware(request: NextRequest) {
   if (user && isAdminPath(pathname)) {
     const { data: profile, error } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role,account_status")
       .eq("id", user.id)
       .maybeSingle();
 
-    if (error || profile?.role !== "admin") {
+    if (error || profile?.account_status !== "active" || profile?.role !== "admin") {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/dashboard";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  if (user && isProfessorPath(pathname)) {
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("role,account_status")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error || profile?.account_status !== "active") {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/account-suspended";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    if (profile.role === "student") {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
+
+  if (user && isProtectedPath(pathname) && pathname !== "/account-suspended") {
+    const { data: profile, error } = await supabase
+      .from("profiles")
+      .select("role,account_status")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (error || profile?.account_status !== "active") {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/account-suspended";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    if (profile.role === "professor" && pathname.startsWith("/dashboard")) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/professor/dashboard";
       redirectUrl.search = "";
       return NextResponse.redirect(redirectUrl);
     }
@@ -71,5 +120,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  matcher: ["/dashboard/:path*", "/admin/:path*", "/professor/:path*"],
 };
