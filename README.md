@@ -1,6 +1,6 @@
 # RAPID4GRAD
 
-RAPID4GRAD 是研究生課程、Professor Lab 管理與團隊 PDF AI 稽核平台。
+RAPID4GRAD 是研究生課程、Professor Lab 管理與團隊 PDF AI 稽核平台；免費研究工具現行產品為 RAPID4GRAD AI Research Prompt Pack V3，使用者體驗名稱為 RAPID Research Copilot。
 
 ## AI / 開發者必讀順序
 

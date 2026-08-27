@@ -5,6 +5,7 @@ import { useState } from "react";
 type ApiResponse = {
   success?: boolean;
   error?: string;
+  token?: string;
 };
 
 interface UsageGateModalProps {
@@ -26,6 +27,7 @@ export function UsageGateModal({
   const [email, setEmail] = useState("");
   const [verificationCode, setVerificationCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const [signedToken, setSignedToken] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [localMessage, setLocalMessage] = useState("");
@@ -68,6 +70,7 @@ export function UsageGateModal({
       }
 
       setCodeSent(true);
+      setSignedToken(result.token ?? "");
       setLocalMessage("驗證碼已發送至你的信箱，請於 10 分鐘內輸入。");
     } catch {
       setErrorMessage("無法連線到 Email 驗證服務，請稍後再試。");
@@ -85,7 +88,7 @@ export function UsageGateModal({
       return;
     }
 
-    if (!codeSent) {
+    if (!codeSent || !signedToken) {
       setErrorMessage("請先發送驗證碼。");
       return;
     }
@@ -106,6 +109,7 @@ export function UsageGateModal({
         body: JSON.stringify({
           action: "verify",
           email: normalizedEmail,
+          token: signedToken,
           pin: verificationCode.trim(),
         }),
       });
@@ -121,6 +125,7 @@ export function UsageGateModal({
       setEmail("");
       setVerificationCode("");
       setCodeSent(false);
+      setSignedToken("");
       setLocalMessage("");
       setErrorMessage("");
     } catch {

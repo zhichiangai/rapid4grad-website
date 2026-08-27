@@ -17,10 +17,8 @@ export const RESEARCH_TASK_OPTIONS: Array<{
   { value: "meeting", label: "明天要 Meeting", description: "預測教授可能追問的問題，提前找出研究漏洞。" },
   { value: "defense", label: "準備口試", description: "用口試委員角度壓力測試你的研究。" },
   { value: "submission", label: "投稿前檢查", description: "檢查研究邏輯、圖表、結果與貢獻是否一致。" },
-  { value: "logic", label: "檢查研究邏輯", description: "找出研究問題、方法、結果與結論之間的斷點。" },
   { value: "presentation", label: "修改研究簡報", description: "改善簡報故事線、圖表與報告邏輯。" },
   { value: "draft", label: "修改論文 / 草稿", description: "檢查論證、章節結構與文字表達。" },
-  { value: "other", label: "其他研究問題", description: "處理其他 Meeting、研究或論文相關需求。" },
 ];
 
 export const MATERIAL_TYPE_OPTIONS: Array<{
