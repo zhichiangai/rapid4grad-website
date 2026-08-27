@@ -32,21 +32,22 @@ export default async function PublicAiCommandPage() {
         <header className="mb-8 rounded-[2rem] border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-blue-950/20">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-blue-300">
-                RAPID4GRAD FREE TOOL
-              </p>
               <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-                研究報告 AI 指令產生器
+                Meeting、投稿、口試前，先讓 AI 幫你找出問題
               </h1>
               <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">
-                未登入可免費產生 20 次。完成 Email 驗證或使用 Google 登入後，即可不限次使用；不需購買課程。
+                選擇你現在正在準備的研究任務，RAPID 會替你整理成可直接貼到 ChatGPT、Claude、Gemini 或 Grok 的研究指令。
+              </p>
+              <p className="mt-2 text-xs text-slate-500">不需要把研究檔案上傳到 RAPID。</p>
+              <p className="mt-1 text-xs text-slate-500">
+                未登入可免費產生 20 次，完成 Email 驗證或登入後不限次使用。
               </p>
             </div>
             <Link
               href="/login?next=/dashboard/ai-command"
               className="rounded-full border border-blue-300/20 bg-blue-500/10 px-4 py-2 text-sm font-semibold text-blue-100 transition hover:bg-blue-500/20"
             >
-              Google 登入
+              登入以保存使用狀態
             </Link>
           </div>
         </header>

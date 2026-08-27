@@ -24,6 +24,35 @@ export type PainPoint =
 
 export type AiModel = "chatgpt" | "claude" | "gemini" | "grok";
 
+export type ResearchTask =
+  | "meeting"
+  | "defense"
+  | "submission"
+  | "logic"
+  | "presentation"
+  | "draft"
+  | "other";
+
+export type MaterialType =
+  | "slides"
+  | "draft"
+  | "figures"
+  | "idea"
+  | "progress"
+  | "abstract"
+  | "unknown";
+
+export type ResearchConcern =
+  | "motivation"
+  | "gap"
+  | "method"
+  | "control"
+  | "figure"
+  | "overclaim"
+  | "advisor_questions"
+  | "progress"
+  | "all";
+
 export type PromptTemplateTargetAi = AiModel | "all";
 
 export type InstructionType =
@@ -40,6 +69,8 @@ export interface AdvisorPrefs {
 
 export interface PromptParams {
   studentStage: StudentStage;
+  researchTask: ResearchTask;
+  materialType: MaterialType;
   meetingContext: MeetingContext;
   painPoints: PainPoint[];
   selectedAi: AiModel;

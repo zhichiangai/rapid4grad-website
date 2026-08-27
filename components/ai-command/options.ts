@@ -1,10 +1,109 @@
 import type {
   AiModel,
   InstructionType,
+  MaterialType,
   MeetingContext,
   PainPoint,
+  ResearchConcern,
+  ResearchTask,
   StudentStage,
 } from "@/lib/prompt-builder/types";
+
+export const RESEARCH_TASK_OPTIONS: Array<{
+  value: ResearchTask;
+  label: string;
+  description: string;
+}> = [
+  { value: "meeting", label: "明天要 Meeting", description: "預測教授可能追問的問題，提前找出研究漏洞。" },
+  { value: "defense", label: "準備口試", description: "用口試委員角度壓力測試你的研究。" },
+  { value: "submission", label: "投稿前檢查", description: "檢查研究邏輯、圖表、結果與貢獻是否一致。" },
+  { value: "logic", label: "檢查研究邏輯", description: "找出研究問題、方法、結果與結論之間的斷點。" },
+  { value: "presentation", label: "修改研究簡報", description: "改善簡報故事線、圖表與報告邏輯。" },
+  { value: "draft", label: "修改論文 / 草稿", description: "檢查論證、章節結構與文字表達。" },
+  { value: "other", label: "其他研究問題", description: "處理其他 Meeting、研究或論文相關需求。" },
+];
+
+export const MATERIAL_TYPE_OPTIONS: Array<{
+  value: MaterialType;
+  label: string;
+}> = [
+  { value: "slides", label: "研究簡報 / PPT" },
+  { value: "draft", label: "論文 / 草稿" },
+  { value: "figures", label: "實驗結果 / 圖表" },
+  { value: "idea", label: "研究想法" },
+  { value: "progress", label: "Meeting 進度" },
+  { value: "abstract", label: "摘要 / Abstract" },
+  { value: "unknown", label: "還不知道" },
+];
+
+export const RESEARCH_CONCERN_OPTIONS: Array<{
+  value: ResearchConcern;
+  label: string;
+}> = [
+  { value: "motivation", label: "研究動機不夠清楚" },
+  { value: "gap", label: "Novelty / Gap 不明確" },
+  { value: "method", label: "實驗設計可能有漏洞" },
+  { value: "control", label: "對照組不足" },
+  { value: "figure", label: "圖表解釋不合理" },
+  { value: "overclaim", label: "結論可能過度延伸" },
+  { value: "advisor_questions", label: "教授會一直追問" },
+  { value: "progress", label: "研究進度說不清楚" },
+  { value: "all", label: "不知道，全部幫我檢查" },
+];
+
+export const TASK_PRESETS: Record<ResearchTask, {
+  meetingContext: MeetingContext;
+  painPoints: PainPoint[];
+  instructionTypes: InstructionType[];
+}> = {
+  meeting: {
+    meetingContext: "one_on_one",
+    painPoints: ["logic_check", "advisor_simulation"],
+    instructionTypes: ["advisor_questions", "logic_check"],
+  },
+  defense: {
+    meetingContext: "defense_rehearsal",
+    painPoints: ["logic_check", "advisor_simulation", "figure_check"],
+    instructionTypes: ["advisor_questions", "logic_check"],
+  },
+  submission: {
+    meetingContext: "submission_check",
+    painPoints: ["find_gap", "logic_check", "figure_check"],
+    instructionTypes: ["logic_check"],
+  },
+  logic: {
+    meetingContext: "other",
+    painPoints: ["logic_check", "find_gap"],
+    instructionTypes: ["logic_check"],
+  },
+  presentation: {
+    meetingContext: "group_meeting",
+    painPoints: ["presentation_revision", "figure_check"],
+    instructionTypes: ["presentation_revision"],
+  },
+  draft: {
+    meetingContext: "draft_revision",
+    painPoints: ["logic_check", "english_polish"],
+    instructionTypes: ["logic_check", "english_polish"],
+  },
+  other: {
+    meetingContext: "other",
+    painPoints: ["logic_check"],
+    instructionTypes: ["logic_check"],
+  },
+};
+
+export const CONCERN_TO_PAIN_POINTS: Record<ResearchConcern, PainPoint[]> = {
+  motivation: ["logic_check"],
+  gap: ["find_gap"],
+  method: ["logic_check"],
+  control: ["logic_check"],
+  figure: ["figure_check"],
+  overclaim: ["logic_check"],
+  advisor_questions: ["advisor_simulation"],
+  progress: ["logic_check"],
+  all: ["find_gap", "logic_check", "advisor_simulation", "figure_check"],
+};
 
 export const STUDENT_STAGE_OPTIONS: Array<{
   value: StudentStage;

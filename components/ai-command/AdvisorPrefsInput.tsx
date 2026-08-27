@@ -26,69 +26,52 @@ export function AdvisorPrefsInput({
   onPreferredStyleChange,
   onCustomNoteChange,
 }: AdvisorPrefsInputProps) {
-  const appendStyleHint = (hint: string) => {
-    const current = preferredStyle.trim();
-    if (current.includes(hint)) return;
-    onPreferredStyleChange(current ? `${current}、${hint}` : hint);
+  const selectedStyles = preferredStyle.split("、").map((style) => style.trim()).filter(Boolean);
+
+  const toggleStyle = (style: string) => {
+    const next = selectedStyles.includes(style)
+      ? selectedStyles.filter((item) => item !== style)
+      : [...selectedStyles, style];
+    onPreferredStyleChange(next.join("、"));
   };
 
   return (
-    <section className="space-y-4">
-      <div>
-        <h3 className="text-sm font-medium text-slate-200">
-          指導教授偏好（選填）
-        </h3>
-        <p className="mt-1 text-xs leading-5 text-slate-500">
-          這些資訊會被注入 prompt，讓外部 AI 更像你的指導教授在問問題。
-        </p>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        {STYLE_HINTS.map((hint) => (
-          <button
-            key={hint}
-            type="button"
-            onClick={() => appendStyleHint(hint)}
-            className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs text-slate-300 transition hover:border-blue-300/40 hover:text-white"
-          >
-            {hint}
-          </button>
-        ))}
-      </div>
-
-      <label className="block space-y-2">
-        <span className="text-xs font-medium text-slate-300">
-          教授常問問題（一行一題）
+    <details className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
+      <summary className="cursor-pointer list-none">
+        <span className="text-sm font-semibold text-white">提高準確度（選填）</span>
+        <span className="mt-1 block text-xs leading-5 text-slate-500">
+          如果你的教授有固定的提問習慣，可以補充在這裡。
         </span>
-        <textarea
-          value={frequentQuestions}
-          onChange={(event) => onFrequentQuestionsChange(event.target.value)}
-          rows={3}
-          className="w-full resize-none rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-          placeholder="例如：你的對照組在哪裡？&#10;這個方法和前人差在哪？"
-        />
-      </label>
-
-      <label className="block space-y-2">
-        <span className="text-xs font-medium text-slate-300">教授偏好風格</span>
-        <input
-          value={preferredStyle}
-          onChange={(event) => onPreferredStyleChange(event.target.value)}
-          className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-          placeholder="例如：重視前後邏輯、常問對照組、喜歡先講結論"
-        />
-      </label>
-
-      <label className="block space-y-2">
-        <span className="text-xs font-medium text-slate-300">自訂備忘</span>
-        <textarea
-          value={customNote}
-          onChange={(event) => onCustomNoteChange(event.target.value)}
-          rows={3}
-          className="w-full resize-none rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20"
-          placeholder="補充這次 Meeting、口試或投稿最擔心的地方。"
-        />
-      </label>
-    </section>
+      </summary>
+      <div className="mt-5 space-y-4">
+        <fieldset>
+          <legend className="text-xs font-medium text-slate-300">教授特別在意什麼？</legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {STYLE_HINTS.map((style) => {
+              const selected = selectedStyles.includes(style);
+              return (
+                <button
+                  key={style}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => toggleStyle(style)}
+                  className={`rounded-full border px-3 py-1.5 text-xs transition ${selected ? "border-cyan-300/60 bg-cyan-400/15 text-cyan-50" : "border-white/10 bg-white/[0.04] text-slate-300 hover:border-cyan-300/40 hover:text-white"}`}
+                >
+                  {style}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+        <label className="block space-y-2">
+          <span className="text-xs font-medium text-slate-300">教授常問你的問題</span>
+          <textarea value={frequentQuestions} onChange={(event) => onFrequentQuestionsChange(event.target.value)} rows={3} className="w-full resize-none rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20" placeholder={'例如：\n你的對照組在哪裡？\n這個方法和前人差在哪？'} />
+        </label>
+        <label className="block space-y-2">
+          <span className="text-xs font-medium text-slate-300">其他補充</span>
+          <textarea value={customNote} onChange={(event) => onCustomNoteChange(event.target.value)} rows={3} className="w-full resize-none rounded-2xl border border-white/10 bg-slate-900 px-4 py-3 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20" placeholder="例如：這次 Meeting 最擔心老師質疑研究方法。" />
+        </label>
+      </div>
+    </details>
   );
 }

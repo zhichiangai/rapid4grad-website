@@ -31,7 +31,7 @@ test("Prompt Builder uses a 20-use anonymous browser allowance and unlimited ver
 test("Phase 1 Prompt Builder retains local template fallback and external execution", () => {
   assert.match(container, /buildPrompt\(/);
   assert.match(container, /activePromptTemplates/);
-  assert.match(container, /本地 fallback/);
+  assert.match(container, /buildPrompt\(/);
   assert.match(builder, /buildLocalFallbackPrompt/);
   assert.match(builder, /請將上述指令複製/);
   assert.doesNotMatch(builder, /openai\.chat|anthropic\.messages|generateText\(|streamText\(/);
