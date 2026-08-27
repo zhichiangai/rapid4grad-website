@@ -8,7 +8,7 @@ const PLATFORM_LINKS: Record<PromptPlatform, string> = { chatgpt: "https://chatg
 interface PromptPackDisplayProps { result: PromptPackResult | null; }
 
 export function PromptPackDisplay({ result }: PromptPackDisplayProps) {
-  const [activePlatform, setActivePlatform] = useState<PromptPlatform>("chatgpt");
+  const [activePlatform, setActivePlatform] = useState<PromptPlatform>(result?.recommendedPlatform ?? "chatgpt");
   const [copied, setCopied] = useState<string | null>(null);
   if (!result) return null;
   const pack = result.packs[activePlatform];
