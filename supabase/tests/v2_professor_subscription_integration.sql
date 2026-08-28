@@ -153,12 +153,12 @@ SELECT pg_temp.assert_true(
 
 SELECT public.process_professor_subscription_event(
   'event-standard-paid', :'standard_provider_order', 'payment-standard-1',
-  'paid', 100, 'TWD', '2026-07-19T01:00:00Z', '2026-08-19T01:00:00Z',
+  'paid', 100, 'TWD', '2026-08-01T01:00:00Z', '2027-08-01T01:00:00Z',
   '{"fixture_only":true}'::JSONB, NULL
 );
 SELECT public.process_professor_subscription_event(
   'event-standard-paid', :'standard_provider_order', 'payment-standard-1',
-  'paid', 100, 'TWD', '2026-07-19T01:00:00Z', '2026-08-19T01:00:00Z',
+  'paid', 100, 'TWD', '2026-08-01T01:00:00Z', '2027-08-01T01:00:00Z',
   '{"fixture_only":true,"duplicate":true}'::JSONB, NULL
 );
 SELECT pg_temp.assert_true(
@@ -292,7 +292,7 @@ SELECT pg_temp.assert_true(
 SELECT pg_temp.assert_true(
   NOT (public.process_professor_subscription_event(
     'event-retired-standard-delayed', :'standard_provider_order', 'payment-retired-standard',
-    'paid', 100, 'TWD', '2026-07-19T01:01:00Z', '2026-08-19T01:01:00Z',
+    'paid', 100, 'TWD', '2026-08-01T01:01:00Z', '2027-08-01T01:00:00Z',
     '{"fixture_only":true}'::JSONB, NULL
   )->>'applied')::BOOLEAN,
   'delayed events from the retired Standard schedule must not mutate the subscription'
@@ -300,7 +300,7 @@ SELECT pg_temp.assert_true(
 
 SELECT public.process_professor_subscription_event(
   'event-first-plus-failed', :'first_plus_provider_order', 'payment-first-plus-failed',
-  'failed', 200, 'TWD', '2026-07-19T01:01:10Z', '2026-08-19T01:01:10Z',
+  'failed', 200, 'TWD', '2026-08-01T01:01:10Z', '2027-08-01T01:01:10Z',
   '{"fixture_only":true}'::JSONB, 'failed'
 );
 SELECT pg_temp.assert_true(
@@ -336,7 +336,7 @@ SELECT pg_temp.assert_true(
 
 SELECT public.process_professor_subscription_event(
   'event-plus-paid', :'plus_provider_order', 'payment-plus-1',
-  'paid', 200, 'TWD', '2026-07-19T01:01:20Z', '2026-08-19T01:01:20Z',
+  'paid', 200, 'TWD', '2026-08-01T01:01:20Z', '2027-08-01T01:01:20Z',
   '{"fixture_only":true}'::JSONB, NULL
 );
 
@@ -354,18 +354,18 @@ SELECT pg_temp.assert_true(
 
 SELECT public.process_professor_subscription_event(
   'event-plus-failed', :'plus_provider_order', 'payment-plus-failed',
-  'failed', 200, 'TWD', '2026-07-19T01:02:00Z', '2026-08-19T01:02:00Z',
+  'failed', 200, 'TWD', '2026-08-01T01:02:00Z', '2027-08-01T01:02:00Z',
   '{"fixture_only":true}'::JSONB, 'failed'
 );
 SELECT pg_temp.assert_true(
-  (SELECT status = 'past_due' AND grace_ends_at = '2026-08-03T01:02:00Z'
+  (SELECT status = 'past_due' AND grace_ends_at = '2026-08-16T01:02:00Z'
    FROM public.subscriptions WHERE id = :'trial_subscription_id'::UUID),
   'failed renewal must start a 15-day grace period'
 );
 
 SELECT public.process_professor_subscription_event(
   'event-plus-same-second-active', :'plus_provider_order', 'payment-plus-same-second',
-  'paid', 200, 'TWD', '2026-07-19T01:02:00Z', '2026-08-19T01:02:00Z',
+  'paid', 200, 'TWD', '2026-08-01T01:02:00Z', '2027-08-01T01:02:00Z',
   '{"fixture_only":true}'::JSONB, NULL
 );
 SELECT pg_temp.assert_true(
@@ -375,7 +375,7 @@ SELECT pg_temp.assert_true(
 
 SELECT public.process_professor_subscription_event(
   'event-plus-recovered', :'plus_provider_order', 'payment-plus-recovered',
-  'paid', 200, 'TWD', '2026-07-19T01:03:00Z', '2026-08-19T01:03:00Z',
+  'paid', 200, 'TWD', '2026-08-01T01:03:00Z', '2027-08-01T01:00:00Z',
   '{"fixture_only":true}'::JSONB, NULL
 );
 SELECT pg_temp.assert_true(

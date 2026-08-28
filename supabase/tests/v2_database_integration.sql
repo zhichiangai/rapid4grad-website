@@ -478,10 +478,10 @@ SELECT pg_temp.assert_true(
     FROM pg_policies
     WHERE schemaname = 'storage'
       AND tablename = 'objects'
-      AND policyname = 'student_documents_storage_delete_owner'
+      AND policyname = 'student_documents_storage_delete_active_owner'
       AND cmd = 'DELETE'
   ),
-  'owner delete policy must remain available for the supported Storage API path'
+  'active owner delete policy must remain available for the supported Storage API path'
 );
 
 -- Permanent course entitlement remains active after Lab membership removal.

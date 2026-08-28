@@ -4,6 +4,7 @@
 \set failed_buyer '91000000-0000-0000-0000-000000000003'
 \set cancelled_buyer '91000000-0000-0000-0000-000000000004'
 \set concurrent_buyer '91000000-0000-0000-0000-000000000005'
+\set lab_owner '91000000-0000-0000-0000-000000000006'
 
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(condition BOOLEAN, message TEXT)
 RETURNS VOID
@@ -37,8 +38,26 @@ FROM (
     (:'lab_buyer'::UUID, 'course-lab@local.test', 'Course Lab'),
     (:'failed_buyer'::UUID, 'course-failed@local.test', 'Course Failed'),
     (:'cancelled_buyer'::UUID, 'course-cancelled@local.test', 'Course Cancelled'),
-    (:'concurrent_buyer'::UUID, 'course-concurrent@local.test', 'Course Concurrent')
+    (:'concurrent_buyer'::UUID, 'course-concurrent@local.test', 'Course Concurrent'),
+    (:'lab_owner'::UUID, 'course-lab-owner@local.test', 'Course Lab Owner')
 ) AS fixture(id, email, name);
+
+UPDATE public.profiles
+SET role = 'professor'
+WHERE id = :'lab_owner'::UUID;
+
+SELECT public.create_professor_lab(
+  :'lab_owner'::UUID,
+  'Course Purchase Fixture Lab',
+  'Local Test'
+) AS lab_id \gset
+
+SELECT public.start_professor_subscription_trial(
+  :'lab_owner'::UUID,
+  :'lab_id'::UUID,
+  'professor_lab_standard',
+  'month'
+);
 
 UPDATE public.products
 SET is_active = TRUE
@@ -50,6 +69,11 @@ INSERT INTO public.product_prices(
 )
 VALUES
   (
+    (SELECT id FROM public.products WHERE slug = 'student-course-full'),
+    'manual', 'TWD', 2400, 'one_time', TRUE,
+    '{"fixture_only":true}'::JSONB
+  ),
+  (
     (SELECT id FROM public.products WHERE slug = 'student-lab-course-upgrade'),
     'manual', 'TWD', 1800, 'one_time', TRUE,
     '{"fixture_only":true}'::JSONB
@@ -58,7 +82,7 @@ ON CONFLICT DO NOTHING;
 
 INSERT INTO public.lab_memberships(lab_id, user_id, role, status)
 VALUES (
-  (SELECT id FROM public.labs WHERE owner_professor_id = '20000000-0000-0000-0000-000000000002'::UUID),
+  :'lab_id'::UUID,
   :'lab_buyer'::UUID,
   'student',
   'active'
@@ -161,8 +185,8 @@ SELECT public.process_one_time_payment_event(
 );
 
 SELECT public.remove_lab_member(
-  '20000000-0000-0000-0000-000000000002'::UUID,
-  (SELECT id FROM public.labs WHERE owner_professor_id = '20000000-0000-0000-0000-000000000002'::UUID),
+  :'lab_owner'::UUID,
+  :'lab_id'::UUID,
   :'lab_buyer'::UUID,
   'Course entitlement persistence test'
 );

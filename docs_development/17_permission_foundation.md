@@ -38,6 +38,40 @@ Authenticated users may update only the existing basic profile columns. Sensitiv
 
 Migration `20260828090000_permission_foundation_hardening.sql` is forward-only and must be applied after the existing V2 migrations. It also prevents suspended users from changing `advisor_memories` through authenticated RLS.
 
+## Suspended Data Layer
+
+Migration `20260828090001_suspended_data_layer_enforcement.sql` is applied after Permission Foundation and extends the suspension boundary beyond the Next.js app.
+
+| Layer | Active account | Suspended account |
+|---|---|---|
+| App / middleware | Role-routed workspace access | Redirected to `/account-suspended` before role routing |
+| Product APIs | `getActiveApiUser()` permits authenticated operations | Returns `403 ACCOUNT_SUSPENDED` without exposing database errors |
+| Supabase RLS | Owner/resource-scoped private reads and writes remain available | Private product rows return no rows; public catalog and previews remain available |
+| Private Storage | Own private object reads/deletes remain available under existing owner scope | Direct private object access is denied and no new signed URL can be issued through protected APIs |
+
+`profiles` is intentionally exceptional: a suspended user may still read their own row so the authorization layer can read `account_status`. Self updates require an active account. Cross-profile admin observation also requires an active account.
+
+The following data remains private to active authenticated accounts with the pre-existing owner, Lab, or admin scope preserved: funnel history, commerce records, course progress, Labs, memberships, subscriptions, student document metadata, raw AI audit rows, and student summary-share controls. The migration does not add a raw PDF or raw audit bypass for admin, professor, or assistant.
+
+Public products, active public prompt templates, published courses, and `public_preview` lessons remain readable for suspended and anonymous visitors. `course_full` and `lab_basic` lessons require both their existing entitlement check and an active account.
+
+Previously issued signed URLs may remain usable until their normal expiration. Suspended users cannot request new signed URLs. Immediate signed-URL revocation is intentionally deferred.
+
+## SECURITY DEFINER RPC Guards
+
+Migration `20260828090001_suspended_data_layer_enforcement.sql` also hardens the two
+private Lab PDF RPC boundaries. `get_my_lab_pdf_credit_balance()` and
+`get_shared_audit_summaries(UUID, UUID)` require an authenticated, active account
+before reading private Lab data; suspended or unauthenticated calls fail with a
+generic authorization error. The summary RPC retains its fixed seven-column
+contract and its existing consent, active-membership, Lab-scope, and admin rules.
+
+The Local course-purchase integration fixture is self-contained: it creates its
+own test-only professor, active Lab, trial subscription, and test prices through
+the production workflows. It does not weaken Lab or subscription invariants.
+
 ## Deferred Security Work
 
 The next security pass should add explicit consent lifecycle tests for document sharing, reserve/settle/refund integration coverage for AI credits, server-side quiz score recomputation, security headers, OAuth E2E, RLS integration tests, Stripe fixtures, and CI enforcement.
+
+Deferred identity and access design remains out of scope: `system_admin`, granular admin roles, assistant identity redesign, admin impersonation, full service-role read reduction, and immediate signed-URL revocation.
