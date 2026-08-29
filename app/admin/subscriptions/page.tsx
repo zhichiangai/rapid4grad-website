@@ -24,7 +24,7 @@ type ProfileRow = { id: string; email: string; full_name: string | null };
 
 export default async function AdminSubscriptionsPage({ searchParams }: { searchParams: SearchParams }) {
   const params = await searchParams;
-  const view = ["active", "trialing", "past_due", "canceled"].includes(params.view ?? "") ? params.view : "";
+  const view = ["active", "trialing", "past_due", "ending", "canceled"].includes(params.view ?? "") ? params.view : "";
   const query = params.q?.trim().slice(0, 120) ?? "";
   const { admin } = await requireAdminContext("/admin/subscriptions");
   const { data, error } = await admin
@@ -46,14 +46,19 @@ export default async function AdminSubscriptionsPage({ searchParams }: { searchP
   if (loadFailed) console.error("[admin-subscriptions] Safe subscription lookup failed");
   const labs = new Map((labsResult.data ?? []).map((row) => [row.id, row.name]));
   const payers = new Map((profilesResult.data ?? []).map((row) => [row.id, row]));
-  if (view) subscriptions = subscriptions.filter((subscription) => view === "canceled" ? ["canceled", "unpaid"].includes(subscription.status) : subscription.status === view);
+  const endingCutoff = Date.now() + 14 * 86400000;
+  if (view) subscriptions = subscriptions.filter((subscription) => {
+    if (view === "canceled") return ["canceled", "unpaid"].includes(subscription.status);
+    if (view === "ending") return ["active", "trialing", "past_due"].includes(subscription.status) && new Date(subscription.current_period_end).getTime() >= Date.now() && new Date(subscription.current_period_end).getTime() <= endingCutoff;
+    return subscription.status === view;
+  });
   if (query) subscriptions = subscriptions.filter((subscription) => `${labs.get(subscription.lab_id) ?? ""} ${payers.get(subscription.payer_user_id)?.full_name ?? ""} ${payers.get(subscription.payer_user_id)?.email ?? ""}`.toLowerCase().includes(query.toLowerCase()));
   const message = resolveAdminMessage(params.message);
 
   return (
     <section>
       <AdminPageHeader eyebrow="Operations & Revenue" title="訂閱" description="檢視 Lab 訂閱健康狀態與週期；支援延長仍維持既有最多 30 天的受控 Server Action。" />
-      <form action="/admin/subscriptions" className="mb-4 flex flex-col gap-2 sm:flex-row"><input name="q" defaultValue={query} placeholder="搜尋 Lab、付款人姓名或 Email" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" /><select name="view" defaultValue={view} className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white"><option value="">全部狀態</option><option value="active">active</option><option value="trialing">trialing</option><option value="past_due">past_due</option><option value="canceled">ending / canceled</option></select><button className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">篩選</button></form>
+      <form action="/admin/subscriptions" className="mb-4 flex flex-col gap-2 sm:flex-row"><input name="q" defaultValue={query} placeholder="搜尋 Lab、付款人姓名或 Email" className="min-w-0 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600" /><select name="view" defaultValue={view} className="rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white"><option value="">全部狀態</option><option value="active">active</option><option value="trialing">trialing</option><option value="past_due">past_due</option><option value="ending">14 天內到期</option><option value="canceled">canceled / unpaid</option></select><button className="rounded-xl bg-cyan-400 px-5 py-3 text-sm font-semibold text-slate-950">篩選</button></form>
       <div className="mb-4 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-400">目前顯示最近 100 筆訂閱的營運摘要。</div>
       {message ? <p className="mb-4 rounded-xl border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-200">{message}</p> : null}
       {loadFailed ? <p className="mb-4 rounded-xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">目前無法讀取訂閱資料，請稍後再試。</p> : null}

@@ -78,7 +78,7 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
 
   return (
     <>
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="sticky top-0 z-50 flex items-center justify-between border-b border-white/10 bg-slate-950/95 px-4 py-3 backdrop-blur lg:hidden">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-cyan-200">RAPID4GRAD ADMIN</p>
           <p className="mt-1 text-sm font-semibold text-white">營運控制台</p>
@@ -87,7 +87,7 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
           {open ? "關閉選單" : "選單"}
         </button>
       </div>
-      {open ? <div id="admin-mobile-navigation" className="border-b border-white/10 bg-slate-950 px-4 py-4 lg:hidden"><p className="mb-4 text-xs text-slate-500">{adminName} · {adminEmail}</p>{navigation}</div> : null}
+      {open ? <><button type="button" aria-label="關閉管理者選單" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-slate-950/70 lg:hidden" /><div id="admin-mobile-navigation" className="relative z-50 border-b border-white/10 bg-slate-950 px-4 py-4 shadow-2xl lg:hidden"><p className="mb-4 text-xs text-slate-500">{adminName} · {adminEmail}</p>{navigation}</div></> : null}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-68 border-r border-white/10 bg-slate-950/95 px-4 py-7 lg:block">
         <div className="mb-8 px-3">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">RAPID4GRAD ADMIN</p>
