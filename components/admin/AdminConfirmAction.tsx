@@ -63,10 +63,20 @@ export function AdminConfirmAction({
           aria-labelledby={dialogTitleId}
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 backdrop-blur-sm"
         >
-          <div className="w-full max-w-lg rounded-[2rem] border border-white/10 bg-slate-900 p-6 shadow-2xl shadow-slate-950/50">
+          <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-slate-900 p-6 shadow-2xl shadow-slate-950/50">
+            <div className="flex items-start justify-between gap-4">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">
               Admin Confirmation
             </p>
+              <button
+                type="button"
+                aria-label="關閉確認視窗"
+                onClick={() => setIsOpen(false)}
+                className="rounded-lg border border-white/10 px-2 py-1 text-xs text-slate-400 hover:bg-white/[0.06] hover:text-white"
+              >
+                關閉
+              </button>
+            </div>
             <h3
               id={dialogTitleId}
               className="mt-3 text-2xl font-semibold text-white"

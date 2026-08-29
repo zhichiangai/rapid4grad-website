@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { AdminPageHeader } from "@/components/admin/AdminPageHeader";
+import { AdminStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { requireAdminContext } from "@/lib/admin/authorization";
 
 type LabRow = {
@@ -21,6 +23,7 @@ type SubscriptionRow = {
   status: string;
   current_period_end: string;
 };
+type CreditRow = { lab_id: string; pdf_audit_limit: number; pdf_audit_used: number; pdf_audit_reserved: number };
 
 export default async function AdminLabsPage() {
   const { admin } = await requireAdminContext("/admin/labs");
@@ -32,7 +35,7 @@ export default async function AdminLabsPage() {
   const labs = labsData ?? [];
   const labIds = labs.map((lab) => lab.id);
   const ownerIds = [...new Set(labs.map((lab) => lab.owner_professor_id))];
-  const [profilesResult, membershipsResult, subscriptionsResult] =
+  const [profilesResult, membershipsResult, subscriptionsResult, creditsResult] =
     await Promise.all([
       ownerIds.length
         ? admin
@@ -56,12 +59,15 @@ export default async function AdminLabsPage() {
             .order("current_period_end", { ascending: false })
             .returns<SubscriptionRow[]>()
         : Promise.resolve({ data: [] as SubscriptionRow[], error: null }),
+      labIds.length
+        ? admin.from("lab_usage_credits").select("lab_id,pdf_audit_limit,pdf_audit_used,pdf_audit_reserved").in("lab_id", labIds).order("period_end", { ascending: false }).returns<CreditRow[]>()
+        : Promise.resolve({ data: [] as CreditRow[], error: null }),
     ]);
   const loadFailed = Boolean(
     labsError ||
       profilesResult.error ||
       membershipsResult.error ||
-      subscriptionsResult.error,
+      subscriptionsResult.error || creditsResult.error,
   );
   if (loadFailed) console.error("[admin-labs] Safe lab summary lookup failed");
 
@@ -73,18 +79,15 @@ export default async function AdminLabsPage() {
       latestSubscription.set(subscription.lab_id, subscription);
     }
   }
+  const latestCredits = new Map<string, CreditRow>();
+  for (const credit of creditsResult.data ?? []) if (!latestCredits.has(credit.lab_id)) latestCredits.set(credit.lab_id, credit);
 
   return (
     <section>
-      <header className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-5">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">Lab Observation</p>
-        <h2 className="mt-2 text-2xl font-semibold">實驗室唯讀觀察</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-400">
-          Admin 可跨 Lab 查看安全摘要，但不能在 Professor Workspace 執行成員或邀請碼操作。
-        </p>
-        {loadFailed ? <p className="mt-4 rounded-2xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">目前無法讀取 Lab 摘要，請稍後再試。</p> : null}
-      </header>
-      <div className="mt-5 grid gap-4 xl:grid-cols-2">
+      <AdminPageHeader eyebrow="Users & Access" title="Labs" description="跨 Lab 的唯讀營運摘要，僅提供教授 workspace 的安全觀察入口。" />
+      {loadFailed ? <p className="mb-4 rounded-xl border border-red-300/20 bg-red-400/10 p-4 text-sm text-red-100">目前無法讀取 Lab 摘要，請稍後再試。</p> : null}
+      <div className="overflow-x-auto rounded-2xl border border-white/10 bg-white/[0.025]">
+        <table className="w-full min-w-[980px] text-left text-sm"><thead className="border-b border-white/10 bg-white/[0.04] text-xs uppercase tracking-[0.14em] text-slate-500"><tr><th className="px-4 py-3">Lab</th><th className="px-4 py-3">Professor</th><th className="px-4 py-3">成員</th><th className="px-4 py-3">方案 / 狀態</th><th className="px-4 py-3">PDF 使用量</th><th className="px-4 py-3 text-right">觀察</th></tr></thead><tbody className="divide-y divide-white/10">
         {labs.map((lab) => {
           const owner = owners.get(lab.owner_professor_id);
           const activeMembers = memberships.filter(
@@ -93,33 +96,15 @@ export default async function AdminLabsPage() {
           const count = (role: MembershipRow["role"]) =>
             activeMembers.filter((membership) => membership.role === role).length;
           const subscription = latestSubscription.get(lab.id);
+          const credit = latestCredits.get(lab.id);
+          const consumed = (credit?.pdf_audit_used ?? 0) + (credit?.pdf_audit_reserved ?? 0);
+          const highUsage = Boolean(credit?.pdf_audit_limit && consumed / credit.pdf_audit_limit >= 0.9);
           return (
-            <article key={lab.id} className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{lab.name}</h3>
-                  <p className="mt-1 text-sm text-slate-400">{lab.institution ?? "未填單位"}</p>
-                </div>
-                <span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">{lab.status}</span>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-                <div className="rounded-2xl bg-slate-950/60 p-3"><strong className="block text-white">{count("student")}</strong><span className="text-xs text-slate-500">學生</span></div>
-                <div className="rounded-2xl bg-slate-950/60 p-3"><strong className="block text-white">{count("assistant")}</strong><span className="text-xs text-slate-500">助理</span></div>
-                <div className="rounded-2xl bg-slate-950/60 p-3"><strong className="block text-white">{count("professor")}</strong><span className="text-xs text-slate-500">教授</span></div>
-              </div>
-              <dl className="mt-4 space-y-2 text-sm text-slate-300">
-                <div><dt className="inline text-slate-500">Owner：</dt><dd className="inline">{owner?.full_name ?? "未填姓名"} · {owner?.email ?? lab.owner_professor_id}</dd></div>
-                <div><dt className="inline text-slate-500">Subscription：</dt><dd className="inline">{subscription ? `${subscription.plan_key} / ${subscription.status}` : "無"}</dd></div>
-                {subscription ? <div><dt className="inline text-slate-500">Period end：</dt><dd className="inline">{new Date(subscription.current_period_end).toLocaleString("zh-TW")}</dd></div> : null}
-              </dl>
-              <Link href={`/professor/labs/${lab.id}`} className="mt-5 inline-flex rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-100 hover:bg-cyan-400/15">
-                進入唯讀觀察
-              </Link>
-            </article>
+            <tr key={lab.id} className="hover:bg-white/[0.025]"><td className="px-4 py-4"><p className="font-semibold text-white">{lab.name}</p><p className="mt-1 text-xs text-slate-500">{lab.institution ?? "未填單位"}</p></td><td className="px-4 py-4"><p className="text-slate-200">{owner?.full_name ?? "未填姓名"}</p><p className="text-xs text-slate-500">{owner?.email ?? lab.owner_professor_id}</p></td><td className="px-4 py-4 text-slate-300">{count("student")} 學生 · {count("assistant")} 助理</td><td className="px-4 py-4"><p className="text-slate-300">{subscription?.plan_key ?? "無方案"}</p><AdminStatusBadge status={subscription?.status ?? lab.status} /></td><td className="px-4 py-4"><span className={highUsage ? "text-orange-200" : "text-slate-300"}>{consumed} / {credit?.pdf_audit_limit ?? 0}</span><p className="text-xs text-slate-500">used {credit?.pdf_audit_used ?? 0} · reserved {credit?.pdf_audit_reserved ?? 0}</p></td><td className="px-4 py-4 text-right"><Link href={`/professor/labs/${lab.id}`} className="text-sm font-semibold text-cyan-100 hover:text-white">唯讀觀察 →</Link></td></tr>
           );
         })}
+        {labs.length === 0 ? <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-500">目前沒有 Lab。</td></tr> : null}</tbody></table>
       </div>
-      {!loadFailed && labs.length === 0 ? <p className="mt-5 rounded-[2rem] border border-white/10 bg-white/[0.04] p-8 text-center text-slate-400">目前沒有 Lab。</p> : null}
     </section>
   );
 }
