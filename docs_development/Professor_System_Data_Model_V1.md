@@ -3,6 +3,7 @@
 > Status: Data Foundation V1.1 — FROZEN
 > Architecture baseline: `Professor_System_Architecture_V1.md`
 > Architecture status: FROZEN
+> Freeze baseline: V1.1 clarification incorporated; implementation must follow this document.
 > Scope: physical data model design only; this file is not a migration.
 
 ## 1. Scope and Boundary

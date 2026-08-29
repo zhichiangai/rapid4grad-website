@@ -2,6 +2,7 @@
 
 > Status: Data Foundation V1.1 — FROZEN
 > Architecture baseline: `Professor_System_Architecture_V1.md` (FROZEN)
+> Freeze baseline: V1.1 clarification incorporated; implementation must follow this document.
 > This is the future coding sequence; it does not implement features.
 
 ## 1. Required Gates

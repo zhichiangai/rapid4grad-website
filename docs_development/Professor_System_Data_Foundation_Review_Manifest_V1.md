@@ -3,6 +3,7 @@
 > Status: Data Foundation V1.1 — FROZEN
 > Database state: unchanged
 > Generated on: 2026-08-30
+> Freeze baseline: V1.1 clarification incorporated; implementation may proceed only against these five documents.
 
 ## 1. Baseline
 

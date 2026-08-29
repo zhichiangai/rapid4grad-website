@@ -3,6 +3,7 @@
 > Status: Data Foundation V1.1 — FROZEN
 > Design only: no `.sql` migration is created or applied by this file.
 > Baseline: `Professor_System_Architecture_V1.md` (FROZEN)
+> Freeze baseline: V1.1 clarification incorporated; implementation must follow this document.
 
 ## 1. Forward-only Order
 
