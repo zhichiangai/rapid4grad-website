@@ -1,9 +1,11 @@
 # RAPID4GRAD — Professor System Architecture V1
 
-> 文件狀態：Architecture V1.1 final freeze review
+> 文件狀態：Architecture V1.1 — FROZEN
 > 更新日期：2026-08-30
 > 適用專案：`/Users/fengfeng/rapid 本機開發/build`
 > 本文件只描述 Professor System 的 logical architecture，不建立資料表、不修改程式、不代表規劃功能已完成。
+
+> Freeze baseline: Professor System Architecture V1.1。Future Data Model、RLS、Migration 與 UI 實作必須遵守本文件的 Architecture Invariants。
 
 ## 1. 文件定位
 
