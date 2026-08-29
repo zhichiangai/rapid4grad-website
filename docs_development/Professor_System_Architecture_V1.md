@@ -1,6 +1,6 @@
 # RAPID4GRAD — Professor System Architecture V1
 
-> 文件狀態：Architecture ready for review
+> 文件狀態：Architecture V1.1 final freeze review
 > 更新日期：2026-08-30
 > 適用專案：`/Users/fengfeng/rapid 本機開發/build`
 > 本文件只描述 Professor System 的 logical architecture，不建立資料表、不修改程式、不代表規劃功能已完成。
@@ -141,7 +141,7 @@ Lab Membership
 Student
 ```
 
-Professor 透過 Lab context 看到學生。Student 可以建立自己的研究資料；Professor 消費同一個 shared research data layer。Professor／assistant 的可見範圍仍受 active membership、Lab scope、subscription 與學生 consent 共同限制。
+Professor 透過 Lab context 看到學生。Student 可以建立自己的研究資料；Professor 消費同一個 shared research data layer。不同資料類型的可見性分開判斷：Private Student Data 預設不共享；Shared Audit Data 需要 student consent；Lab Supervision Data 則在明確提交或保存至 Lab supervision context 後，依 active Lab relationship、Lab scope、server authorization、RLS 與 subscription/read-only product rule 判斷。
 
 Admin 是內部 observation role，不因能進入 Professor workspace 就自動取得 Professor membership、private PDF、raw audit 或學生影片活動。
 
@@ -327,16 +327,16 @@ Meeting 不能只做成孤立的 Meeting Notes。
 
 ### Meeting Action — Planned
 
-概念欄位：`id`、`meeting_id`、`lab_id`、`student_user_id`、`title`、`owner_type`、`due_date`、`status`、`completed_at`、`created_at`、`updated_at`。
+概念欄位：`id`、`meeting_id`、`lab_id`、`student_user_id`、`title`、`owner_type`、`owner_user_id`、`due_date`、`status`、`completed_at`、`created_at`、`updated_at`。
 
 `status` 概念值：`todo`、`doing`、`done`、`canceled`。
 
-`owner_type` 概念值：`student`、`professor`。V1 不設計複雜 assignee system。
+`owner_type` 概念值：`student`、`supervisor`。V1 不設計複雜 assignee system；一個 Action 只有一個 owner。
 
-- `owner_type = student`：owner 是該 Meeting 的 `student_user_id`。
-- `owner_type = professor`：owner 是該 Meeting 的 `created_by`，也就是建立 Meeting 的教授或助教。
+- `owner_type = student`：`owner_user_id` 必須等於該 Meeting 的 `student_user_id`。
+- `owner_type = supervisor`：`owner_user_id` 必須是該 `lab_id` 中具有 active professor／assistant membership 的 user；Lab owner professor 也合法。
 
-若未來要把 Action 指派給其他 professor／assistant，列為 P1 的 explicit assignee／`owner_user_id`，不加入 P0 Logical Model。
+V1 不做 multi-assignee、team assignment、watchers、delegation 或 mention system。若未來要把 Action 指派給其他 professor／assistant，仍以明確的 `owner_user_id` 為單一負責人，不加入複雜 assignee system。
 
 ### Research Milestone — Future / P1
 
@@ -457,20 +457,51 @@ AI Audit Shared Summary 是 Existing。Professor／assistant 只有在 student c
 - Student 提交 Weekly Update 給 Lab，屬於 Lab Supervision Data。
 - Meeting 被建立並保存為 Lab Meeting，summary、decision、action 屬於 Lab Supervision Data。
 
-合法 Lab Professor／assistant 的讀取仍必須經過 active membership、Lab scope、server authorization 與 RLS。Private Student Data 不會因同一個 Lab 就自動變成 Shared Data。
+Submitting a Weekly Update to a Lab or saving a Meeting into the Lab supervision context is the explicit sharing action for that Lab Supervision Data.
+
+也就是：
+
+```text
+加入 Lab
+  ≠ 分享私人資料
+
+Submit Weekly Update to Lab
+  = 分享這份 Weekly Update
+
+Save Meeting to Lab supervision context
+  = 分享這份 Meeting supervision record
+```
+
+合法 Lab Professor／assistant 的讀取仍必須經過 active Lab relationship、Lab scope、server authorization、RLS 與 subscription/read-only product rule。Private Student Data 不會因同一個 Lab 就自動變成 Shared Data。
+
+Subscription 只控制產品 access mode，不決定資料是否屬於 Lab Supervision Data：
+
+```text
+functional subscription
+  → permitted supervision mutations
+
+read_only subscription mode
+  → historical permitted supervision data remains readable
+
+no subscription / invalid mode
+  → follow existing product authorization rules
+```
 
 ## 17. Architecture Invariants
 
-1. Professor 透過 Lab Membership 看到 Student。
+1. Professor 透過 Lab／Lab Membership 看到 Student。
 2. 不建立 `student.professor_id` 作為主要 ownership。
 3. Student 與 Professor 不建立兩套 Research Data。
 4. Private Student Data 不因 Lab Membership 自動共享。
-5. Weekly Update 是 Lab Supervision Data。
-6. Meeting／Meeting Action 是 Lab Supervision Data。
-7. AI Audit 仍只有 Shared Summary 可被 Professor 讀取。
-8. Attention／Risk V1 為 Derived，不建立核心 alerts table。
-9. Student 360 P0 不依賴 Future Milestones。
-10. AI 是 Insight Layer，不是 Core Data Source。
+5. Weekly Update 提交到 Lab 後屬於該 Lab 的 Supervision Data。
+6. Meeting 保存到 Lab supervision context 後屬於該 Lab 的 Supervision Data。
+7. AI Audit 仍只有經過 explicit consent 的 Shared Summary 可供 Professor 讀取。
+8. Meeting Action 必須有單一明確 `owner_user_id`。
+9. Student Action owner 必須為該 Meeting student。
+10. Supervisor Action owner 必須屬於該 Lab 的合法 supervisor scope。
+11. Attention／Risk V1 為 Derived。
+12. Student 360 P0 不依賴 Future Milestones。
+13. AI 是 Insight Layer，不是 Core Data Source。
 
 ## 18. System Boundary
 
