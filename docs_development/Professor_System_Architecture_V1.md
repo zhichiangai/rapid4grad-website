@@ -93,22 +93,22 @@ Professor Dashboard 的目的不是收集第二份資料，而是把學生已經
 ## 4. 應用程式分層與邊界
 
 ```text
-L1  Workspace / URL namespace
+T1  Workspace / URL namespace
     Public、Student、Professor、Admin
              ↓
-L2  Next.js Page / Layout
+T2  Next.js Page / Layout
     app/**/page.tsx、layout.tsx、loading.tsx
              ↓
-L3  Feature Components
+T3  Feature Components
     components/<feature>/*.tsx
              ↓
-L4  Server Boundary
+T4  Server Boundary
     app/api/**/route.ts、app/auth/**/route.ts
              ↓
-L5  Domain Services / Authorization
+T5  Domain Services / Authorization
     lib/<domain>/*.ts
              ↓
-L6  Supabase
+T6  Supabase
     Auth、Postgres、RLS、RPC、private Storage
 ```
 
@@ -192,6 +192,8 @@ Professor consumes supervision data.
 
 Professor 端不要求教授重新輸入學生已經輸入的研究資料，也不以 PDF 或 AI 取代結構化研究進度。
 
+`Shared Research Data Layer` 是 logical domain layer，不是一張未來必須建立的 `shared_research_data` 資料表。資料仍由 `weekly_updates`、`meetings`、`meeting_actions`、AI shared summary 與 future milestones 等 domain entities 組成。
+
 ## 8. Professor Information Architecture
 
 目標 IA：
@@ -214,7 +216,7 @@ Professor 端不要求教授重新輸入學生已經輸入的研究資料，也�
 | Route | 狀態 | 說明 |
 |---|---|---|
 | `/professor` | Legacy | Phase 1 hidden mock demo；保留，不作正式 workspace |
-| `/professor/dashboard` | Existing Route | 正式多租戶 Professor Dashboard |
+| `/professor/dashboard` | Existing Route | 正式 Lab-scoped Professor Workspace |
 | `/professor/labs/[labId]` | Existing Route | Lab overview、成員與 summary foundation |
 | `/professor/labs/[labId]/students/[studentId]` | Existing Route | Student Detail 與 AI audit timeline foundation |
 | `/professor/labs/[labId]/overview` | Planned Route | 未來可拆出的明確 overview route；目前不建立 |
@@ -245,12 +247,17 @@ Professor Dashboard
 
 | 條件 | Derived signal |
 |---|---|
-| 7 天沒有 Weekly Update | `no_recent_update` |
-| 14 天沒有 Weekly Update | `update_overdue` |
-| Meeting Action 超過 `due_date` 且未完成 | `overdue_action` |
+| 0–6 天沒有 Weekly Update | 無 signal |
+| 7–13 天沒有 Weekly Update | `no_recent_update` |
+| >=14 天沒有 Weekly Update | `update_overdue`，取代 `no_recent_update` |
+| `meeting_actions.status` 不為 `done`／`canceled` 且 `due_date < today` | `overdue_action` |
+| `meeting_actions.status` 不為 `done`／`canceled` 且 `due_date` 在今天至今天 + 14 天 | `deadline_soon` |
 | AI risk = high | `high_risk` |
-| 重要 deadline <= 14 天 | `deadline_soon` |
-| 長時間沒有 Meeting | `no_recent_meeting` |
+| 最近一次 completed/past Meeting 距今 >=21 天，且沒有 upcoming Meeting | `no_recent_meeting` |
+
+### Attention Signal Precedence
+
+同一學生同一來源的 Weekly Update 缺失，只顯示一個 signal：`update_overdue` 優先於 `no_recent_update`。P0 的 `deadline_soon` 與 `overdue_action` 只來自 `meeting_actions`；`research_milestones` 的 deadline 要等 P1 才能加入。
 
 ## 10. Attention 與 Risk
 
@@ -282,7 +289,13 @@ Student 360
 └── AI Audit
 ```
 
-頂部 summary 應回答：Student、Degree、Research Area、Overall Status、Current Stage、Progress、Latest Update、Next Meeting、Overdue Count、Risk。
+### P0 Student 360
+
+頂部 summary 應回答：Student、Degree、Research Area、Overall Status、Latest Weekly Update、Current Blocker、Next Plan、Next Meeting、Open Action Count、Overdue Action Count、Risk、AI Audit Summary。
+
+### P1 Student 360 Enhancement
+
+`research_milestones` 上線後才增加：Current Stage、Progress Percentage、Research Milestones。P0 不人工製造 percentage，也不由 Weekly Update 猜測進度百分比。
 
 目前 Student Detail 與 AI Audit Timeline 是 **Existing Foundation**，不是本輪重寫目標。Weekly Progress、Meetings、Action Items、Milestones 的完整區塊仍依 Status Matrix 漸進補齊。
 
@@ -295,6 +308,10 @@ Student 360
 `self_status` 概念值：`on_track`、`slightly_behind`、`blocked`。
 
 `needs_professor_help` 概念值：`none`、`next_meeting`、`soon`。
+
+### Weekly Update Invariant
+
+同一個 `lab_id`、`student_user_id`、`week_start` 只能有一份 canonical Weekly Update；使用者可以修改該週內容。V1 不以多筆 update event 作為核心模型。Physical Data Model 階段再決定 unique constraint、upsert 與 history，不在本文件寫 SQL。
 
 ### Meeting — Planned
 
@@ -315,6 +332,11 @@ Meeting 不能只做成孤立的 Meeting Notes。
 `status` 概念值：`todo`、`doing`、`done`、`canceled`。
 
 `owner_type` 概念值：`student`、`professor`。V1 不設計複雜 assignee system。
+
+- `owner_type = student`：owner 是該 Meeting 的 `student_user_id`。
+- `owner_type = professor`：owner 是該 Meeting 的 `created_by`，也就是建立 Meeting 的教授或助教。
+
+若未來要把 Action 指派給其他 professor／assistant，列為 P1 的 explicit assignee／`owner_user_id`，不加入 P0 Logical Model。
 
 ### Research Milestone — Future / P1
 
@@ -408,7 +430,49 @@ Professor System 第一階段 MVP 是：
 - Complex RBAC
 - Multi-tenant SaaS expansion
 
-## 16. System Boundary
+## 16. Data Classification
+
+### A. Private Student Data
+
+預設 Professor／assistant 不可讀：
+
+- Private PDF
+- Raw PDF text
+- Storage metadata
+- Private prompt
+- Private AI conversation
+- Raw AI audit
+- Token／cost
+- Internal error
+- Private notes
+
+### B. Shared Audit Data
+
+AI Audit Shared Summary 是 Existing。Professor／assistant 只有在 student consent、指定 Lab scope、server authorization 與 RLS／RPC 均成立時，才能讀取固定欄位的 safe summary。撤回 consent 後下一次查詢必須立即不可見。
+
+### C. Lab Supervision Data
+
+以下是 Planned 的 Lab Supervision Data：
+
+- Student 提交 Weekly Update 給 Lab，屬於 Lab Supervision Data。
+- Meeting 被建立並保存為 Lab Meeting，summary、decision、action 屬於 Lab Supervision Data。
+
+合法 Lab Professor／assistant 的讀取仍必須經過 active membership、Lab scope、server authorization 與 RLS。Private Student Data 不會因同一個 Lab 就自動變成 Shared Data。
+
+## 17. Architecture Invariants
+
+1. Professor 透過 Lab Membership 看到 Student。
+2. 不建立 `student.professor_id` 作為主要 ownership。
+3. Student 與 Professor 不建立兩套 Research Data。
+4. Private Student Data 不因 Lab Membership 自動共享。
+5. Weekly Update 是 Lab Supervision Data。
+6. Meeting／Meeting Action 是 Lab Supervision Data。
+7. AI Audit 仍只有 Shared Summary 可被 Professor 讀取。
+8. Attention／Risk V1 為 Derived，不建立核心 alerts table。
+9. Student 360 P0 不依賴 Future Milestones。
+10. AI 是 Insight Layer，不是 Core Data Source。
+
+## 18. System Boundary
 
 Professor System 負責：
 
@@ -432,7 +496,7 @@ Professor System 不負責：
 - Slack replacement
 - Notion replacement
 
-## 17. 實作與安全規則
+## 19. 實作與安全規則
 
 - Professor 只看自己擁有或 active membership 所屬的 Lab。
 - Student、Professor、assistant 的 Lab scope 必須由 server authorization、RLS、RPC 與 consent 共同保護，不能只靠前端過濾。
@@ -442,7 +506,7 @@ Professor System 不負責：
 - Subscription 失效後，既有 Professor 歷史資料依產品規則進入唯讀，不得新增管理 mutation。
 - AI 只作為結構化研究資料之上的 insight layer，不取代 Student、Meeting 或 Professor 的核心責任。
 
-## 18. 本文件任務範圍
+## 20. 本文件任務範圍
 
 本文件只完成 logical architecture documentation：
 
