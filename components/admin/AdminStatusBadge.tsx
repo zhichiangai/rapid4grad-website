@@ -4,6 +4,10 @@ type AdminStatusBadgeProps = {
 };
 
 const statusStyles: Record<string, string> = {
+  healthy: "border-emerald-300/25 bg-emerald-400/10 text-emerald-200",
+  warning: "border-amber-300/25 bg-amber-400/10 text-amber-200",
+  critical: "border-red-300/25 bg-red-400/10 text-red-200",
+  inactive: "border-slate-400/20 bg-slate-400/10 text-slate-300",
   active: "border-emerald-300/25 bg-emerald-400/10 text-emerald-200",
   paid: "border-emerald-300/25 bg-emerald-400/10 text-emerald-200",
   trialing: "border-sky-300/25 bg-sky-400/10 text-sky-200",
