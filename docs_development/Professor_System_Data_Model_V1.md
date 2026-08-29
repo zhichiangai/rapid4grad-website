@@ -1,6 +1,6 @@
 # RAPID4GRAD — Professor System Data Model V1
 
-> Status: READY FOR REVIEW
+> Status: Data Foundation V1.1 — FROZEN
 > Architecture baseline: `Professor_System_Architecture_V1.md`
 > Architecture status: FROZEN
 > Scope: physical data model design only; this file is not a migration.
@@ -48,7 +48,7 @@ No duplicate membership helper or Professor ownership column is planned.
 | `created_at` | `timestamptz` not null |
 | `updated_at` | `timestamptz` not null; reuse repository convention |
 
-Canonical invariant: `UNIQUE (lab_id, student_user_id, week_start)`. The application validates Monday, and the database design should add a CHECK that the date is ISO Monday when the implementation migration is approved. A student can update the same canonical row; V1 has no draft/submitted/reviewed lifecycle.
+Canonical invariant: `UNIQUE (lab_id, student_user_id, week_start)`. The application validates Monday and the database must add a CHECK that `week_start` is an ISO Monday. After insert, `lab_id`, `student_user_id` and `week_start` are immutable; a table-specific `BEFORE UPDATE` integrity trigger rejects any change. The trigger checks only `OLD` versus `NEW` row identity and does not perform authorization. A student can update the same canonical row; V1 has no draft/submitted/reviewed lifecycle.
 
 Submitting the update to a Lab is the explicit sharing intent. Lab membership alone does not share private student data.
 
@@ -68,7 +68,7 @@ Submitting the update to a Lab is the explicit sharing intent. Lab membership al
 | `created_at` | `timestamptz` not null |
 | `updated_at` | `timestamptz` not null |
 
-A meeting may be created by the student Meeting Assistant or by a valid Professor/Assistant supervision flow. Saving it into the Lab context is the explicit sharing action. Upcoming means `status = scheduled AND meeting_at > now()`. Latest valid meeting means `status = completed`, ordered by `meeting_at DESC`.
+A meeting may be created by the student Meeting Assistant or by a valid Professor/Assistant supervision flow. Saving it into the Lab context is the explicit sharing action. `next_meeting_at` is a historical/proposed snapshot of the next meeting discussed in this record; it is not the current upcoming-meeting source. The canonical upcoming meeting is a row in `meetings` where `status = scheduled AND meeting_at > now()`. After insert, `lab_id`, `student_user_id` and `created_by` are immutable; a table-specific integrity trigger rejects changes without reading authorization state. Latest valid meeting means `status = completed`, ordered by `meeting_at DESC`.
 
 V1 does not add draft, approval, rescheduled, missed, recording, calendar or transcription states.
 
@@ -89,7 +89,7 @@ V1 does not add draft, approval, rescheduled, missed, recording, calendar or tra
 | `created_at` | `timestamptz` not null |
 | `updated_at` | `timestamptz` not null |
 
-The implementation must provide a composite unique key on `meetings (id, lab_id, student_user_id)` and a composite FK from `(meeting_id, lab_id, student_user_id)` to it. This prevents a Meeting A / Lab B / Student C pollution combination. `owner_type = student` requires `owner_user_id = student_user_id`. `owner_type = supervisor` requires the owner to be the Lab owner or an active professor/assistant membership; this is enforced by server authorization plus RLS/domain helper, not a cross-table CHECK.
+The implementation must provide a composite unique key on `meetings (id, lab_id, student_user_id)` and a composite FK from `(meeting_id, lab_id, student_user_id)` to it. This prevents a Meeting A / Lab B / Student C pollution combination. `owner_type = student` requires `owner_user_id = student_user_id`. `owner_type = supervisor` requires the owner to be the Lab owner or an active professor/assistant membership; this is enforced by server authorization plus RLS/domain helper, not a cross-table CHECK. After insert, `meeting_id`, `lab_id`, `student_user_id`, `owner_type` and `owner_user_id` are immutable; a table-specific integrity trigger rejects changes without performing authorization.
 
 If `status = done`, `completed_at` is required. If `status <> done`, `completed_at` is null. There is one owner only: no multi-assignee, watchers, delegation or mentions.
 
@@ -99,6 +99,8 @@ If `status = done`, `completed_at` is required. If `status <> done`, `completed_
 - V1 has no product hard delete for these records.
 - Meeting cancellation, action cancellation, Lab archival and membership removal preserve history.
 - New tables reuse the existing `updated_at` convention and trigger if the implementation review confirms it; no new global trigger is created in this design document.
+- Immutable-column protection is table-specific and row-local. It never checks `auth.uid()`, membership, subscription or role; authorization remains in the Server Boundary and RLS.
+- A removed student keeps active-account, own-history `SELECT` access to existing Weekly Updates, Meetings and Actions. Removal blocks all new writes and Lab-scoped access; history is not erased.
 - Existing data, roles, subscription semantics, private PDF and raw AI audit boundaries remain unchanged.
 
 ## 7. Minimum Index Plan
@@ -133,8 +135,8 @@ The model supports these derived signals without an attention/risk table:
 | Private PDF/raw audit | own existing rights only | never | never | never by default |
 | Shared Audit Summary | own data and consent control | fixed summary only with active consent and Lab scope | fixed summary only with active consent and Lab scope | existing minimum observation rules only |
 
-Subscription controls functional versus read-only mutation mode; it does not change ownership. Functional mode permits new supervision mutations. Read-only mode permits historical reads already authorized. No/invalid mode follows the existing subscription authorization rules.
+Subscription controls functional versus read-only mutation mode; it does not change ownership. New supervision policies reuse the existing `app_private.has_active_lab_subscription(lab_id)` helper for functional-mode gates; no Professor-specific subscription helper is introduced. Functional mode permits new supervision mutations. Read-only mode permits historical reads already authorized. No/invalid mode follows the existing subscription authorization rules.
 
 ## 10. Implementation Boundary
 
-This document creates no table, constraint, index, policy, RPC or trigger. Implementation requires separate approval of the RLS design and migration plan, followed by a fresh Local replay and owner/cross-Lab/suspended-account tests.
+This document creates no table, constraint, index, policy, RPC or trigger. Implementation requires separate approval of the RLS design and migration plan, followed by a fresh Local replay and owner/cross-Lab/suspended-account tests. The implementation test suite must cover immutable-column attacks, canonical scheduled-meeting selection, removed-student history reads, removed-supervisor denial, suspended-account denial and reuse of the existing subscription helper.
