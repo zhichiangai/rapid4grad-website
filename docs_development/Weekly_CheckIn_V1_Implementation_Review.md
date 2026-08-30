@@ -86,3 +86,15 @@ Local browser QA used disposable Local Supabase accounts only:
 - Base: `e61b9b1d6fe54d17d5505a84011711163e2ae375`
 - Weekly implementation commit: `39b581dca8bed3ce414e85e22690a44865db9b44` (`fix(student): polish weekly check-in ux`).
 - Review branch push: PUSHED.
+
+## Production Release
+
+- Main merge: fast-forward from `student-weekly-checkin-v1` to `main`.
+- Production commit: `1fc3863e01e4897dd7c476fed6befd3cc6a862a3`.
+- Vercel Production deployment: `dpl_EA5uzz5Zab4p1Xb74oeMhGCpLZBh`.
+- Production URL: `https://www.rapid4grad.com`.
+- Deployment state: `READY`.
+- Production Supabase read-back: `weekly_updates`, `meetings`, `meeting_actions`, RLS, expected constraints and the one-active-Lab-per-student index confirmed present; no Production SQL write or migration was executed in this release step.
+- Anonymous smoke: homepage and `/ai-command` passed; protected workspace routes redirected to login without 500 or redirect loop.
+- Authenticated Production mutation smoke: not executed because no dedicated safe Production test account was available. No real account, role, subscription, membership or data was modified.
+- Production visual QA: not executed with a Production account; Local/Preview responsive evidence remains separate and is not represented as Production visual evidence.

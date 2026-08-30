@@ -963,3 +963,14 @@ git diff --check                          Passed
 3. 以 Preview anonymous/安全既有 session 檢查 `/dashboard` 與 `/dashboard/weekly-check-in`。
 4. 驗證導覽入口、empty/new、success/update、history、read-only、mobile 與 desktop，且無 500、fatal error 或 redirect loop。
 5. 完成使用者 UI/UX review 後，另行決定是否建立 PR；本輪不可自動 merge。
+
+### 16.6 Production release record (2026-08-30)
+
+- `student-weekly-checkin-v1` 已以 fast-forward 合併至 `main`，Production push 的 main HEAD 為 `1fc3863e01e4897dd7c476fed6befd3cc6a862a3`。
+- Vercel Production deployment `dpl_EA5uzz5Zab4p1Xb74oeMhGCpLZBh` 已為 `READY`，正式網址為 `https://www.rapid4grad.com`。
+- Production Supabase `rapid4grad-v2` (`ktfvscyxsdrcrbaemlbl`) 僅進行唯讀 read-back：Weekly tables、欄位、RLS policies、constraints 與 active-student Lab unique index 均存在；本輪沒有執行 migration、SQL write 或資料變更。
+- Anonymous smoke 通過：`/`、`/ai-command` 回應正常；`/dashboard`、`/dashboard/weekly-check-in`、`/professor/dashboard`、`/admin` 均導向登入，沒有 500 或 redirect loop。
+- Production runtime error/fatal read-back：最近一小時沒有紀錄。
+- Authenticated student mutation smoke：未執行，因目前沒有安全且專用的 Production test account；沒有建立帳號、修改角色、subscription、membership 或使用 service-role cleanup。
+- Production visual browser QA：未以 Production 帳號執行；已完成的 375/768/1440 UI QA 仍以 Local/Preview 證據為準，不宣稱為 Production visual QA。
+- Weekly V1 已完成 release；後續維持功能凍結，不在本節擴充 Attention Center、Meeting Center、Student 360、通知或 AI Assistant。
