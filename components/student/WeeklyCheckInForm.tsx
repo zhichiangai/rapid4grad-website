@@ -1,6 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { saveWeeklyCheckIn, type WeeklyActionState } from "@/app/dashboard/weekly-check-in/actions";
 import { weeklyHelpOptions, weeklyStatuses, type WeeklyUpdate } from "@/lib/supervision/weekly-updates";
 
@@ -11,8 +12,26 @@ type WeeklyCheckInFormProps = {
 
 const initialState: WeeklyActionState = { status: "idle", message: "" };
 
+const statusStyles = {
+  on_track: "has-[:checked]:border-emerald-300/70 has-[:checked]:bg-emerald-400/10",
+  slightly_behind: "has-[:checked]:border-amber-300/70 has-[:checked]:bg-amber-400/10",
+  blocked: "has-[:checked]:border-red-300/70 has-[:checked]:bg-red-400/10",
+} as const;
+
+const helpStyles = {
+  none: "has-[:checked]:border-cyan-300/60 has-[:checked]:bg-cyan-400/10",
+  next_meeting: "has-[:checked]:border-blue-300/70 has-[:checked]:bg-blue-400/10",
+  soon: "has-[:checked]:border-amber-300/70 has-[:checked]:bg-amber-400/10",
+} as const;
+
 export function WeeklyCheckInForm({ currentUpdate, disabled }: WeeklyCheckInFormProps) {
   const [state, formAction, isPending] = useActionState(saveWeeklyCheckIn, initialState);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (state.status === "success") router.refresh();
+  }, [router, state.status]);
+
   return (
     <form action={formAction} className="space-y-7">
       <label className="block">
@@ -35,9 +54,9 @@ export function WeeklyCheckInForm({ currentUpdate, disabled }: WeeklyCheckInForm
         <legend className="text-sm font-semibold text-white">目前研究狀態</legend>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           {weeklyStatuses.map((option) => (
-            <label key={option.value} className="cursor-pointer rounded-2xl border border-white/10 bg-slate-950/50 p-4 transition has-[:checked]:border-emerald-300/60 has-[:checked]:bg-emerald-400/10 focus-within:ring-2 focus-within:ring-cyan-300/70">
-              <input className="sr-only" type="radio" name="self_status" value={option.value} defaultChecked={currentUpdate?.self_status === option.value} required disabled={disabled || isPending} />
-              <span className="flex items-center justify-between gap-2 font-semibold text-white"><span>{option.label}</span><span aria-hidden="true">✓</span></span>
+            <label key={option.value} className={`group cursor-pointer rounded-2xl border border-white/10 bg-slate-950/50 p-4 transition focus-within:ring-2 focus-within:ring-cyan-300/70 ${statusStyles[option.value]}`}>
+              <input className="peer sr-only" type="radio" name="self_status" value={option.value} defaultChecked={currentUpdate?.self_status === option.value} required disabled={disabled || isPending} />
+              <span className="flex items-center justify-between gap-2 font-semibold text-white"><span>{option.label}</span><span className="opacity-0 transition-opacity group-has-[:checked]:opacity-100" aria-hidden="true">✓</span></span>
               <span className="mt-2 block text-xs leading-5 text-slate-400">{option.description}</span>
             </label>
           ))}
@@ -48,8 +67,8 @@ export function WeeklyCheckInForm({ currentUpdate, disabled }: WeeklyCheckInForm
         <legend className="text-sm font-semibold text-white">需要教授協助嗎？</legend>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
           {weeklyHelpOptions.map((option) => (
-            <label key={option.value} className="cursor-pointer rounded-2xl border border-white/10 bg-slate-950/50 p-4 transition has-[:checked]:border-cyan-300/60 has-[:checked]:bg-cyan-400/10 focus-within:ring-2 focus-within:ring-cyan-300/70">
-              <input className="sr-only" type="radio" name="needs_professor_help" value={option.value} defaultChecked={currentUpdate?.needs_professor_help === option.value} required disabled={disabled || isPending} />
+            <label key={option.value} className={`cursor-pointer rounded-2xl border border-white/10 bg-slate-950/50 p-4 transition focus-within:ring-2 focus-within:ring-cyan-300/70 ${helpStyles[option.value]}`}>
+              <input className="peer sr-only" type="radio" name="needs_professor_help" value={option.value} defaultChecked={currentUpdate?.needs_professor_help === option.value} required disabled={disabled || isPending} />
               <span className="font-semibold text-white">{option.label}</span>
               <span className="mt-2 block text-xs leading-5 text-slate-400">{option.description}</span>
             </label>

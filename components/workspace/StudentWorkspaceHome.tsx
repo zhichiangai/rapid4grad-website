@@ -27,6 +27,9 @@ export type StudentWorkspaceHomeProps = {
     audit: string;
     lab: string;
   };
+  weeklyCheckIn?: {
+    updatedAt: string | null;
+  };
 };
 
 const riskCopy: Record<
@@ -70,6 +73,7 @@ export function StudentWorkspaceHome({
   message = "",
   previewMode = false,
   accessSummary,
+  weeklyCheckIn,
 }: StudentWorkspaceHomeProps) {
   const riskInfo = leadSummary?.quiz_result
     ? riskCopy[leadSummary.quiz_result]
@@ -136,15 +140,15 @@ export function StudentWorkspaceHome({
           <div className="rounded-[2rem] border border-white/10 bg-white/[0.04] p-6">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">Core Tools</p>
             <h2 className="mt-3 text-2xl font-semibold">下一步工具</h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 grid gap-3 md:grid-cols-3">
               {[
-                ["每週研究進度", "用 1 分鐘整理這週完成什麼、卡在哪裡，以及下週最重要的下一步。", "/dashboard/weekly-check-in"],
+                ["每週研究進度", weeklyCheckIn?.updatedAt ? "✓ 本週已更新" : "本週尚未更新", "/dashboard/weekly-check-in"],
                 ["AI 指令產生器", "Meeting 前先產生教授追問與邏輯檢查指令。", "/dashboard/ai-command"],
                 ["課程觀看頁", "依 RAPID 五大模組整理研究流程。", "/dashboard/course"],
               ].map(([title, description, href]) => previewMode ? (
                 <div key={title} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 opacity-80"><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{description}</p></div>
               ) : (
-                <Link key={title} href={href} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:border-blue-300/30 hover:bg-blue-500/10"><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{description}</p></Link>
+                <Link key={title} href={href} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:border-blue-300/30 hover:bg-blue-500/10"><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{title === "每週研究進度" ? <><span className="block">{description}</span><span className="mt-3 inline-flex rounded-xl bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-100">{weeklyCheckIn?.updatedAt ? "查看 / 更新本週進度" : "填寫本週進度"}</span></> : description}</p></Link>
               ))}
             </div>
           </div>

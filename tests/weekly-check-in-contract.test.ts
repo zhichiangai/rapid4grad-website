@@ -29,6 +29,22 @@ test("Weekly Check-in UI uses semantic radio groups and safe error messages", ()
   assert.match(form, /name="self_status"/);
   assert.match(form, /name="needs_professor_help"/);
   assert.match(form, /maxLength=\{?2000\}?/);
+  assert.match(form, /group-has-\[:checked\]:opacity-100/);
+  assert.match(form, /has-\[:checked\]:border-emerald/);
+  assert.match(form, /has-\[:checked\]:border-amber/);
+  assert.match(form, /has-\[:checked\]:border-red/);
+  assert.match(form, /has-\[:checked\]:border-blue/);
   assert.match(actions, /儲存失敗，請稍後再試/);
   assert.match(navigation, /weekly-check-in/);
+});
+
+test("Dashboard exposes only the current weekly status and balanced core tools", () => {
+  const dashboard = readFileSync(`${root}/app/dashboard/page.tsx`, "utf8");
+  const home = readFileSync(`${root}/components/workspace/StudentWorkspaceHome.tsx`, "utf8");
+  assert.match(dashboard, /select\("id,updated_at"\)/);
+  assert.match(dashboard, /getTaipeiMonday\(\)/);
+  assert.match(home, /md:grid-cols-3/);
+  assert.match(home, /本週尚未更新/);
+  assert.match(home, /查看 \/ 更新本週進度/);
+  assert.match(home, /填寫本週進度/);
 });

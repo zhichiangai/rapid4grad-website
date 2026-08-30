@@ -6,6 +6,7 @@ import {
   StudentWorkspaceHome,
 } from "@/components/workspace/StudentWorkspaceHome";
 import { createClient } from "@/lib/supabase/client";
+import { getTaipeiMonday } from "@/lib/supervision/week";
 
 type AdvisorMemory = {
   id: string;
@@ -32,6 +33,7 @@ export default function DashboardPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [userId, setUserId] = useState("");
+  const [weeklyCheckIn, setWeeklyCheckIn] = useState<{ updatedAt: string | null }>({ updatedAt: null });
 
   useEffect(() => {
     let isMounted = true;
@@ -51,6 +53,15 @@ export default function DashboardPage() {
 
       setUserId(user.id);
       const email = user.email?.toLowerCase();
+
+      const { data: weekly } = await supabase
+        .from("weekly_updates")
+        .select("id,updated_at")
+        .eq("student_user_id", user.id)
+        .eq("week_start", getTaipeiMonday())
+        .maybeSingle<{ id: string; updated_at: string }>();
+
+      if (isMounted) setWeeklyCheckIn({ updatedAt: weekly?.updated_at ?? null });
 
       if (email) {
         const { data: lead } = await supabase
@@ -165,6 +176,7 @@ export default function DashboardPage() {
       onSubmitAdvisorMemory={handleSubmitAdvisorMemory}
       isSaving={isSaving}
       message={message}
+      weeklyCheckIn={weeklyCheckIn}
     />
   );
 }
