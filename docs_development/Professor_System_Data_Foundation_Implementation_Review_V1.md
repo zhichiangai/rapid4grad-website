@@ -20,6 +20,13 @@ The migration includes foreign keys with restrictive deletes, Monday week-start 
 
 The final hardening pass also corrected the security fixture to use real Lab rows and added coverage for suspended accounts, removed memberships, cross-Lab access, archived-Lab mutation denial, supervisor assignment, student writes, and every immutable identity column.
 
+## Security Evidence Integrity
+
+- Authorization fixtures for expired subscriptions, cross-Lab access, removed memberships, suspended accounts, and archived Labs use real Lab rows created inside the fixture transaction.
+- The only remaining fake Lab UUIDs are three intentional immutable-identity rejection cases; they represent invalid target identities, not authorization evidence.
+- The fixture no longer uses psql variables inside `DO` blocks; fixture IDs are resolved through transaction-local settings and a temporary UUID lookup function.
+- No production or remote database was used for this evidence.
+
 ## Security Decisions Verified
 
 - Student reads are limited to the student's own active account history and own active Lab context.
@@ -73,8 +80,16 @@ The new fixture covers student, same-Lab professor, cross-Lab professor, assista
 - Unauthenticated `/dashboard/ai-audit/history`: redirects to login
 - Redirect loop / server 500: not observed
 - Local disposable Auth accounts: CREATED against `http://127.0.0.1:54321` only
-- Authenticated role browser flows: NOT TESTED because the current Local login page exposes only Google OAuth and no local password login path; no Production account was used
-- Local fixture data: CREATED for student, professor, assistant, admin, Lab, membership, and subscription QA
+- Authenticated role browser flows: PASS against `http://localhost:3001` using the temporary Local-only harness and real `signInWithPassword` sessions
+- Local fixture data: CREATED for student, professor, assistant, admin, Lab, membership, and subscription QA; disposable only
+- Student: PASS for `/dashboard`, student denial of professor/admin workspaces, and history empty state
+- Professor: PASS for professor workspace, actual Lab route, actual student detail route, and student-workspace fallback
+- Assistant: PASS for same-Lab professor workspace and actual Lab route; cross-Lab denial remains covered by the real-Lab SQL fixture
+- Admin: PASS for `/admin`; no automatic supervision-data read path was granted
+- Suspended student: PASS; `/dashboard`, `/professor/dashboard`, and `/admin` all redirect directly to `/account-suspended`
+- Anonymous protected routes: PASS; `/dashboard`, `/professor/dashboard`, and `/admin` return 307 redirects to login without loops
+- Fatal browser error / 500: NOT OBSERVED in the exercised flows
+- Temporary harness: CREATED for Local QA, NOT COMMITTED, REMOVED after verification
 
 ## Migration Order
 
@@ -101,12 +116,12 @@ The final local order is:
 
 ## Remaining Manual Verification
 
-- Add a test-only local authentication entry point or local Google OAuth provider if authenticated browser QA is required.
-- Run authenticated student, professor, assistant, and admin browser flows against Local Supabase.
+- Repeat authenticated role flows in Preview only after an approved Preview environment and safe disposable accounts exist.
+- Verify external Google OAuth, Resend delivery, ECPay, AI provider streaming, and remote Supabase behavior separately; none is claimed complete here.
 - Keep Preview and Production migration/deployment decisions separate from this Local review.
 
 ## Conclusion
 
 The Professor System Data Foundation V1 implementation is locally validated for schema replay, RLS, ownership invariants, and application quality checks. The final hardening pass is covered by the implementation migration and security fixture, including supervisor student-action assignment, active-Lab mutation gates, real expired-subscription checks, suspended student/professor data rows, removed-membership matrices, archived-Lab denial, and complete immutable-column attacks.
 
-Authenticated browser QA remains an explicit environment limitation: disposable Local Auth accounts and fixture data were created against `127.0.0.1`, but the current application login surface only exposes Google OAuth, so password-based Local accounts cannot complete an application login without changing the product or configuring a local OAuth provider. No Production account was used and no external environment is declared complete by this report.
+Authenticated browser QA is complete for the Local-only harness: disposable accounts authenticated through the real Supabase password flow against `127.0.0.1`, and the harness was removed after verification. No Production account was used and no external environment is declared complete by this report.
