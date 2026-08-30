@@ -76,8 +76,8 @@ Local browser QA used disposable Local Supabase accounts only:
 
 ## Preview
 
-- Preview URL: https://rapid4grad-website-4dujhpwn2-zhichiang-ai-s-projects.vercel.app
-- Deployment ID: `dpl_C49BP4sfiXmVwrph3suDq5vA7YXD`.
+- Preview URL: https://rapid4grad-website-737vi732g-zhichiang-ai-s-projects.vercel.app
+- Deployment ID: `dpl_5dgDRkw29fewg5jQGCg7d2knMAam`.
 - Preview state: READY.
 - The feature branch must not be merged to `main` by this task.
 
