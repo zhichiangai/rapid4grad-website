@@ -138,6 +138,7 @@ export function StudentWorkspaceHome({
             <h2 className="mt-3 text-2xl font-semibold">下一步工具</h2>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {[
+                ["每週研究進度", "用 1 分鐘整理這週完成什麼、卡在哪裡，以及下週最重要的下一步。", "/dashboard/weekly-check-in"],
                 ["AI 指令產生器", "Meeting 前先產生教授追問與邏輯檢查指令。", "/dashboard/ai-command"],
                 ["課程觀看頁", "依 RAPID 五大模組整理研究流程。", "/dashboard/course"],
               ].map(([title, description, href]) => previewMode ? (

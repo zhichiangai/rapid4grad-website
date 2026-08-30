@@ -1661,6 +1661,56 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_updates: {
+        Row: {
+          id: string
+          lab_id: string
+          student_user_id: string
+          week_start: string
+          completed_summary: string
+          blockers: string | null
+          next_plan: string
+          self_status: string
+          needs_professor_help: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lab_id: string
+          student_user_id: string
+          week_start: string
+          completed_summary: string
+          blockers?: string | null
+          next_plan: string
+          self_status: string
+          needs_professor_help: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          lab_id?: string
+          student_user_id?: string
+          week_start?: string
+          completed_summary?: string
+          blockers?: string | null
+          next_plan?: string
+          self_status?: string
+          needs_professor_help?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_updates_lab_id_fkey"
+            columns: ["lab_id"]
+            isOneToOne: false
+            referencedRelation: "labs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2160,4 +2210,3 @@ export const Constants = {
     },
   },
 } as const
-

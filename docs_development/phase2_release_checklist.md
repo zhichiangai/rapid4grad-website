@@ -918,3 +918,48 @@ git diff --check                          Passed
 - Task 8 Admin 與本輪 Email P0 修補仍未 commit，必須先由使用者審核 Git scope。
 - 本機驗收完成不代表 Preview 或 Production 已完成。
 - 下一步只能在另行明確授權後進行 commit/push、V2 Preview Supabase migration 與 Vercel Preview E2E。
+
+## 16. 2026-08-30 Weekly Check-in V1 Release Readiness
+
+本節記錄 `student-weekly-checkin-v1` 的 Weekly Check-in V1 與 Production Data Foundation 驗收狀態。此功能只在 student workspace 提供每週研究進度輸入，不包含 Attention Center、Meeting Center UI、Student 360、提醒、LINE 或 AI Professor Assistant。
+
+### 16.1 Production Data Foundation
+
+- `20260830064359_add_professor_supervision_data_v1.sql` 已在 Production `rapid4grad-v2` 套用並完成 read-back。
+- `weekly_updates`、`meetings`、`meeting_actions` 已確認存在，RLS、constraints、indexes 與既有 policy 均已核對。
+- 本輪沒有新增 Production migration，也沒有執行 destructive data operation。
+
+### 16.2 本機已驗證完成
+
+| 領域 | 狀態 | 證據 |
+|---|---|---|
+| Fresh Local Supabase replay | Passed | 空白 Local DB 依序重播全部 18 份 migration |
+| Weekly database fixture | Passed | `supabase/tests/v2_weekly_checkin_integration.sql` |
+| Existing V2/security integration suites | Passed | 原有 9 份 integration fixtures 全部通過 |
+| Student create/update | Passed | real Local Auth session + Server Action，reload 後資料保留 |
+| Canonical weekly row | Passed | 同 Lab/student/week upsert，不產生重複列 |
+| Taipei Monday | Passed | `Asia/Taipei` 年界與 UTC 午夜邊界 contract tests |
+| Read-only subscription | Passed | expired subscription 隱藏寫入控制，歷史仍可讀 |
+| Removed membership | Passed | 歷史仍可讀，新寫入不可用 |
+| Local quality gates | Pending final run | npm test、lint、TypeScript、build、diff check |
+
+### 16.3 程式已完成但只能由外部服務驗收
+
+- Vercel Preview runtime、deployment protection、Server Component 與 function logs。
+- Preview authenticated OAuth、workspace redirect 與安全測試帳號。
+- Preview desktop/tablet/mobile UI visual QA。
+- 真實 Google OAuth、Resend、ECPay、AI provider streaming 與外部服務錯誤恢復。
+
+### 16.4 明確 blocked 的外部項目
+
+- 沒有可安全執行寫入的 disposable Preview account，因此 Preview authenticated mutation 不執行。
+- Local 通過不代表 Preview 或 Production 的 Weekly UI/E2E 已完成。
+- Weekly feature branch 尚未 merge `main`；Production 不包含本輪 Weekly UI。
+
+### 16.5 Preview release gate
+
+1. Push `student-weekly-checkin-v1` review branch。
+2. 等待 Vercel Git Preview `READY`，確認 commit 與 branch 一致。
+3. 以 Preview anonymous/安全既有 session 檢查 `/dashboard` 與 `/dashboard/weekly-check-in`。
+4. 驗證導覽入口、empty/new、success/update、history、read-only、mobile 與 desktop，且無 500、fatal error 或 redirect loop。
+5. 完成使用者 UI/UX review 後，另行決定是否建立 PR；本輪不可自動 merge。
