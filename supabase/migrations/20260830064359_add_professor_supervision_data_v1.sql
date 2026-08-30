@@ -202,6 +202,11 @@ ON public.weekly_updates FOR INSERT TO authenticated
 WITH CHECK (
   student_user_id = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = weekly_updates.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -214,6 +219,11 @@ ON public.weekly_updates FOR UPDATE TO authenticated
 USING (
   student_user_id = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = weekly_updates.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -223,6 +233,11 @@ USING (
 WITH CHECK (
   student_user_id = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = weekly_updates.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -250,6 +265,11 @@ WITH CHECK (
   created_by = (SELECT auth.uid())
   AND student_user_id = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meetings.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -262,6 +282,11 @@ ON public.meetings FOR INSERT TO authenticated
 WITH CHECK (
   created_by = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meetings.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND (
     app_private.owns_lab(lab_id)
     OR app_private.is_active_lab_member(
@@ -286,6 +311,11 @@ USING (
   student_user_id = (SELECT auth.uid())
   AND created_by = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meetings.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -296,6 +326,11 @@ WITH CHECK (
   student_user_id = (SELECT auth.uid())
   AND created_by = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meetings.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -307,6 +342,11 @@ CREATE POLICY "meetings_update_supervisor"
 ON public.meetings FOR UPDATE TO authenticated
 USING (
   app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meetings.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND (
     app_private.owns_lab(lab_id)
     OR app_private.is_active_lab_member(
@@ -318,6 +358,11 @@ USING (
 )
 WITH CHECK (
   app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meetings.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND (
     app_private.owns_lab(lab_id)
     OR app_private.is_active_lab_member(
@@ -349,6 +394,11 @@ WITH CHECK (
   AND owner_type = 'student'
   AND owner_user_id = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meeting_actions.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -360,6 +410,11 @@ CREATE POLICY "meeting_actions_insert_supervisor"
 ON public.meeting_actions FOR INSERT TO authenticated
 WITH CHECK (
   app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meeting_actions.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND (
     app_private.owns_lab(lab_id)
     OR app_private.is_active_lab_member(
@@ -378,6 +433,10 @@ WITH CHECK (
   )
   AND (
     (
+      owner_type = 'student'
+      AND owner_user_id = meeting_actions.student_user_id
+    )
+    OR (
       owner_type = 'supervisor'
       AND (
         owner_user_id = (SELECT l.owner_professor_id FROM public.labs AS l WHERE l.id = meeting_actions.lab_id)
@@ -404,6 +463,11 @@ USING (
   AND owner_user_id = (SELECT auth.uid())
   AND student_user_id = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meeting_actions.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -415,6 +479,11 @@ WITH CHECK (
   AND owner_user_id = (SELECT auth.uid())
   AND student_user_id = (SELECT auth.uid())
   AND app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meeting_actions.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND app_private.is_active_lab_member(
     lab_id,
     ARRAY['student'::public.lab_role]
@@ -426,6 +495,11 @@ CREATE POLICY "meeting_actions_update_supervisor"
 ON public.meeting_actions FOR UPDATE TO authenticated
 USING (
   app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meeting_actions.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND (
     app_private.owns_lab(lab_id)
     OR app_private.is_active_lab_member(
@@ -437,6 +511,11 @@ USING (
 )
 WITH CHECK (
   app_private.is_active_user((SELECT auth.uid()))
+  AND EXISTS (
+    SELECT 1 FROM public.labs AS target_lab
+    WHERE target_lab.id = meeting_actions.lab_id
+      AND target_lab.status = 'active'::public.lab_status
+  )
   AND (
     app_private.owns_lab(lab_id)
     OR app_private.is_active_lab_member(

@@ -9,9 +9,15 @@
 \set assistant_a '62000000-0000-0000-0000-000000000003'
 \set admin_user '63000000-0000-0000-0000-000000000001'
 \set weekly_a '64000000-0000-0000-0000-000000000001'
+\set weekly_b '64000000-0000-0000-0000-000000000002'
 \set meeting_a '65000000-0000-0000-0000-000000000001'
+\set meeting_b '65000000-0000-0000-0000-000000000002'
+\set meeting_student '65000000-0000-0000-0000-000000000003'
+\set meeting_upcoming '65000000-0000-0000-0000-000000000004'
 \set action_student '66000000-0000-0000-0000-000000000001'
 \set action_supervisor '66000000-0000-0000-0000-000000000002'
+\set action_b '66000000-0000-0000-0000-000000000003'
+\set action_student_created '66000000-0000-0000-0000-000000000004'
 
 BEGIN;
 
@@ -106,6 +112,52 @@ VALUES (:'lab_b'::UUID, :'student_b'::UUID, 'student', 'active');
 
 INSERT INTO public.weekly_updates(
   id, lab_id, student_user_id, week_start, completed_summary,
+  next_plan, self_status, needs_professor_help
+)
+VALUES (
+  :'weekly_b'::UUID,
+  :'lab_b'::UUID,
+  :'student_b'::UUID,
+  DATE '2026-08-24',
+  'Completed the Lab B fixture.',
+  'Keep the Lab B boundary isolated.',
+  'on_track',
+  'none'
+);
+
+INSERT INTO public.meetings(
+  id, lab_id, student_user_id, meeting_at, status, summary,
+  decisions, created_by
+)
+VALUES (
+  :'meeting_b'::UUID,
+  :'lab_b'::UUID,
+  :'student_b'::UUID,
+  timezone('utc', now()) - interval '2 days',
+  'completed',
+  'Reviewed the Lab B fixture.',
+  'Keep the Lab boundary explicit.',
+  :'professor_b'::UUID
+);
+
+INSERT INTO public.meeting_actions(
+  id, meeting_id, lab_id, student_user_id, title, owner_type,
+  owner_user_id, due_date, status
+)
+VALUES (
+  :'action_b'::UUID,
+  :'meeting_b'::UUID,
+  :'lab_b'::UUID,
+  :'student_b'::UUID,
+  'Review Lab B report',
+  'supervisor',
+  :'professor_b'::UUID,
+  CURRENT_DATE + 7,
+  'todo'
+);
+
+INSERT INTO public.weekly_updates(
+  id, lab_id, student_user_id, week_start, completed_summary,
   blockers, next_plan, self_status, needs_professor_help
 )
 VALUES (
@@ -166,11 +218,39 @@ VALUES
     timezone('utc', now())
   );
 
+INSERT INTO public.meetings(
+  id, lab_id, student_user_id, meeting_at, status, summary,
+  decisions, created_by
+)
+VALUES (
+  :'meeting_upcoming'::UUID,
+  :'lab_a'::UUID,
+  :'student_a'::UUID,
+  timezone('utc', now()) + interval '7 days',
+  'scheduled',
+  NULL,
+  NULL,
+  :'professor_a'::UUID
+);
+
 SELECT pg_temp.assert_true(
   NOT has_table_privilege('anon', 'public.weekly_updates', 'SELECT')
+  AND NOT has_table_privilege('anon', 'public.weekly_updates', 'INSERT')
+  AND NOT has_table_privilege('anon', 'public.weekly_updates', 'UPDATE')
+  AND NOT has_table_privilege('anon', 'public.weekly_updates', 'DELETE')
   AND NOT has_table_privilege('anon', 'public.meetings', 'SELECT')
+  AND NOT has_table_privilege('anon', 'public.meetings', 'INSERT')
+  AND NOT has_table_privilege('anon', 'public.meetings', 'UPDATE')
+  AND NOT has_table_privilege('anon', 'public.meetings', 'DELETE')
   AND NOT has_table_privilege('anon', 'public.meeting_actions', 'SELECT'),
   'anon must not have supervision table SELECT grants'
+);
+
+SELECT pg_temp.assert_true(
+  NOT has_table_privilege('anon', 'public.meeting_actions', 'INSERT')
+  AND NOT has_table_privilege('anon', 'public.meeting_actions', 'UPDATE')
+  AND NOT has_table_privilege('anon', 'public.meeting_actions', 'DELETE'),
+  'anon must not have supervision table write grants'
 );
 
 SELECT pg_temp.assert_true(
@@ -193,11 +273,12 @@ SELECT pg_temp.assert_true(
   'student must not read another student weekly update'
 );
 SELECT pg_temp.assert_true(
-  (SELECT count(*) = 1 FROM public.meetings),
+  (SELECT count(*) = 1 FROM public.meetings WHERE id = :'meeting_a'::UUID),
   'student must read own meeting history'
 );
 SELECT pg_temp.assert_true(
-  (SELECT count(*) = 2 FROM public.meeting_actions),
+  (SELECT count(*) = 2 FROM public.meeting_actions
+   WHERE id IN (:'action_student'::UUID, :'action_supervisor'::UUID)),
   'student must read own meeting actions'
 );
 
@@ -211,6 +292,85 @@ SELECT pg_temp.assert_true(
   (SELECT count(*) = 1 FROM updated),
   'active student must update own weekly update'
 );
+
+WITH inserted AS (
+  INSERT INTO public.meetings(
+    id, lab_id, student_user_id, meeting_at, status, created_by
+  )
+  VALUES (
+    :'meeting_student'::UUID,
+    :'lab_a'::UUID,
+    :'student_a'::UUID,
+    timezone('utc', now()) - interval '3 days',
+    'completed',
+    :'student_a'::UUID
+  )
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM inserted),
+  'active student must create own meeting'
+);
+
+WITH inserted AS (
+  INSERT INTO public.meeting_actions(
+    id, meeting_id, lab_id, student_user_id, title, owner_type,
+    owner_user_id, due_date, status
+  )
+  VALUES (
+    :'action_student_created'::UUID,
+    :'meeting_student'::UUID,
+    :'lab_a'::UUID,
+    :'student_a'::UUID,
+    'Student-owned action',
+    'student',
+    :'student_a'::UUID,
+    CURRENT_DATE + 7,
+    'todo'
+  )
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM inserted),
+  'active student must create own action'
+);
+
+WITH updated AS (
+  UPDATE public.meetings
+  SET summary = 'Student-created meeting updated'
+  WHERE id = :'meeting_student'::UUID
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM updated),
+  'student must update own-created meeting'
+);
+
+WITH updated AS (
+  UPDATE public.meeting_actions
+  SET status = 'done', completed_at = timezone('utc', now())
+  WHERE id = :'action_student_created'::UUID
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM updated),
+  'student must update own action'
+);
+
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.meeting_actions
+    SET status = 'done', completed_at = timezone('utc', now())
+    WHERE id = '66000000-0000-0000-0000-000000000002'::UUID;
+    IF FOUND THEN
+      RAISE EXCEPTION 'student updated supervisor action unexpectedly';
+    END IF;
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
 
 SELECT pg_temp.assert_true(
   (SELECT count(*) = 0 FROM public.weekly_updates
@@ -228,8 +388,9 @@ SELECT pg_temp.assert_true(
   'same-Lab professor must read weekly updates'
 );
 SELECT pg_temp.assert_true(
-  (SELECT count(*) = 1 FROM public.meetings),
-  'same-Lab professor must read meetings'
+  (SELECT count(*) = 3 FROM public.meetings WHERE lab_id = :'lab_a'::UUID),
+  format('same-Lab professor must read meetings; actual=%s',
+    (SELECT count(*) FROM public.meetings WHERE lab_id = :'lab_a'::UUID))
 );
 
 WITH attempted AS (
@@ -258,6 +419,96 @@ SELECT pg_temp.assert_true(
   'functional same-Lab professor must create a meeting'
 );
 
+WITH inserted AS (
+  INSERT INTO public.meeting_actions(
+    meeting_id, lab_id, student_user_id, title, owner_type,
+    owner_user_id, due_date, status
+  )
+  VALUES (
+    :'meeting_a'::UUID,
+    :'lab_a'::UUID,
+    :'student_a'::UUID,
+    'Professor assignment for student',
+    'student',
+    :'student_a'::UUID,
+    CURRENT_DATE + 7,
+    'todo'
+  )
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM inserted),
+  'professor must create a student-owned action'
+);
+
+WITH inserted AS (
+  INSERT INTO public.meeting_actions(
+    meeting_id, lab_id, student_user_id, title, owner_type,
+    owner_user_id, due_date, status
+  )
+  VALUES (
+    :'meeting_a'::UUID,
+    :'lab_a'::UUID,
+    :'student_a'::UUID,
+    'Professor-owned supervision action',
+    'supervisor',
+    :'professor_a'::UUID,
+    CURRENT_DATE + 7,
+    'todo'
+  )
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM inserted),
+  'professor must create a supervisor-owned action'
+);
+
+WITH inserted AS (
+  INSERT INTO public.meeting_actions(
+    meeting_id, lab_id, student_user_id, title, owner_type,
+    owner_user_id, due_date, status
+  )
+  VALUES (
+    :'meeting_a'::UUID,
+    :'lab_a'::UUID,
+    :'student_a'::UUID,
+    'Assistant-owned supervision action',
+    'supervisor',
+    :'assistant_a'::UUID,
+    CURRENT_DATE + 7,
+    'todo'
+  )
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM inserted),
+  'professor must create an assistant-owned action'
+);
+
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.meeting_actions(
+      meeting_id, lab_id, student_user_id, title, owner_type,
+      owner_user_id, due_date, status
+    )
+    VALUES (
+      '65000000-0000-0000-0000-000000000001'::UUID,
+      '00000000-0000-0000-0000-000000000002'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      'Cross-Lab owner attack',
+      'supervisor',
+      '62000000-0000-0000-0000-000000000002'::UUID,
+      CURRENT_DATE + 7,
+      'todo'
+    );
+    RAISE EXCEPTION 'cross-Lab supervisor owner unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
+
 RESET ROLE;
 
 SET LOCAL ROLE authenticated;
@@ -273,9 +524,69 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :'professor_b', TRUE);
 SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
 SELECT pg_temp.assert_true(
-  (SELECT count(*) = 0 FROM public.weekly_updates),
+  (SELECT count(*) = 0 FROM public.weekly_updates WHERE lab_id = :'lab_a'::UUID)
+  AND (SELECT count(*) = 0 FROM public.meetings WHERE lab_id = :'lab_a'::UUID)
+  AND (SELECT count(*) = 0 FROM public.meeting_actions WHERE lab_id = :'lab_a'::UUID),
   'cross-Lab professor must not read Lab A data'
 );
+
+RESET ROLE;
+SELECT pg_temp.assert_true(
+  (SELECT :'lab_a'::UUID <> :'lab_b'::UUID)
+  AND (SELECT lab_id = :'lab_a'::UUID FROM public.meetings
+       WHERE id = :'meeting_a'::UUID),
+  'cross-Lab fixture must use distinct Lab A and Lab B records'
+);
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'professor_b', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+
+WITH attempted AS (
+  UPDATE public.meetings
+  SET summary = 'Cross-Lab update must fail'
+  WHERE id = :'meeting_a'::UUID
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 0 FROM attempted),
+  'cross-Lab professor must not update Lab A meeting'
+);
+
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.meetings(
+      lab_id, student_user_id, meeting_at, status, created_by
+    )
+    VALUES (
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      timezone('utc', now()), 'scheduled',
+      '62000000-0000-0000-0000-000000000002'::UUID
+    );
+    RAISE EXCEPTION 'cross-Lab meeting insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+
+  BEGIN
+    INSERT INTO public.meeting_actions(
+      meeting_id, lab_id, student_user_id, title, owner_type,
+      owner_user_id, status
+    )
+    VALUES (
+      '65000000-0000-0000-0000-000000000001'::UUID,
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      'Cross-Lab action insert', 'supervisor',
+      '62000000-0000-0000-0000-000000000002'::UUID, 'todo'
+    );
+    RAISE EXCEPTION 'cross-Lab action insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
 RESET ROLE;
 
 -- Removed students retain active-account own history but lose all mutations.
@@ -293,6 +604,16 @@ SELECT pg_temp.assert_true(
   (SELECT count(*) = 1 FROM public.weekly_updates),
   'removed student must retain own weekly history'
 );
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 4 FROM public.meetings WHERE student_user_id = :'student_a'::UUID),
+  format('removed student must retain own meeting history; actual=%s',
+    (SELECT count(*) FROM public.meetings WHERE student_user_id = :'student_a'::UUID))
+);
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 6 FROM public.meeting_actions WHERE student_user_id = :'student_a'::UUID),
+  format('removed student must retain own action history; actual=%s',
+    (SELECT count(*) FROM public.meeting_actions WHERE student_user_id = :'student_a'::UUID))
+);
 WITH attempted AS (
   UPDATE public.weekly_updates
   SET completed_summary = 'Removed student update must fail'
@@ -303,6 +624,80 @@ SELECT pg_temp.assert_true(
   (SELECT count(*) = 0 FROM attempted),
   'removed student must not update history'
 );
+
+WITH attempted AS (
+  UPDATE public.meetings
+  SET summary = 'Removed student meeting must fail'
+  WHERE id = :'meeting_a'::UUID
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 0 FROM attempted),
+  'removed student must not update meetings'
+);
+
+WITH attempted AS (
+  UPDATE public.meeting_actions
+  SET status = 'doing'
+  WHERE id = :'action_student'::UUID
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 0 FROM attempted),
+  'removed student must not update actions'
+);
+
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.weekly_updates(
+      lab_id, student_user_id, week_start, completed_summary,
+      next_plan, self_status, needs_professor_help
+    )
+    VALUES (
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      DATE '2026-09-07', 'Removed student insert', 'Must fail',
+      'on_track', 'none'
+    );
+    RAISE EXCEPTION 'removed student weekly insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+
+  BEGIN
+    INSERT INTO public.meetings(
+      lab_id, student_user_id, meeting_at, status, created_by
+    )
+    VALUES (
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      timezone('utc', now()), 'scheduled',
+      '61000000-0000-0000-0000-000000000001'::UUID
+    );
+    RAISE EXCEPTION 'removed student meeting insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+
+  BEGIN
+    INSERT INTO public.meeting_actions(
+      meeting_id, lab_id, student_user_id, title, owner_type,
+      owner_user_id, status
+    )
+    VALUES (
+      '65000000-0000-0000-0000-000000000001'::UUID,
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      'Removed student action insert', 'student',
+      '61000000-0000-0000-0000-000000000001'::UUID, 'todo'
+    );
+    RAISE EXCEPTION 'removed student action insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
 RESET ROLE;
 
 UPDATE public.lab_memberships
@@ -319,9 +714,65 @@ SELECT pg_temp.assert_true(
   (SELECT count(*) = 0 FROM public.weekly_updates),
   'removed assistant must lose Lab reads'
 );
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 0 FROM public.meetings)
+  AND (SELECT count(*) = 0 FROM public.meeting_actions),
+  'removed assistant must lose all supervision reads'
+);
+WITH attempted AS (
+  UPDATE public.meetings
+  SET summary = 'Removed assistant meeting must fail'
+  WHERE id = :'meeting_a'::UUID
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 0 FROM attempted),
+  'removed assistant must not update meetings'
+);
+WITH attempted AS (
+  UPDATE public.meeting_actions
+  SET status = 'doing'
+  WHERE id = :'action_supervisor'::UUID
+  RETURNING id
+)
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 0 FROM attempted),
+  'removed assistant must not update actions'
+);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.meeting_actions(
+      meeting_id, lab_id, student_user_id, title, owner_type,
+      owner_user_id, status
+    )
+    VALUES (
+      '65000000-0000-0000-0000-000000000001'::UUID,
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      'Removed assistant action insert', 'supervisor',
+      '62000000-0000-0000-0000-000000000003'::UUID, 'todo'
+    );
+    RAISE EXCEPTION 'removed assistant action insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
 RESET ROLE;
 
 -- Suspended accounts are denied by the shared active-account helper.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'student_b', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM public.weekly_updates)
+  AND (SELECT count(*) = 1 FROM public.meetings)
+  AND (SELECT count(*) = 1 FROM public.meeting_actions),
+  'active student B must read existing Lab B history'
+);
+RESET ROLE;
+
 UPDATE public.profiles
 SET account_status = 'suspended'::public.account_status
 WHERE id = :'student_b'::UUID;
@@ -330,9 +781,72 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', :'student_b', TRUE);
 SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
 SELECT pg_temp.assert_true(
-  (SELECT count(*) = 0 FROM public.weekly_updates),
+  (SELECT count(*) = 0 FROM public.weekly_updates)
+  AND (SELECT count(*) = 0 FROM public.meetings)
+  AND (SELECT count(*) = 0 FROM public.meeting_actions),
   'suspended student must not read supervision data'
 );
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.meeting_actions(
+      meeting_id, lab_id, student_user_id, title, owner_type,
+      owner_user_id, status
+    )
+    VALUES (
+      '65000000-0000-0000-0000-000000000002'::UUID,
+      '00000000-0000-0000-0000-000000000002'::UUID,
+      '61000000-0000-0000-0000-000000000002'::UUID,
+      'Suspended student action insert', 'student',
+      '61000000-0000-0000-0000-000000000002'::UUID, 'todo'
+    );
+    RAISE EXCEPTION 'suspended student action insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.meetings
+    SET summary = 'Suspended student meeting update must fail'
+    WHERE id = '65000000-0000-0000-0000-000000000002'::UUID;
+    IF FOUND THEN RAISE EXCEPTION 'suspended student meeting update unexpectedly succeeded'; END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.meeting_actions
+    SET status = 'doing'
+    WHERE id = '66000000-0000-0000-0000-000000000003'::UUID;
+    IF FOUND THEN RAISE EXCEPTION 'suspended student action update unexpectedly succeeded'; END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END;
+$$;
+DO $$
+BEGIN
+  BEGIN
+    UPDATE public.weekly_updates
+    SET completed_summary = 'Suspended student update must fail'
+    WHERE id = '64000000-0000-0000-0000-000000000002'::UUID;
+    IF FOUND THEN
+      RAISE EXCEPTION 'suspended student weekly update unexpectedly succeeded';
+    END IF;
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  BEGIN
+    INSERT INTO public.meetings(
+      lab_id, student_user_id, meeting_at, status, created_by
+    )
+    VALUES (
+      '00000000-0000-0000-0000-000000000002'::UUID,
+      '61000000-0000-0000-0000-000000000002'::UUID,
+      timezone('utc', now()), 'scheduled',
+      '61000000-0000-0000-0000-000000000002'::UUID
+    );
+    RAISE EXCEPTION 'suspended student meeting insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
 RESET ROLE;
 
 -- Admin does not automatically receive new supervision access.
@@ -347,13 +861,210 @@ SELECT pg_temp.assert_true(
 );
 RESET ROLE;
 
--- Restore the active Lab A student for direct integrity and subscription checks.
+-- Restore the local accounts and memberships before integrity and Lab-state tests.
+UPDATE public.profiles
+SET account_status = 'active'::public.account_status
+WHERE id IN (:'student_b'::UUID, :'professor_a'::UUID);
+
 UPDATE public.lab_memberships
 SET status = 'active'::public.lab_membership_status
   , removed_at = NULL
   , removed_by = NULL
   , removal_reason = NULL
 WHERE lab_id = :'lab_a'::UUID AND user_id = :'student_a'::UUID;
+
+UPDATE public.lab_memberships
+SET status = 'active'::public.lab_membership_status
+  , removed_at = NULL
+  , removed_by = NULL
+  , removal_reason = NULL
+WHERE lab_id = :'lab_a'::UUID AND user_id = :'assistant_a'::UUID;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'professor_a', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 1 FROM public.weekly_updates WHERE lab_id = :'lab_a'::UUID)
+  AND (SELECT count(*) = 4 FROM public.meetings WHERE lab_id = :'lab_a'::UUID)
+  AND (SELECT count(*) = 6 FROM public.meeting_actions WHERE lab_id = :'lab_a'::UUID),
+  'active professor must read Lab A supervision data'
+);
+SELECT pg_temp.assert_true(
+  (
+    SELECT id = :'meeting_upcoming'::UUID
+    FROM public.meetings
+    WHERE lab_id = :'lab_a'::UUID
+      AND student_user_id = :'student_a'::UUID
+      AND status = 'scheduled'
+      AND meeting_at > timezone('utc', now())
+    ORDER BY meeting_at
+    LIMIT 1
+  ),
+  'canonical upcoming meeting must come from scheduled meeting rows'
+);
+RESET ROLE;
+
+UPDATE public.profiles
+SET account_status = 'suspended'::public.account_status
+WHERE id = :'professor_a'::UUID;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'professor_a', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+SELECT pg_temp.assert_true(
+  (SELECT count(*) = 0 FROM public.weekly_updates WHERE lab_id = :'lab_a'::UUID)
+  AND (SELECT count(*) = 0 FROM public.meetings WHERE lab_id = :'lab_a'::UUID)
+  AND (SELECT count(*) = 0 FROM public.meeting_actions WHERE lab_id = :'lab_a'::UUID),
+  'suspended professor must lose Lab A supervision reads'
+);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.meetings(
+      lab_id, student_user_id, meeting_at, status, created_by
+    )
+    VALUES (
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      timezone('utc', now()), 'scheduled',
+      '62000000-0000-0000-0000-000000000001'::UUID
+    );
+    RAISE EXCEPTION 'suspended professor meeting insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  BEGIN
+    UPDATE public.meeting_actions
+    SET status = 'doing'
+    WHERE id = '66000000-0000-0000-0000-000000000002'::UUID;
+    IF FOUND THEN
+      RAISE EXCEPTION 'suspended professor action update unexpectedly succeeded';
+    END IF;
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  BEGIN
+    INSERT INTO public.meeting_actions(
+      meeting_id, lab_id, student_user_id, title, owner_type,
+      owner_user_id, status
+    )
+    VALUES (
+      '65000000-0000-0000-0000-000000000001'::UUID,
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      'Suspended professor action insert', 'supervisor',
+      '62000000-0000-0000-0000-000000000001'::UUID, 'todo'
+    );
+    RAISE EXCEPTION 'suspended professor action insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+END;
+$$;
+RESET ROLE;
+
+UPDATE public.profiles
+SET account_status = 'active'::public.account_status
+WHERE id = :'professor_a'::UUID;
+
+-- Archived Labs retain history reads but block every new supervision mutation.
+UPDATE public.labs
+SET status = 'archived'::public.lab_status,
+    archived_at = timezone('utc', now())
+WHERE id = :'lab_a'::UUID;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'student_a', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.weekly_updates(
+      lab_id, student_user_id, week_start, completed_summary,
+      next_plan, self_status, needs_professor_help
+    )
+    VALUES (
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      DATE '2026-09-07', 'Archived Lab write', 'Must fail',
+      'on_track', 'none'
+    );
+    RAISE EXCEPTION 'archived Lab weekly insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.weekly_updates
+    SET completed_summary = 'Archived Lab update must fail'
+    WHERE id = '64000000-0000-0000-0000-000000000001'::UUID;
+    IF FOUND THEN
+      RAISE EXCEPTION 'archived Lab weekly update unexpectedly succeeded';
+    END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END;
+$$;
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'professor_a', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.meetings(
+      lab_id, student_user_id, meeting_at, status, created_by
+    )
+    VALUES (
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      timezone('utc', now()), 'scheduled',
+      '62000000-0000-0000-0000-000000000001'::UUID
+    );
+    RAISE EXCEPTION 'archived Lab professor meeting insert unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.meetings
+    SET summary = 'Archived Lab meeting update must fail'
+    WHERE id = '65000000-0000-0000-0000-000000000001'::UUID;
+    IF FOUND THEN
+      RAISE EXCEPTION 'archived Lab professor meeting update unexpectedly succeeded';
+    END IF;
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END;
+$$;
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', :'assistant_a', TRUE);
+SELECT set_config('request.jwt.claim.role', 'authenticated', TRUE);
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.meeting_actions(
+      meeting_id, lab_id, student_user_id, title, owner_type,
+      owner_user_id, status
+    )
+    VALUES (
+      '65000000-0000-0000-0000-000000000001'::UUID,
+      '00000000-0000-0000-0000-000000000001'::UUID,
+      '61000000-0000-0000-0000-000000000001'::UUID,
+      'Archived Lab assistant action', 'supervisor',
+      '62000000-0000-0000-0000-000000000003'::UUID, 'todo'
+    );
+    RAISE EXCEPTION 'archived Lab assistant action unexpectedly succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END;
+$$;
+RESET ROLE;
+
+UPDATE public.labs
+SET status = 'active'::public.lab_status, archived_at = NULL
+WHERE id = :'lab_a'::UUID;
+
+-- Restore the active Lab A student for direct integrity and subscription checks.
 
 DO $$
 DECLARE
@@ -367,7 +1078,7 @@ BEGIN
     UPDATE public.weekly_updates
     SET lab_id = '00000000-0000-0000-0000-000000000000'::UUID
     WHERE id = '64000000-0000-0000-0000-000000000001'::UUID;
-    RAISE EXCEPTION 'weekly Lab identity unexpectedly changed';
+    IF NOT FOUND THEN RAISE EXCEPTION 'weekly Lab update was not executed'; END IF;
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM <> 'weekly_update_identity_immutable' THEN
       RAISE;
@@ -375,10 +1086,28 @@ BEGIN
   END;
 
   BEGIN
+    UPDATE public.weekly_updates
+    SET student_user_id = '61000000-0000-0000-0000-000000000002'::UUID
+    WHERE id = '64000000-0000-0000-0000-000000000001'::UUID;
+    IF NOT FOUND THEN RAISE EXCEPTION 'weekly student update was not executed'; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'weekly_update_identity_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    UPDATE public.weekly_updates
+    SET week_start = DATE '2026-08-31'
+    WHERE id = '64000000-0000-0000-0000-000000000001'::UUID;
+    IF NOT FOUND THEN RAISE EXCEPTION 'weekly week update was not executed'; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'weekly_update_identity_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
     UPDATE public.meetings
     SET created_by = '61000000-0000-0000-0000-000000000001'::UUID
     WHERE id = '65000000-0000-0000-0000-000000000001'::UUID;
-    RAISE EXCEPTION 'meeting creator unexpectedly changed';
+    IF NOT FOUND THEN RAISE EXCEPTION 'meeting creator update was not executed'; END IF;
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM <> 'meeting_identity_immutable' THEN
       RAISE;
@@ -386,14 +1115,68 @@ BEGIN
   END;
 
   BEGIN
+    UPDATE public.meetings
+    SET lab_id = '00000000-0000-0000-0000-000000000002'::UUID
+    WHERE id = '65000000-0000-0000-0000-000000000001'::UUID;
+    IF NOT FOUND THEN RAISE EXCEPTION 'meeting Lab update was not executed'; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'meeting_identity_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    UPDATE public.meetings
+    SET student_user_id = '61000000-0000-0000-0000-000000000002'::UUID
+    WHERE id = '65000000-0000-0000-0000-000000000001'::UUID;
+    IF NOT FOUND THEN RAISE EXCEPTION 'meeting student update was not executed'; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'meeting_identity_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
     UPDATE public.meeting_actions
     SET owner_user_id = '61000000-0000-0000-0000-000000000001'::UUID
     WHERE id = '66000000-0000-0000-0000-000000000002'::UUID;
-    RAISE EXCEPTION 'action owner unexpectedly changed';
+    IF NOT FOUND THEN RAISE EXCEPTION 'action owner update was not executed'; END IF;
   EXCEPTION WHEN OTHERS THEN
     IF SQLERRM <> 'meeting_action_identity_immutable' THEN
       RAISE;
     END IF;
+  END;
+
+  BEGIN
+    UPDATE public.meeting_actions
+    SET meeting_id = '65000000-0000-0000-0000-000000000002'::UUID
+    WHERE id = '66000000-0000-0000-0000-000000000002'::UUID;
+    IF NOT FOUND THEN RAISE EXCEPTION 'action meeting update was not executed'; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'meeting_action_identity_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    UPDATE public.meeting_actions
+    SET lab_id = '00000000-0000-0000-0000-000000000002'::UUID
+    WHERE id = '66000000-0000-0000-0000-000000000002'::UUID;
+    IF NOT FOUND THEN RAISE EXCEPTION 'action Lab update was not executed'; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'meeting_action_identity_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    UPDATE public.meeting_actions
+    SET student_user_id = '61000000-0000-0000-0000-000000000002'::UUID
+    WHERE id = '66000000-0000-0000-0000-000000000002'::UUID;
+    IF NOT FOUND THEN RAISE EXCEPTION 'action student update was not executed'; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'meeting_action_identity_immutable' THEN RAISE; END IF;
+  END;
+
+  BEGIN
+    UPDATE public.meeting_actions
+    SET owner_type = 'student'
+    WHERE id = '66000000-0000-0000-0000-000000000002'::UUID;
+    IF NOT FOUND THEN RAISE EXCEPTION 'action type update was not executed'; END IF;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM <> 'meeting_action_identity_immutable' THEN RAISE; END IF;
   END;
 END;
 $$;
