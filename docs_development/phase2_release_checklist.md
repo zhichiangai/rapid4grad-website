@@ -941,7 +941,7 @@ git diff --check                          Passed
 | Taipei Monday | Passed | `Asia/Taipei` 年界與 UTC 午夜邊界 contract tests |
 | Read-only subscription | Passed | expired subscription 隱藏寫入控制，歷史仍可讀 |
 | Removed membership | Passed | 歷史仍可讀，新寫入不可用 |
-| Local quality gates | Pending final run | npm test、lint、TypeScript、build、diff check |
+| Local quality gates | Passed | npm test 93/93、lint、TypeScript、build、diff check |
 
 ### 16.3 程式已完成但只能由外部服務驗收
 

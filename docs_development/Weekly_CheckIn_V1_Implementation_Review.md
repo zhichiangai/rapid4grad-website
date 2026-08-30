@@ -76,13 +76,13 @@ Local browser QA used disposable Local Supabase accounts only:
 
 ## Preview
 
-- Preview URL: pending branch push and Vercel Git Preview.
-- Deployment ID: pending.
-- Preview state: pending.
+- Preview URL: https://rapid4grad-website-4dujhpwn2-zhichiang-ai-s-projects.vercel.app
+- Deployment ID: `dpl_C49BP4sfiXmVwrph3suDq5vA7YXD`.
+- Preview state: READY.
 - The feature branch must not be merged to `main` by this task.
 
 ## Git SHAs
 
 - Base: `e61b9b1d6fe54d17d5505a84011711163e2ae375`
-- Weekly implementation commit: pending.
-- Review branch push: pending.
+- Weekly implementation commit: `39b581dca8bed3ce414e85e22690a44865db9b44` (`fix(student): polish weekly check-in ux`).
+- Review branch push: PUSHED.
