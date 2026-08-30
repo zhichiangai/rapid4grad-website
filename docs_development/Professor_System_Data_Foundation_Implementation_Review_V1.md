@@ -16,7 +16,9 @@ The implementation adds only the three approved supervision tables:
 - `meetings`
 - `meeting_actions`
 
-The migration includes foreign keys with restrictive deletes, Monday week-start validation, composite meeting/action ownership constraints, table-specific immutable identity triggers, updated-at reuse, RLS policies, and authenticated/service-role grants. No UI, Phase 3 feature, audit raw-data policy, or Storage policy was changed.
+The migration includes foreign keys with restrictive deletes, Monday week-start validation, composite meeting/action ownership constraints, table-specific immutable identity triggers, updated-at reuse, RLS policies, and authenticated/service-role grants. Supervisor writes support student-owned, supervisor-owned, and active assistant-owned actions, and all supervision mutations require an active Lab. No UI, Phase 3 feature, audit raw-data policy, or Storage policy was changed.
+
+The final hardening pass also corrected the security fixture to use real Lab rows and added coverage for suspended accounts, removed memberships, cross-Lab access, archived-Lab mutation denial, supervisor assignment, student writes, and every immutable identity column.
 
 ## Security Decisions Verified
 
@@ -51,7 +53,7 @@ The following Local Supabase fixtures passed in isolated fresh-database runs:
 - `supabase/tests/permission_foundation_integration.sql`
 - `supabase/tests/v2_professor_data_foundation_integration.sql`
 
-The new fixture covers student, same-Lab professor, cross-Lab professor, assistant, admin, removed membership, suspended account, immutable identities, composite ownership, expired subscription read-only behavior, and rollback behavior.
+The new fixture covers student, same-Lab professor, cross-Lab professor, assistant, admin, removed membership, suspended student, suspended professor, archived Lab, immutable identities, composite ownership, supervisor action assignment, expired subscription read-only behavior, canonical upcoming meetings, and rollback behavior.
 
 ### Application validation
 
@@ -70,7 +72,9 @@ The new fixture covers student, same-Lab professor, cross-Lab professor, assista
 - Unauthenticated `/admin/previews`: redirects to login
 - Unauthenticated `/dashboard/ai-audit/history`: redirects to login
 - Redirect loop / server 500: not observed
-- Authenticated role browser flows: BLOCKED because no safe Local test account was available; no Production account was used
+- Local disposable Auth accounts: CREATED against `http://127.0.0.1:54321` only
+- Authenticated role browser flows: NOT TESTED because the current Local login page exposes only Google OAuth and no local password login path; no Production account was used
+- Local fixture data: CREATED for student, professor, assistant, admin, Lab, membership, and subscription QA
 
 ## Migration Order
 
@@ -97,10 +101,12 @@ The final local order is:
 
 ## Remaining Manual Verification
 
-- Create or authorize a disposable Local test account set for authenticated browser QA.
+- Add a test-only local authentication entry point or local Google OAuth provider if authenticated browser QA is required.
 - Run authenticated student, professor, assistant, and admin browser flows against Local Supabase.
 - Keep Preview and Production migration/deployment decisions separate from this Local review.
 
 ## Conclusion
 
-The Professor System Data Foundation V1 implementation is locally validated for schema replay, RLS, ownership invariants, and application quality checks. Authenticated browser QA remains an explicit environment limitation; no external environment is being declared complete by this report.
+The Professor System Data Foundation V1 implementation is locally validated for schema replay, RLS, ownership invariants, and application quality checks. The final hardening pass is covered by the implementation migration and security fixture, including supervisor student-action assignment, active-Lab mutation gates, real expired-subscription checks, suspended student/professor data rows, removed-membership matrices, archived-Lab denial, and complete immutable-column attacks.
+
+Authenticated browser QA remains an explicit environment limitation: disposable Local Auth accounts and fixture data were created against `127.0.0.1`, but the current application login surface only exposes Google OAuth, so password-based Local accounts cannot complete an application login without changing the product or configuring a local OAuth provider. No Production account was used and no external environment is declared complete by this report.
