@@ -21,6 +21,14 @@
 
 BEGIN;
 
+CREATE OR REPLACE FUNCTION pg_temp.fixture_uuid(fixture_name TEXT)
+RETURNS UUID
+LANGUAGE sql
+STABLE
+AS $$
+  SELECT current_setting('app.fixture.' || fixture_name)::UUID;
+$$;
+
 CREATE OR REPLACE FUNCTION pg_temp.assert_true(condition BOOLEAN, message TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -63,6 +71,25 @@ SELECT public.create_professor_lab(
   'Supervision Lab B',
   'Local University'
 ) AS lab_b \gset
+
+SELECT set_config('app.fixture.student_a', :'student_a', TRUE),
+       set_config('app.fixture.student_b', :'student_b', TRUE),
+       set_config('app.fixture.professor_a', :'professor_a', TRUE),
+       set_config('app.fixture.professor_b', :'professor_b', TRUE),
+       set_config('app.fixture.assistant_a', :'assistant_a', TRUE),
+       set_config('app.fixture.admin_user', :'admin_user', TRUE),
+       set_config('app.fixture.lab_a', :'lab_a', TRUE),
+       set_config('app.fixture.lab_b', :'lab_b', TRUE),
+       set_config('app.fixture.weekly_a', :'weekly_a', TRUE),
+       set_config('app.fixture.weekly_b', :'weekly_b', TRUE),
+       set_config('app.fixture.meeting_a', :'meeting_a', TRUE),
+       set_config('app.fixture.meeting_b', :'meeting_b', TRUE),
+       set_config('app.fixture.meeting_student', :'meeting_student', TRUE),
+       set_config('app.fixture.meeting_upcoming', :'meeting_upcoming', TRUE),
+       set_config('app.fixture.action_student', :'action_student', TRUE),
+       set_config('app.fixture.action_supervisor', :'action_supervisor', TRUE),
+       set_config('app.fixture.action_b', :'action_b', TRUE),
+       set_config('app.fixture.action_student_created', :'action_student_created', TRUE);
 
 INSERT INTO public.subscriptions(
   lab_id, payer_user_id, product_id, provider, plan_key, status,
@@ -357,6 +384,8 @@ SELECT pg_temp.assert_true(
   'student must update own action'
 );
 
+-- These fake Lab UUIDs intentionally test immutable identity rejection only;
+-- authorization fixtures below always use real Lab rows created in this transaction.
 DO $$
 BEGIN
   BEGIN
@@ -493,12 +522,12 @@ BEGIN
       owner_user_id, due_date, status
     )
     VALUES (
-      '65000000-0000-0000-0000-000000000001'::UUID,
-      '00000000-0000-0000-0000-000000000002'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('meeting_a'),
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       'Cross-Lab owner attack',
       'supervisor',
-      '62000000-0000-0000-0000-000000000002'::UUID,
+      pg_temp.fixture_uuid('professor_b'),
       CURRENT_DATE + 7,
       'todo'
     );
@@ -559,10 +588,10 @@ BEGIN
       lab_id, student_user_id, meeting_at, status, created_by
     )
     VALUES (
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       timezone('utc', now()), 'scheduled',
-      '62000000-0000-0000-0000-000000000002'::UUID
+      pg_temp.fixture_uuid('professor_b')
     );
     RAISE EXCEPTION 'cross-Lab meeting insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
@@ -575,11 +604,11 @@ BEGIN
       owner_user_id, status
     )
     VALUES (
-      '65000000-0000-0000-0000-000000000001'::UUID,
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('meeting_a'),
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       'Cross-Lab action insert', 'supervisor',
-      '62000000-0000-0000-0000-000000000002'::UUID, 'todo'
+      pg_temp.fixture_uuid('professor_b'), 'todo'
     );
     RAISE EXCEPTION 'cross-Lab action insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
@@ -655,8 +684,8 @@ BEGIN
       next_plan, self_status, needs_professor_help
     )
     VALUES (
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       DATE '2026-09-07', 'Removed student insert', 'Must fail',
       'on_track', 'none'
     );
@@ -670,10 +699,10 @@ BEGIN
       lab_id, student_user_id, meeting_at, status, created_by
     )
     VALUES (
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       timezone('utc', now()), 'scheduled',
-      '61000000-0000-0000-0000-000000000001'::UUID
+      pg_temp.fixture_uuid('student_a')
     );
     RAISE EXCEPTION 'removed student meeting insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
@@ -686,11 +715,11 @@ BEGIN
       owner_user_id, status
     )
     VALUES (
-      '65000000-0000-0000-0000-000000000001'::UUID,
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('meeting_a'),
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       'Removed student action insert', 'student',
-      '61000000-0000-0000-0000-000000000001'::UUID, 'todo'
+      pg_temp.fixture_uuid('student_a'), 'todo'
     );
     RAISE EXCEPTION 'removed student action insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
@@ -747,11 +776,11 @@ BEGIN
       owner_user_id, status
     )
     VALUES (
-      '65000000-0000-0000-0000-000000000001'::UUID,
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('meeting_a'),
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       'Removed assistant action insert', 'supervisor',
-      '62000000-0000-0000-0000-000000000003'::UUID, 'todo'
+      pg_temp.fixture_uuid('assistant_a'), 'todo'
     );
     RAISE EXCEPTION 'removed assistant action insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
@@ -794,11 +823,11 @@ BEGIN
       owner_user_id, status
     )
     VALUES (
-      '65000000-0000-0000-0000-000000000002'::UUID,
-      '00000000-0000-0000-0000-000000000002'::UUID,
-      '61000000-0000-0000-0000-000000000002'::UUID,
+      pg_temp.fixture_uuid('meeting_b'),
+      pg_temp.fixture_uuid('lab_b'),
+      pg_temp.fixture_uuid('student_b'),
       'Suspended student action insert', 'student',
-      '61000000-0000-0000-0000-000000000002'::UUID, 'todo'
+      pg_temp.fixture_uuid('student_b'), 'todo'
     );
     RAISE EXCEPTION 'suspended student action insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
@@ -836,10 +865,10 @@ BEGIN
       lab_id, student_user_id, meeting_at, status, created_by
     )
     VALUES (
-      '00000000-0000-0000-0000-000000000002'::UUID,
-      '61000000-0000-0000-0000-000000000002'::UUID,
+      pg_temp.fixture_uuid('lab_b'),
+      pg_temp.fixture_uuid('student_b'),
       timezone('utc', now()), 'scheduled',
-      '61000000-0000-0000-0000-000000000002'::UUID
+      pg_temp.fixture_uuid('student_b')
     );
     RAISE EXCEPTION 'suspended student meeting insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
@@ -924,10 +953,10 @@ BEGIN
       lab_id, student_user_id, meeting_at, status, created_by
     )
     VALUES (
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       timezone('utc', now()), 'scheduled',
-      '62000000-0000-0000-0000-000000000001'::UUID
+      pg_temp.fixture_uuid('professor_a')
     );
     RAISE EXCEPTION 'suspended professor meeting insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
@@ -949,11 +978,11 @@ BEGIN
       owner_user_id, status
     )
     VALUES (
-      '65000000-0000-0000-0000-000000000001'::UUID,
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('meeting_a'),
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       'Suspended professor action insert', 'supervisor',
-      '62000000-0000-0000-0000-000000000001'::UUID, 'todo'
+      pg_temp.fixture_uuid('professor_a'), 'todo'
     );
     RAISE EXCEPTION 'suspended professor action insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN
@@ -984,8 +1013,8 @@ BEGIN
       next_plan, self_status, needs_professor_help
     )
     VALUES (
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       DATE '2026-09-07', 'Archived Lab write', 'Must fail',
       'on_track', 'none'
     );
@@ -1015,10 +1044,10 @@ BEGIN
       lab_id, student_user_id, meeting_at, status, created_by
     )
     VALUES (
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       timezone('utc', now()), 'scheduled',
-      '62000000-0000-0000-0000-000000000001'::UUID
+      pg_temp.fixture_uuid('professor_a')
     );
     RAISE EXCEPTION 'archived Lab professor meeting insert unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
@@ -1047,11 +1076,11 @@ BEGIN
       owner_user_id, status
     )
     VALUES (
-      '65000000-0000-0000-0000-000000000001'::UUID,
-      '00000000-0000-0000-0000-000000000001'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('meeting_a'),
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       'Archived Lab assistant action', 'supervisor',
-      '62000000-0000-0000-0000-000000000003'::UUID, 'todo'
+      pg_temp.fixture_uuid('assistant_a'), 'todo'
     );
     RAISE EXCEPTION 'archived Lab assistant action unexpectedly succeeded';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
@@ -1276,11 +1305,11 @@ BEGIN
       lab_id, student_user_id, meeting_at, status, created_by
     )
     VALUES (
-      '00000000-0000-0000-0000-000000000000'::UUID,
-      '61000000-0000-0000-0000-000000000001'::UUID,
+      pg_temp.fixture_uuid('lab_a'),
+      pg_temp.fixture_uuid('student_a'),
       timezone('utc', now()),
       'scheduled',
-      '62000000-0000-0000-0000-000000000001'::UUID
+      pg_temp.fixture_uuid('professor_a')
     );
     RAISE EXCEPTION 'read-only subscription unexpectedly allowed a new meeting';
   EXCEPTION WHEN insufficient_privilege THEN
