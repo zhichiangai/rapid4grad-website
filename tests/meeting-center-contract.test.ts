@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { meetingGroups } from "../lib/meetings/meeting-domain";
+import { isNonEmptyMeetingSummary, meetingGroups } from "../lib/meetings/meeting-domain";
 import { formatTaipeiMeetingDateTime, parseTaipeiDateTimeLocal } from "../lib/meetings/meeting-time";
 
 const actionSource = readFileSync("app/dashboard/meetings/actions.ts", "utf8");
@@ -38,6 +38,15 @@ test("meeting mutations stay behind server actions and preserve lifecycle bounda
   assert.doesNotMatch(actionSource, /\.from\("meetings"\)\.delete/);
   assert.doesNotMatch(pageSource, /createClient\(\)/);
   assert.doesNotMatch(professorPageSource, /createV2AdminClient/);
+});
+
+test("completed meetings always retain a non-empty summary", () => {
+  assert.equal(isNonEmptyMeetingSummary("   "), false);
+  assert.equal(isNonEmptyMeetingSummary(null), false);
+  assert.equal(isNonEmptyMeetingSummary("已確認分析方向"), true);
+  assert.match(actionSource, /intent === "edit"/);
+  assert.match(actionSource, /isNonEmptyMeetingSummary\(summary\)/);
+  assert.match(actionSource, /請填寫這次 Meeting 的討論摘要/);
 });
 
 test("frozen RLS keeps meeting identity immutable and restricts supervisor writes to active functional Labs", () => {

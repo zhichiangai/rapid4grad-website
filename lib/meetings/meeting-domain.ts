@@ -20,6 +20,10 @@ export type MeetingRecord = {
   updated_at: string;
 };
 
+export function isNonEmptyMeetingSummary(summary: string | null) {
+  return Boolean(summary?.trim());
+}
+
 export function meetingGroups(meetings: MeetingRecord[], now = new Date()) {
   const upcoming = meetings
     .filter((meeting) => meeting.status === "scheduled" && new Date(meeting.meeting_at).getTime() > now.getTime())

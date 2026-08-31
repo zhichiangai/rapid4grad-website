@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireActiveUser } from "@/lib/auth/authorization";
 import { parseTaipeiDateTimeLocal } from "@/lib/meetings/meeting-time";
+import { isNonEmptyMeetingSummary } from "@/lib/meetings/meeting-domain";
 
 export type MeetingActionState = { status: "idle" | "success" | "error"; message: string };
 const initialState: MeetingActionState = { status: "idle", message: "" };
@@ -81,7 +82,7 @@ export async function updateMeeting(_previousState: MeetingActionState = initial
       const decisions = text(formData, "decisions", 3000);
       const nextValue = text(formData, "next_meeting_at", 32);
       const nextAt = nextValue ? parseTaipeiDateTimeLocal(nextValue) : null;
-      if (intent === "complete" && (!summary || meeting.status !== "scheduled")) return failure(summary ? "目前無法修改這筆 Meeting，請重新整理後再試。" : "請填寫這次 Meeting 的討論摘要。");
+      if ((intent === "complete" || intent === "edit") && (!isNonEmptyMeetingSummary(summary) || (intent === "complete" && meeting.status !== "scheduled"))) return isNonEmptyMeetingSummary(summary) ? failure("目前無法修改這筆 Meeting，請重新整理後再試。") : failure("請填寫這次 Meeting 的討論摘要。");
       if (nextValue && (!nextAt || nextAt.getTime() <= new Date(meeting.meeting_at).getTime())) return failure("建議下一次 Meeting 必須晚於本次 Meeting。");
       updates.summary = summary || null;
       updates.decisions = decisions || null;

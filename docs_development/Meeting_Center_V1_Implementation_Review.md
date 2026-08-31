@@ -17,6 +17,7 @@
 - Server Actions derive identity and keep meeting mutations off the client.
 - Dashboard Meeting entry and current meeting summary.
 - Read-only behavior for expired or archived Labs.
+- Completed Meeting records require a non-empty summary for both completion and later edits.
 
 ## Authorization Notes
 
@@ -36,9 +37,15 @@
 - Local Supabase blank replay: PASS through `20260830064359_add_professor_supervision_data_v1.sql`.
 - Authenticated local browser QA: PASS for student and professor flows.
 - Responsive checks: PASS at 375, 768 and 1440 pixels; no horizontal overflow.
+- Completed-summary invariant contract: PASS; blank `complete` and blank `edit` are rejected server-side.
+- Local authorization QA: Professor A and Assistant A could read Lab A Meeting rows; Assistant A created a Meeting successfully.
+- Cross-Lab QA: Professor B was redirected to `/professor/dashboard` when opening Lab A directly.
+- Removed Assistant QA: after membership removal, Assistant A was redirected to `/professor/dashboard` and could not read Lab A Meeting rows.
+- Student supervisor-created Meeting QA: Student A could read the Meeting and saw no reschedule, complete, cancel or edit controls.
 
 ## Preview
 
 - GitHub branch: `meeting-center-v1`
-- Preview deployment: pending push and Vercel deployment.
+- QA harness removed after local verification; disposable Local Supabase data reset.
+- Preview deployment: `dpl_3thCuqQPJ31qQ7EiJ3JgziyAUfQH`, READY before this correction; a new Preview is required after the correction push.
 - Production: unchanged.
