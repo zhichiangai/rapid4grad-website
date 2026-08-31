@@ -44,6 +44,13 @@ The existing Attention loader already derives `overdue_action` and `deadline_soo
 - Keyboard QA: passed for Action controls with visible focus; no focus trap observed.
 - Console: no new application runtime errors after the temporary harness route was corrected and the dev server restarted. The initial temporary harness route conflict was removed and was not part of the application.
 
+### Final QA Gates
+
+- Read-only subscription: passed with a disposable Local Lab. Student and Professor could read historical Meetings and Actions after expiry; create/update/status controls were unavailable; direct authenticated insert/update attempts were denied.
+- Action to Attention loop: passed with Asia/Taipei dates. An overdue todo Action produced overdue_action; a due-soon doing Action produced deadline_soon; completing the overdue Action removed its signal, and canceling the due-soon Action removed its signal.
+- Functional mode was restored before Attention validation. No Attention engine, migration, RLS or Production data was changed.
+- Local fixtures, temporary Auth harness and QA credentials were removed; Local Supabase was reset after validation.
+
 ## Explicit Exclusions
 
 No migration, RLS change, Professor Action Center route, delete, reassignment, Kanban, reminders, notifications, calendar, AI extraction, attachments, chat, CRM or Admin redesign.
@@ -54,6 +61,7 @@ No migration, RLS change, Professor Action Center route, delete, reassignment, K
 - Preview URL: https://rapid4grad-website-jmyvct3rd-zhichiang-ai-s-projects.vercel.app
 - Deployment ID: `dpl_264UqVEQSdADrQu5SEaSf2gf29ib`
 - Preview state: READY.
+- Final functional QA Preview: dpl_EBiKFqgNbJtiMiwNqRx1NahuGxp2 (80a239a33d30466282906a3e0c99bd258ad32624), READY.
 - Implementation commits: `de7e4d77bbbe3b5e7bed08f0aec32b4ea3ab6049`, `c1db827`.
 - Preview correction commit: `5cf9fc0cfe502b3c5aa49ed59401c6619699755b`.
 - Review branch: `meeting-actions-v1` pushed to GitHub.
