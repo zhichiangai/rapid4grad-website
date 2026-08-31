@@ -61,7 +61,8 @@ No Attention Center notifications, cron jobs, email/LINE alerts, Meeting Center 
 ## Release Record
 
 - Review branch: `professor-attention-center-v1`
-- Implementation commit: pending local validation and commit
-- Preview URL: pending branch Preview deployment
-- Deployment ID: pending branch Preview deployment
-- Preview state: pending
+- Implementation commit: `dd23bb15577ccdc56366459bc96a3e08d3f8440c`
+- Preview URL: https://rapid4grad-website-git-professor-1f6411-zhichiang-ai-s-projects.vercel.app
+- Deployment ID: `dpl_FrbzeqiGn7sUvqoAum49ETJedKup`
+- Preview state: `READY`
+- Runtime errors at release check: none reported in the selected 10-minute window.
