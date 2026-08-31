@@ -48,10 +48,11 @@ No migration, RLS change, Professor Action Center route, delete, reassignment, K
 ## Release Record
 
 - Branch: `meeting-actions-v1`.
-- Preview URL: https://rapid4grad-website-i847e7q1t-zhichiang-ai-s-projects.vercel.app
-- Deployment ID: `dpl_E74WeXaCpL4BUjn9hWHt3Dogv17w`
+- Preview URL: https://rapid4grad-website-jmyvct3rd-zhichiang-ai-s-projects.vercel.app
+- Deployment ID: `dpl_264UqVEQSdADrQu5SEaSf2gf29ib`
 - Preview state: READY.
 - Implementation commits: `de7e4d77bbbe3b5e7bed08f0aec32b4ea3ab6049`, `c1db827`.
+- Preview correction commit: `5cf9fc0cfe502b3c5aa49ed59401c6619699755b`.
 - Review branch: `meeting-actions-v1` pushed to GitHub.
 - External review correction: Student Action Center now resolves subscription mode through the existing server-only metadata loader; subscription rows are not read with the Student authenticated client. Professor/Assistant Action cards do not show the Student Meeting route, and unknown mutation intents are rejected before any update.
 - Local authenticated browser QA: blocked because this checkout has no disposable localhost Auth harness; no Production account was used.
