@@ -5,6 +5,7 @@ import {
 } from "@/components/workspace/ProfessorWorkspaceHome";
 import { createV2AdminClient } from "@/lib/supabase/server";
 import { requireProfessorWorkspace } from "@/lib/auth/authorization";
+import { loadProfessorAttentionData } from "@/lib/professor/attention-data";
 
 type LabRow = {
   id: string;
@@ -55,6 +56,11 @@ async function getProfessorUser() {
 
 export default async function ProfessorDashboardPage() {
   const { user, profile, admin, supabase } = await getProfessorUser();
+  const attentionData = await loadProfessorAttentionData({
+    userId: user.id,
+    role: profile.role === "admin" ? "admin" : "professor",
+    supabase,
+  });
   const { data: currentSubscription, error: subscriptionError } = await admin
     .from("subscriptions")
     .select("id,lab_id,plan_key,status,current_period_end,grace_ends_at,cancel_at_period_end")
@@ -229,6 +235,7 @@ export default async function ProfessorDashboardPage() {
           />
         ) : null
       }
+      attentionData={attentionData}
     />
   );
 }

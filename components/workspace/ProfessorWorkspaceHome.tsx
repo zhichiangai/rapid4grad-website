@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { ReactNode } from "react";
+import { ProfessorAttentionSummary } from "@/components/professor/ProfessorAttentionSummary";
+import { ProfessorThisWeek } from "@/components/professor/ProfessorThisWeek";
+import { ProfessorUpcomingMeetings } from "@/components/professor/ProfessorUpcomingMeetings";
+import type { ProfessorAttentionData } from "@/lib/professor/attention-data";
 
 export type ProfessorWorkspaceRole = "professor" | "assistant" | "admin";
 export type ProfessorSubscriptionMode = "functional" | "read_only" | "none";
@@ -41,6 +45,7 @@ type ProfessorWorkspaceHomeProps = {
   managerControls?: ReactNode;
   previewMode?: boolean;
   onPreviewNavigate?: (view: ProfessorPreviewView) => void;
+  attentionData?: ProfessorAttentionData;
 };
 
 function riskBadgeClass(riskLevel: string | null | undefined) {
@@ -96,6 +101,7 @@ export function ProfessorWorkspaceHome({
   managerControls,
   previewMode = false,
   onPreviewNavigate,
+  attentionData,
 }: ProfessorWorkspaceHomeProps) {
   const isFunctional = subscriptionMode === "functional";
   const hasMemberOnlyAccess = ownedLabCount === 0 && labs.length > 0;
@@ -122,10 +128,10 @@ export function ProfessorWorkspaceHome({
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-4xl font-semibold tracking-tight">
-                真實教授端 Lab Dashboard
+                研究指導工作台
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                這是正式的多租戶教授端入口，和 Phase 1 隱藏展示頁 /professor 分開。你只能看到自己擁有或以 Professor/assistant 身分加入的 Lab，以及學生主動分享的安全摘要。
+                先掌握需要介入的學生，再查看本週研究進度、Meeting 與 Lab 狀態。
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -136,6 +142,7 @@ export function ProfessorWorkspaceHome({
                 </>
               ) : (
                 <>
+                  <Link href="/professor/attention" className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-center text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15">需要注意的學生</Link>
                   <Link href="/learn" className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-center text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15">觀看 Lab 課程</Link>
                   <Link href="/billing" className="rounded-2xl border border-blue-300/20 bg-blue-400/10 px-4 py-3 text-center text-sm font-semibold text-blue-100 transition hover:bg-blue-400/15">管理訂閱</Link>
                 </>
@@ -172,6 +179,14 @@ export function ProfessorWorkspaceHome({
             )
           ) : null}
         </div>
+
+        {attentionData ? (
+          <div className="mt-6 space-y-5">
+            <ProfessorAttentionSummary students={attentionData.students} generatedAt={attentionData.generatedAt} />
+            <ProfessorThisWeek students={attentionData.students} weekStart={attentionData.currentWeekStart} />
+            <ProfessorUpcomingMeetings students={attentionData.students} />
+          </div>
+        ) : null}
 
         {canManage && managerControls ? <div className="mt-6">{managerControls}</div> : null}
 

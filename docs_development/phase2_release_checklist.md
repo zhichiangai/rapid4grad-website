@@ -974,3 +974,36 @@ git diff --check                          Passed
 - Authenticated student mutation smoke：未執行，因目前沒有安全且專用的 Production test account；沒有建立帳號、修改角色、subscription、membership 或使用 service-role cleanup。
 - Production visual browser QA：未以 Production 帳號執行；已完成的 375/768/1440 UI QA 仍以 Local/Preview 證據為準，不宣稱為 Production visual QA。
 - Weekly V1 已完成 release；後續維持功能凍結，不在本節擴充 Attention Center、Meeting Center、Student 360、通知或 AI Assistant。
+
+## 17. 2026-08-31 Professor Attention Center V1
+
+### 17.1 Scope and implementation
+
+- 新增 `/professor/attention` 與教授 Dashboard 的 Attention、This Week、Upcoming Meetings 資訊層。
+- Attention Center 是純衍生、規則式的 supervision view，不新增 migration、table、cron、通知或 AI provider。
+- 資料來源限於 active Lab membership、weekly updates、meetings、meeting actions，以及既有七欄 consent summary RPC。
+- Professor/assistant 僅能看到自己 active owned/supervised Lab 的 active students；student 仍由既有 guard 拒絕；admin 不自動取得所有教授 supervision data；suspended account 仍由 active-account gate 阻擋。
+- Professor/assistant 不讀 raw audit、PDF、Storage object、prompt、token/cost 或 error data。
+
+### 17.2 本機狀態
+
+| 項目 | 狀態 | 證據 |
+|---|---|---|
+| Attention rule engine | Passed | `lib/professor/attention.ts` 與 `tests/professor-attention-contract.test.ts` |
+| Taiwan timezone / never-submitted grace | Passed | Contract tests cover Taipei date boundaries and 0–6 day grace |
+| Existing automated suite | Passed | Implementation run: `npm test`, 98 tests |
+| Fresh Local Supabase replay | Not rerun in this feature | No migration added; reuse the existing V2 schema replay when Local Supabase is available |
+| Browser visual QA 375/768/1440 | Preview pending | Requires authenticated Preview session |
+
+### 17.3 Preview gate
+
+1. Push only `professor-attention-center-v1` and wait for Vercel Preview `READY`.
+2. Confirm `/professor/dashboard` renders sections in the required order and existing Lab controls still work.
+3. Confirm `/professor/attention` renders empty, healthy, attention and urgent states without 500s or raw database errors.
+4. With safe test accounts, verify professor same-Lab, assistant same-Lab, cross-Lab zero, removed membership access gone, student redirect and suspended redirect.
+5. Check 375px, 768px and 1440px layouts, keyboard focus and no horizontal overflow.
+
+### 17.4 External and non-goals
+
+- Real notification delivery, cron scheduling, Meeting Center UI, Student 360, AI Professor Assistant and expanded PDF sharing remain out of scope.
+- Preview runtime, authenticated RLS behavior, deployment logs and visual QA are not claimed complete until the branch Preview is tested.
