@@ -1015,4 +1015,4 @@ git diff --check                          Passed
 - Passed: assistant is observation-only in the Professor workspace. Owner-only Lab management and `/billing` are hidden/redirected when the authenticated user does not own an active Lab.
 - Automated validation after the fix: `npm test` 99/99, lint, TypeScript, build and `git diff --check` passed.
 - The temporary `/local-qa/login` harness and Local fixture are QA-only and must not be committed or deployed. Local Supabase reset is the cleanup operation after QA.
-- Preview authenticated QA remains a separate external gate; this Local result must not be described as Preview or Production verification. The owner-only billing fix is committed as `b45b401`; its Preview deployment must be rechecked before release review.
+- Preview authenticated QA remains a separate external gate; this Local result must not be described as Preview or Production verification. The owner-only billing fix is committed as `b45b401`; Preview deployment `dpl_31eXp3rrG9nbAHBbUX9zdPMkuj4n` is `READY` for external authenticated QA.

@@ -67,6 +67,8 @@ No Attention Center notifications, cron jobs, email/LINE alerts, Meeting Center 
 - Implementation commit: `dd23bb15577ccdc56366459bc96a3e08d3f8440c`
 - Local QA correctness fix: `b45b401` limits Professor management controls and billing to owned Labs.
 - Preview URL: https://rapid4grad-website-git-professor-1f6411-zhichiang-ai-s-projects.vercel.app
-- Deployment ID: `dpl_5FkGKseDWVCtU8ynyFJFinFkf24e` (pre-fix Preview)
-- Preview state: new Preview required for `b45b401`
+- Latest branch commit: `27d794904f4b1a495de1eacd69437bd42a9571ef`
+- Deployment ID: `dpl_31eXp3rrG9nbAHBbUX9zdPMkuj4n`
+- Preview URL: https://rapid4grad-website-git-professor-1f6411-zhichiang-ai-s-projects.vercel.app
+- Preview state: `READY`
 - Runtime errors at release check: none reported in the selected 10-minute window.
