@@ -59,12 +59,14 @@ test("frozen RLS keeps meeting identity immutable and restricts supervisor write
   assert.doesNotMatch(migrationSource, /CREATE POLICY[\s\S]*ON public\.meetings FOR DELETE/);
 });
 
-test("Meeting Center uses the required routes and does not expose Meeting Actions UI", () => {
+test("Meeting Center keeps required routes and exposes actions only for completed meetings", () => {
   const studentPage = readFileSync("app/dashboard/meetings/page.tsx", "utf8");
   const professorPage = readFileSync("app/professor/labs/[labId]/meetings/page.tsx", "utf8");
   const component = readFileSync("components/meetings/MeetingCenter.tsx", "utf8");
   assert.match(studentPage, /loadStudentMeetings/);
   assert.match(professorPage, /loadProfessorLabMeetings/);
   assert.match(component, /待補 Meeting 紀錄/);
-  assert.doesNotMatch(component, /Add Action|Create Task|Kanban|Coming Soon/);
+  assert.match(component, /MeetingActionList/);
+  assert.match(component, /meeting\.status === "completed"/);
+  assert.doesNotMatch(component, /Create Task|Kanban|Coming Soon/);
 });

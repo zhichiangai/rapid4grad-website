@@ -1072,3 +1072,33 @@ git diff --check                          Passed
 - Production mutation: NONE. No test user, Lab, membership, subscription or Meeting fixture was created or changed.
 - Meeting Center V1: FROZEN.
 - Follow-up remains out of scope: Meeting Actions, Calendar, notifications, Email/LINE, AI meeting features, attachments, search, filters and analytics.
+
+## 19. 2026-08-31 Meeting Actions V1 Preview Stage
+
+### 19.1 Scope and safety
+
+- Meeting Actions reuses the existing `public.meeting_actions` table, constraints and Frozen RLS. No migration, new table, enum, policy or service-role Action CRUD was added.
+- Actions can only be created from completed Meetings. Server Actions derive `lab_id`, `student_user_id`, `owner_type` and `owner_user_id`; browser input cannot choose arbitrary identity fields.
+- Student, same-Lab Professor and same-Lab Assistant use the existing RLS boundary. Cross-Lab, removed membership, suspended account, historical student read-only and Admin no-unrestricted-access rules remain required gates.
+- Action content does not expose private PDF, raw AI, prompt, token, cost, storage path or private note data.
+
+### 19.2 Local verification
+
+| Gate | Status | Evidence |
+|---|---|---|
+| Fresh Local Supabase replay | Passed | `supabase db reset --local`, replay through `20260830064359_add_professor_supervision_data_v1.sql` |
+| V2 database, RLS, email, course and payment fixtures | Passed | Existing disposable `scripts/test-v2-*.sh` suites |
+| Professor Data Foundation action boundary | Passed | `supabase/tests/v2_professor_data_foundation_integration.sql` |
+| Domain/server/UI contract tests | Passed | `tests/meeting-actions-contract.test.ts`, Meeting Center contract |
+| Automated suite | Passed | `npm test` 108/108 |
+| Lint / TypeScript / build / diff check | Passed | All required checks completed successfully |
+| Authenticated browser QA | Not run | No disposable browser Auth harness was available; Production account was not used |
+
+### 19.3 Preview pending gates
+
+1. Push only `meeting-actions-v1` and confirm the Vercel deployment targets Preview, not Production.
+2. Run authenticated Student, Professor and Assistant browser QA with disposable test accounts or a confirmed safe Preview database.
+3. Verify completed-only creation, owner controls, cross-Lab zero, removed membership, read-only subscription, suspended redirect, Attention regression, 375/768/1440 layouts, keyboard focus and no console errors.
+4. Confirm Preview runtime has no 500, fatal error or redirect loop. Do not describe Local results as Preview or Production validation.
+
+Production remains unchanged. Meeting Actions V1 is not marked Production released in this section.

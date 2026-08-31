@@ -4,6 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireActiveUser } from "@/lib/auth/authorization";
 import { createV2AdminClient } from "@/lib/supabase/server";
 import type { MeetingMode, MeetingRecord, MeetingStatus } from "@/lib/meetings/meeting-domain";
+import { loadActionsForMeetings } from "@/lib/meeting-actions/action-data";
+import type { MeetingActionRecord } from "@/lib/meeting-actions/action-domain";
 
 type DbClient = SupabaseClient;
 
@@ -69,18 +71,19 @@ export async function loadStudentMeetings() {
   const { data, error } = await supabase.from("meetings").select("id,lab_id,student_user_id,meeting_at,status,summary,decisions,next_meeting_at,created_by,created_at,updated_at").eq("student_user_id", context.user.id).order("meeting_at", { ascending: false }).returns<RawMeeting[]>();
   if (error) console.error("[meetings] student read failed", { code: error.code });
   const meetings = await enrichMeetings(supabase, data ?? []);
-  return { context, meetings, activeLab, mode: activeLab ? await getMode(createV2AdminClient(), activeLab.lab_id) : "none" as MeetingMode };
+  const actions = await loadActionsForMeetings(supabase, meetings);
+  return { context, meetings, actions, activeLab, mode: activeLab ? await getMode(createV2AdminClient(), activeLab.lab_id) : "none" as MeetingMode };
 }
 
 export async function loadProfessorLabMeetings(labId: string) {
   const context = await requireActiveUser(`/professor/labs/${labId}/meetings`);
-  if (context.profile.role !== "professor") return { context, authorized: false as const, meetings: [], students: [], lab: null, mode: "none" as MeetingMode };
+  if (context.profile.role !== "professor") return { context, authorized: false as const, meetings: [], actions: [] as MeetingActionRecord[], students: [], lab: null, mode: "none" as MeetingMode };
   const supabase = asDbClient(context.supabase);
   const { data: lab } = await supabase.from("labs").select("id,name,status,owner_professor_id").eq("id", labId).maybeSingle();
-  if (!lab) return { context, authorized: false as const, meetings: [], students: [], lab: null, mode: "none" as MeetingMode };
+  if (!lab) return { context, authorized: false as const, meetings: [], actions: [] as MeetingActionRecord[], students: [], lab: null, mode: "none" as MeetingMode };
   const isOwner = lab.owner_professor_id === context.user.id;
   const { data: viewerMembership } = !isOwner ? await supabase.from("lab_memberships").select("role,status").eq("lab_id", labId).eq("user_id", context.user.id).eq("status", "active").in("role", ["professor", "assistant"]).maybeSingle() : { data: true };
-  if (!isOwner && !viewerMembership) return { context, authorized: false as const, meetings: [], students: [], lab: null, mode: "none" as MeetingMode };
+  if (!isOwner && !viewerMembership) return { context, authorized: false as const, meetings: [], actions: [] as MeetingActionRecord[], students: [], lab: null, mode: "none" as MeetingMode };
   const metadataClient = createV2AdminClient();
   const [meetingsResult, studentMemberships] = await Promise.all([
     supabase.from("meetings").select("id,lab_id,student_user_id,meeting_at,status,summary,decisions,next_meeting_at,created_by,created_at,updated_at").eq("lab_id", labId).order("meeting_at", { ascending: true }).returns<RawMeeting[]>(),
@@ -90,11 +93,13 @@ export async function loadProfessorLabMeetings(labId: string) {
   const studentIds = (studentMemberships.data ?? []).map((row: { user_id: string }) => row.user_id);
   const { data: profiles } = studentIds.length ? await metadataClient.from("profiles").select("id,email,full_name,degree,research_area").in("id", studentIds) : { data: [] };
   const meetings = await enrichMeetings(supabase, meetingsResult.data ?? []);
+  const actions = await loadActionsForMeetings(supabase, meetings);
   return {
     context,
     authorized: true as const,
     lab: lab as { id: string; name: string; status: string; owner_professor_id: string },
     meetings,
+    actions,
     students: (profiles ?? []).map((profile: { id: string; email: string; full_name: string | null; degree: string | null; research_area: string | null }) => ({ id: profile.id, name: profile.full_name ?? profile.email, email: profile.email, degree: profile.degree, researchArea: profile.research_area })),
     mode: lab.status === "active" ? await getMode(createV2AdminClient(), labId) : "read_only",
   };

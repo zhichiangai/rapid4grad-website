@@ -35,6 +35,7 @@ export default function DashboardPage() {
   const [userId, setUserId] = useState("");
   const [weeklyCheckIn, setWeeklyCheckIn] = useState<{ updatedAt: string | null }>({ updatedAt: null });
   const [meetingSummary, setMeetingSummary] = useState<{ pendingCount: number; nextMeetingAt: string | null }>({ pendingCount: 0, nextMeetingAt: null });
+  const [actionSummary, setActionSummary] = useState({ overdueCount: 0, dueSoonCount: 0, openCount: 0 });
 
   useEffect(() => {
     let isMounted = true;
@@ -75,6 +76,18 @@ export default function DashboardPage() {
       if (isMounted) setMeetingSummary({
         pendingCount: scheduled.filter((meeting: { meeting_at: string }) => new Date(meeting.meeting_at).getTime() <= now).length,
         nextMeetingAt: nextMeeting?.meeting_at ?? null,
+      });
+
+      const { data: actions } = await supabase.from("meeting_actions").select("due_date,status").eq("student_user_id", user.id);
+      const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      const maxDate = new Date(`${today}T00:00:00Z`);
+      maxDate.setUTCDate(maxDate.getUTCDate() + 14);
+      const maxDateString = maxDate.toISOString().slice(0, 10);
+      const openActions = (actions ?? []).filter((action: { status: string }) => action.status === "todo" || action.status === "doing");
+      if (isMounted) setActionSummary({
+        overdueCount: openActions.filter((action: { due_date: string | null }) => Boolean(action.due_date && action.due_date < today)).length,
+        dueSoonCount: openActions.filter((action: { due_date: string | null }) => Boolean(action.due_date && action.due_date >= today && action.due_date <= maxDateString)).length,
+        openCount: openActions.length,
       });
 
       if (email) {
@@ -192,6 +205,7 @@ export default function DashboardPage() {
       message={message}
       weeklyCheckIn={weeklyCheckIn}
       meetingSummary={meetingSummary}
+      actionSummary={actionSummary}
     />
   );
 }

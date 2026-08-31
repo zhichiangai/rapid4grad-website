@@ -1,0 +1,17 @@
+"use client";
+
+import Link from "next/link";
+import type { MeetingActionRecord } from "@/lib/meeting-actions/action-domain";
+import { groupStudentActions } from "@/lib/meeting-actions/action-domain";
+import { ActionCard } from "@/components/meeting-actions/ActionCard";
+
+function Group({ title, actions, userId, canWrite, activeLabId }: { title: string; actions: MeetingActionRecord[]; userId: string; canWrite: (action: MeetingActionRecord) => boolean; activeLabId: string | null }) {
+  return <section className="space-y-3"><h2 className="text-xl font-semibold text-white">{title} <span className="text-sm font-normal text-slate-500">{actions.length}</span></h2>{actions.length ? actions.map((action) => <ActionCard key={action.id} action={action} userId={userId} canWrite={canWrite(action)} activeLabId={activeLabId} studentView />) : <p className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-sm text-slate-500">目前沒有項目。</p>}</section>;
+}
+
+export function StudentActionCenter({ actions, userId, canWrite: canWriteSetting, activeLabId }: { actions: MeetingActionRecord[]; userId: string; canWrite: boolean; activeLabId: string | null }) {
+  const groups = groupStudentActions(actions);
+  const openCount = groups.overdue.length + groups.dueSoon.length + groups.otherOpen.length;
+  const writeFor = (action: MeetingActionRecord) => canWriteSetting && action.lab_id === activeLabId;
+  return <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(37,99,235,0.18),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_100%)] px-4 py-10 text-white"><div className="mx-auto w-full max-w-5xl space-y-7"><Link href="/dashboard" className="text-sm font-semibold text-cyan-200 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70">← 回工作台</Link><header className="rounded-[2rem] border border-white/10 bg-slate-950/80 p-7"><p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">NEXT ACTIONS</p><h1 className="mt-3 text-4xl font-semibold tracking-tight">我的下一步</h1><p className="mt-3 max-w-3xl text-sm leading-6 text-slate-400">把每次 Meeting 確認的下一步集中在這裡，完成後就能直接接回下一次研究進度。</p></header><section className="grid gap-3 sm:grid-cols-3"><div className="rounded-3xl border border-red-300/15 bg-red-400/[0.06] p-5"><p className="text-xs uppercase tracking-[0.18em] text-red-200">已逾期</p><p className="mt-3 text-2xl font-semibold">{groups.overdue.length}</p></div><div className="rounded-3xl border border-amber-300/15 bg-amber-400/[0.06] p-5"><p className="text-xs uppercase tracking-[0.18em] text-amber-200">14 天內</p><p className="mt-3 text-2xl font-semibold">{groups.dueSoon.length}</p></div><div className="rounded-3xl border border-blue-300/15 bg-blue-400/[0.06] p-5"><p className="text-xs uppercase tracking-[0.18em] text-blue-200">待處理</p><p className="mt-3 text-2xl font-semibold">{openCount}</p></div></section>{!canWriteSetting && actions.length ? <p className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">目前為唯讀模式，歷史 Action 仍可查看。</p> : null}<Group title="已逾期" actions={groups.overdue} userId={userId} canWrite={writeFor} activeLabId={activeLabId} /><Group title="接下來 14 天" actions={groups.dueSoon} userId={userId} canWrite={writeFor} activeLabId={activeLabId} /><Group title="其他待完成" actions={groups.otherOpen} userId={userId} canWrite={writeFor} activeLabId={activeLabId} /><Group title="最近完成" actions={groups.history} userId={userId} canWrite={() => false} activeLabId={activeLabId} /></div></main>;
+}

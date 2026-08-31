@@ -35,6 +35,11 @@ export type StudentWorkspaceHomeProps = {
     pendingCount: number;
     nextMeetingAt: string | null;
   };
+  actionSummary?: {
+    overdueCount: number;
+    dueSoonCount: number;
+    openCount: number;
+  };
 };
 
 const riskCopy: Record<
@@ -80,6 +85,7 @@ export function StudentWorkspaceHome({
   accessSummary,
   weeklyCheckIn,
   meetingSummary,
+  actionSummary,
 }: StudentWorkspaceHomeProps) {
   const riskInfo = leadSummary?.quiz_result
     ? riskCopy[leadSummary.quiz_result]
@@ -158,6 +164,7 @@ export function StudentWorkspaceHome({
                 <Link key={title} href={href} className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 transition hover:border-blue-300/30 hover:bg-blue-500/10"><h3 className="font-semibold">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{title === "每週研究進度" ? <><span className="block">{description}</span><span className="mt-3 inline-flex rounded-xl bg-blue-500/15 px-3 py-2 text-xs font-semibold text-blue-100">{weeklyCheckIn?.updatedAt ? "查看 / 更新本週進度" : "填寫本週進度"}</span></> : description}</p></Link>
               ))}
             </div>
+            {!previewMode ? <Link href="/dashboard/actions" className="mt-3 block rounded-2xl border border-cyan-300/15 bg-cyan-400/[0.04] p-4 transition hover:border-cyan-300/35 hover:bg-cyan-400/10"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold text-white">我的下一步</p><p className="mt-1 text-sm text-slate-400">{actionSummary?.overdueCount ? `${actionSummary.overdueCount} 項已逾期` : actionSummary?.dueSoonCount ? `未來 14 天 ${actionSummary.dueSoonCount} 項` : actionSummary?.openCount ? `${actionSummary.openCount} 項待處理` : "目前沒有待處理 Action"}</p></div><span className="rounded-xl bg-cyan-400/10 px-3 py-2 text-xs font-semibold text-cyan-100">查看下一步</span></div></Link> : null}
           </div>
         </section>
 

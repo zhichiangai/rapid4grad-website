@@ -8,5 +8,5 @@ export default async function ProfessorLabMeetingsPage({ params }: Props) {
   const { labId } = await params;
   const result = await loadProfessorLabMeetings(labId);
   if (!result.authorized || !result.lab) redirect("/professor/dashboard");
-  return <MeetingCenter meetings={result.meetings} userId={result.context.user.id} mode={result.mode} labId={result.lab.id} labName={result.lab.name} students={result.students} />;
+  return <MeetingCenter meetings={result.meetings} actions={result.actions} userId={result.context.user.id} mode={result.mode} labId={result.lab.id} labName={result.lab.name} students={result.students} />;
 }
