@@ -48,5 +48,10 @@ No migration, RLS change, Professor Action Center route, delete, reassignment, K
 ## Release Record
 
 - Branch: `meeting-actions-v1`.
-- Preview: pending until the implementation branch is pushed.
+- Preview URL: https://rapid4grad-website-i847e7q1t-zhichiang-ai-s-projects.vercel.app
+- Deployment ID: `dpl_E74WeXaCpL4BUjn9hWHt3Dogv17w`
+- Preview state: READY.
+- Implementation commit: `de7e4d77bbbe3b5e7bed08f0aec32b4ea3ab6049`
+- Review branch: `meeting-actions-v1` pushed to GitHub.
+- Authenticated browser QA: pending because no disposable Preview Auth harness is available; no Production account was used.
 - Production: unchanged and not targeted.
