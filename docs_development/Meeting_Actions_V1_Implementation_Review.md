@@ -34,12 +34,12 @@ The existing Attention loader already derives `overdue_action` and `deadline_soo
 - Fresh Local Supabase replay: passed through `20260830064359_add_professor_supervision_data_v1.sql`.
 - Existing disposable integration suites: passed for V2 database/RLS, email, course purchase, course access, Professor subscription, Lab PDF shared pool, Admin control plane and Professor Data Foundation.
 - Professor Data Foundation fixture passed with student, same-Lab assistant, cross-Lab Professor, removed membership, action RLS and historical access checks.
-- `npm test`: 108/108 passed.
+- `npm test`: 110/110 passed, including correction contract coverage.
 - `npm run lint`: passed.
 - `npx tsc --noEmit --incremental false`: passed.
 - `npm run build`: passed.
 - `git diff --check`: passed.
-- Authenticated browser QA, responsive browser QA and keyboard QA: not yet executed; no disposable browser Auth harness is present and no Production account was used.
+- Local authenticated browser QA, responsive browser QA and keyboard QA: blocked because this checkout has no disposable localhost Auth harness; no Production account was used.
 
 ## Explicit Exclusions
 
@@ -51,7 +51,8 @@ No migration, RLS change, Professor Action Center route, delete, reassignment, K
 - Preview URL: https://rapid4grad-website-i847e7q1t-zhichiang-ai-s-projects.vercel.app
 - Deployment ID: `dpl_E74WeXaCpL4BUjn9hWHt3Dogv17w`
 - Preview state: READY.
-- Implementation commit: `de7e4d77bbbe3b5e7bed08f0aec32b4ea3ab6049`
+- Implementation commits: `de7e4d77bbbe3b5e7bed08f0aec32b4ea3ab6049`, `c1db827`.
 - Review branch: `meeting-actions-v1` pushed to GitHub.
-- Authenticated browser QA: pending because no disposable Preview Auth harness is available; no Production account was used.
+- External review correction: Student Action Center now resolves subscription mode through the existing server-only metadata loader; subscription rows are not read with the Student authenticated client. Professor/Assistant Action cards do not show the Student Meeting route, and unknown mutation intents are rejected before any update.
+- Local authenticated browser QA: blocked because this checkout has no disposable localhost Auth harness; no Production account was used.
 - Production: unchanged and not targeted.

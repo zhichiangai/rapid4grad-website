@@ -1090,15 +1090,16 @@ git diff --check                          Passed
 | V2 database, RLS, email, course and payment fixtures | Passed | Existing disposable `scripts/test-v2-*.sh` suites |
 | Professor Data Foundation action boundary | Passed | `supabase/tests/v2_professor_data_foundation_integration.sql` |
 | Domain/server/UI contract tests | Passed | `tests/meeting-actions-contract.test.ts`, Meeting Center contract |
-| Automated suite | Passed | `npm test` 108/108 |
+| Automated suite | Passed | `npm test` 110/110, lint, TypeScript, build and diff check |
 | Lint / TypeScript / build / diff check | Passed | All required checks completed successfully |
 | Authenticated browser QA | Not run | No disposable browser Auth harness was available; Production account was not used |
 
 ### 19.3 Preview deployment and remaining gates
 
-1. `meeting-actions-v1` was pushed only; Vercel Preview `dpl_E74WeXaCpL4BUjn9hWHt3Dogv17w` is `READY` for commit `de7e4d77bbbe3b5e7bed08f0aec32b4ea3ab6049` at `https://rapid4grad-website-i847e7q1t-zhichiang-ai-s-projects.vercel.app`.
-2. Authenticated Student, Professor and Assistant browser QA remains pending because no disposable Preview Auth harness or isolated Preview database is available. No Production account or mutation was used.
-3. The remaining Preview gate is authenticated verification of completed-only creation, owner controls, cross-Lab zero, removed membership, read-only subscription, suspended redirect, Attention regression, 375/768/1440 layouts, keyboard focus and no console errors.
-4. Production remains unchanged. Local results are not being described as Preview or Production validation.
+1. `meeting-actions-v1` was pushed only; the previous Vercel Preview `dpl_E74WeXaCpL4BUjn9hWHt3Dogv17w` was `READY` for the initial implementation. The correction commit `c1db827` requires a new Preview deployment before external QA.
+2. The correction closes the Student subscription-mode access bug through the existing server-only metadata loader, hides the incorrect Professor/Assistant Student Meeting link, and rejects unknown Action intents before update.
+3. Authenticated Student, Professor and Assistant browser QA remains blocked because this checkout has no disposable localhost Auth harness. No Production account or mutation was used.
+4. The remaining Preview gate is authenticated verification of completed-only creation, owner controls, cross-Lab zero, removed membership, read-only subscription, suspended redirect, Attention regression, 375/768/1440 layouts, keyboard focus and no console errors.
+5. Production remains unchanged. Local results are not being described as Preview or Production validation.
 
 Production remains unchanged. Meeting Actions V1 is not marked Production released in this section.
