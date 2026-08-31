@@ -3,6 +3,7 @@ import Link from "next/link";
 export const studentWorkspaceLinks = [
   { href: "/dashboard", label: "研究工作台" },
   { href: "/dashboard/weekly-check-in", label: "每週進度" },
+  { href: "/dashboard/meetings", label: "研究 Meeting" },
   { href: "/dashboard/ai-command", label: "AI 指令產生器" },
   { href: "/dashboard/ai-audit", label: "PDF AI 稽核" },
   { href: "/dashboard/ai-audit/history", label: "稽核歷史" },

@@ -309,6 +309,10 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
         />
 
         <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.035] p-5">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-semibold">研究 Meeting</h2>
+            <Link href={`/professor/labs/${lab.id}/meetings`} className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20">Meeting Center</Link>
+          </div>
           <h2 className="text-2xl font-semibold">Lab Students</h2>
           <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
             <table className="w-full min-w-[900px] text-left text-sm">

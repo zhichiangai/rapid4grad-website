@@ -152,6 +152,29 @@ Phase 1 fallback 必須保留：
 
 ## 3. Phase 2 Flow 驗收
 
+### 3.0 Meeting Center V1
+
+涉及檔案：
+
+- `app/dashboard/meetings/page.tsx`
+- `app/professor/labs/[labId]/meetings/page.tsx`
+- `lib/meetings/*`
+- `components/meetings/*`
+- `app/dashboard/meetings/actions.ts`
+- `supabase/migrations/20260830064359_add_professor_supervision_data_v1.sql`（既有 schema，未修改）
+
+本機驗收結果：
+
+- student 可在 `/dashboard/meetings` 查看自己的 Meeting，並只能修改自己建立的排程。
+- professor / assistant 可在指定 Lab Meeting Center 查看同 Lab Meeting、安排 Meeting、完成摘要、調整時間與取消。
+- Meeting 時間由台北時間輸入並以 UTC 儲存，顯示統一使用台北時區。
+- 已排程、逾時待補紀錄、已完成與已取消狀態分開呈現；`next_meeting_at` 僅為摘要快照，不會自動建立下一場。
+- 既有 meetings RLS、身份不可變更與 active Lab subscription 條件保留；本次沒有新增 migration。
+- 過期或 archived Lab 顯示唯讀；服務端以管理 client 只解析成員/訂閱 metadata，Meeting rows 仍由 authenticated client 讀取。
+- 本機 blank replay、authenticated browser QA 與 375/768/1440 responsive check 通過。
+
+狀態：本機通過；GitHub Review branch 與 Preview deployment 待本輪推送後驗收。
+
 ### 3.1 Subscription Checkout
 
 涉及檔案：

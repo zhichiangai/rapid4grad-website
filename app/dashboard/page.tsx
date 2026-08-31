@@ -34,6 +34,7 @@ export default function DashboardPage() {
   const [message, setMessage] = useState("");
   const [userId, setUserId] = useState("");
   const [weeklyCheckIn, setWeeklyCheckIn] = useState<{ updatedAt: string | null }>({ updatedAt: null });
+  const [meetingSummary, setMeetingSummary] = useState<{ pendingCount: number; nextMeetingAt: string | null }>({ pendingCount: 0, nextMeetingAt: null });
 
   useEffect(() => {
     let isMounted = true;
@@ -62,6 +63,19 @@ export default function DashboardPage() {
         .maybeSingle<{ id: string; updated_at: string }>();
 
       if (isMounted) setWeeklyCheckIn({ updatedAt: weekly?.updated_at ?? null });
+
+      const { data: meetings } = await supabase
+        .from("meetings")
+        .select("meeting_at,status")
+        .eq("student_user_id", user.id)
+        .order("meeting_at", { ascending: true });
+      const now = Date.now();
+      const scheduled = (meetings ?? []).filter((meeting: { meeting_at: string; status: string }) => meeting.status === "scheduled");
+      const nextMeeting = scheduled.find((meeting: { meeting_at: string }) => new Date(meeting.meeting_at).getTime() > now);
+      if (isMounted) setMeetingSummary({
+        pendingCount: scheduled.filter((meeting: { meeting_at: string }) => new Date(meeting.meeting_at).getTime() <= now).length,
+        nextMeetingAt: nextMeeting?.meeting_at ?? null,
+      });
 
       if (email) {
         const { data: lead } = await supabase
@@ -177,6 +191,7 @@ export default function DashboardPage() {
       isSaving={isSaving}
       message={message}
       weeklyCheckIn={weeklyCheckIn}
+      meetingSummary={meetingSummary}
     />
   );
 }
