@@ -68,3 +68,15 @@ No migration, RLS change, Professor Action Center route, delete, reassignment, K
 - External review correction: Student Action Center now resolves subscription mode through the existing server-only metadata loader; subscription rows are not read with the Student authenticated client. Professor/Assistant Action cards do not show the Student Meeting route, and unknown mutation intents are rejected before any update.
 - Local authenticated browser QA: passed with disposable Local Auth accounts and real RLS sessions; all temporary accounts, fixtures and harness files were removed afterward.
 - Production: unchanged and not targeted.
+
+## Production Release
+
+- Source branch `meeting-actions-v1` was fast-forward merged into `main` at `3d88afa329b935d2ec7766cc62418f46833cfff1`.
+- GitHub `main` was pushed successfully; no force push, rebase or squash was used. The review branch remains available as a reference.
+- Vercel Production deployment `dpl_B8WgAnAnupmHQuNHhKuT8yXkiUZ3` is `READY` for commit `3d88afa329b935d2ec7766cc62418f46833cfff1` on `main`.
+- Production URL: `https://www.rapid4grad.com`.
+- Anonymous smoke: homepage returned HTTP 200. `/dashboard/actions`, `/dashboard/meetings`, `/professor/dashboard` and `/professor/attention` returned login protection redirects with no 500 or loop.
+- Authenticated Production smoke was not executed because no safe dedicated Production Student/Professor test session was available. Local authenticated QA remains the role-specific evidence.
+- Vercel runtime error check for the deployment found no runtime errors in the selected window.
+- Production Supabase mutation: NONE. No migration, SQL write, user, Lab, membership, subscription, Meeting or Action fixture was created or changed. RLS and schema were unchanged.
+- Meeting Actions V1 is now frozen in Production. Future scope remains outside this release: Student 360, Thesis Progress, reminders, notifications, Email/LINE, Calendar, AI extraction and a Professor Action Center.
