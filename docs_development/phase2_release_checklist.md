@@ -1057,3 +1057,18 @@ git diff --check                          Passed
 - Read-only browser smoke reached the homepage and the existing authenticated Admin/Professor workspace pages without a runtime crash. Anonymous and Professor-role production checks were not claimed because the available browser session was Admin-authenticated.
 - Production Supabase read-only verification and no-mutation policy were preserved. No migration, SQL write, user fixture, Lab, membership, subscription, Storage, or environment change was performed.
 - Attention Center V1 is now frozen in Production. Meeting Center, Attention expansion, notifications and AI advice remain future scope.
+
+## 18. 2026-08-31 Meeting Center V1 Production Release
+
+- Feature: PASS.
+- Authorization: PASS.
+- Preview: PASS.
+- Merged main: PASS via fast-forward from `meeting-center-v1` at `0cdca64ef61e8bcfa9c9e8a804869c3ccb2ce611`.
+- Production deployment: READY; Vercel deployment `dpl_ELgFaK9RX65pQDP6PXzcATbpxUe8` on `main`.
+- Production URL: `https://www.rapid4grad.com/`.
+- Anonymous Production smoke: PASS for homepage and login protection on `/dashboard/meetings`, `/professor/dashboard` and `/professor/attention`; no 500 or redirect loop observed.
+- Authenticated Production smoke: NOT EXECUTED because no safe dedicated Production test session was available; Local authenticated QA remains the role-specific evidence.
+- Production Supabase: read-only baseline confirmed `weekly_updates`, `meetings`, `meeting_actions`, `app_private.is_active_user()` and `public.get_shared_audit_summaries(...)`; no SQL or schema mutation performed.
+- Production mutation: NONE. No test user, Lab, membership, subscription or Meeting fixture was created or changed.
+- Meeting Center V1: FROZEN.
+- Follow-up remains out of scope: Meeting Actions, Calendar, notifications, Email/LINE, AI meeting features, attachments, search, filters and analytics.

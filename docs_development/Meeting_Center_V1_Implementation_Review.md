@@ -69,3 +69,22 @@
 - Preview commit: `b4de9bdfc50e26369398735190c60c2e1deeced0`.
 - Preview runtime fatal/error: NONE.
 - Production: unchanged.
+
+## Production Release
+
+- Merge: FAST-FORWARD.
+- Source branch: `meeting-center-v1`.
+- Merged source HEAD: `0cdca64ef61e8bcfa9c9e8a804869c3ccb2ce611`.
+- Feature Production deployment: `dpl_ELgFaK9RX65pQDP6PXzcATbpxUe8`.
+- Feature Production URL: `https://www.rapid4grad.com/`.
+- Feature Production commit: `0cdca64ef61e8bcfa9c9e8a804869c3ccb2ce611`.
+- Production state: READY.
+- Production runtime: no fatal/error observed; no HTTP 500 or redirect loop observed during smoke.
+- Anonymous smoke: homepage PASS; student Meeting, Professor Dashboard and Professor Attention routes correctly protected by login.
+- Authenticated smoke: not executed because no safe dedicated Production test session was available; Local authenticated QA remains the evidence for role-specific behavior.
+- Production Supabase read-only baseline: `weekly_updates`, `meetings`, `meeting_actions`, `app_private.is_active_user()` and `public.get_shared_audit_summaries(...)` confirmed present with existing RLS policies.
+- Production Supabase mutation: NONE.
+- Production Meeting mutation: NONE.
+- Migration/RLS/schema change: NONE.
+
+Meeting Center V1 is frozen in Production. Meeting Actions, Calendar, notifications, AI and other listed roadmap items remain out of scope.
