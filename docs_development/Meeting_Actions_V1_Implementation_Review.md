@@ -39,7 +39,10 @@ The existing Attention loader already derives `overdue_action` and `deadline_soo
 - `npx tsc --noEmit --incremental false`: passed.
 - `npm run build`: passed.
 - `git diff --check`: passed.
-- Local authenticated browser QA, responsive browser QA and keyboard QA: blocked because this checkout has no disposable localhost Auth harness; no Production account was used.
+- Local authenticated browser QA: passed with a temporary localhost-only Auth harness and real Local Supabase sessions. Student, Professor and Assistant flows, cross-Lab redirect, suspended redirect, completed-only Action creation, status transitions, owner controls and read-only supervisor Action behavior were verified. No Production account was used.
+- Responsive browser QA: passed at 375px, 768px and 1440px for Student Action Center and Professor Meeting Center; no horizontal overflow observed.
+- Keyboard QA: passed for Action controls with visible focus; no focus trap observed.
+- Console: no new application runtime errors after the temporary harness route was corrected and the dev server restarted. The initial temporary harness route conflict was removed and was not part of the application.
 
 ## Explicit Exclusions
 
@@ -55,5 +58,5 @@ No migration, RLS change, Professor Action Center route, delete, reassignment, K
 - Preview correction commit: `5cf9fc0cfe502b3c5aa49ed59401c6619699755b`.
 - Review branch: `meeting-actions-v1` pushed to GitHub.
 - External review correction: Student Action Center now resolves subscription mode through the existing server-only metadata loader; subscription rows are not read with the Student authenticated client. Professor/Assistant Action cards do not show the Student Meeting route, and unknown mutation intents are rejected before any update.
-- Local authenticated browser QA: blocked because this checkout has no disposable localhost Auth harness; no Production account was used.
+- Local authenticated browser QA: passed with disposable Local Auth accounts and real RLS sessions; all temporary accounts, fixtures and harness files were removed afterward.
 - Production: unchanged and not targeted.
