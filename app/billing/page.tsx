@@ -23,6 +23,15 @@ export default async function BillingPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/billing");
 
+  const { data: ownedLab } = await supabase
+    .from("labs")
+    .select("id")
+    .eq("owner_professor_id", user.id)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (!ownedLab) redirect("/professor/dashboard");
+
   const { data: subscription } = await supabase
     .from("subscriptions")
     .select("id,lab_id,plan_key,status,billing_interval,current_period_start,current_period_end,trial_ends_at,grace_ends_at,cancel_at_period_end,provider,updated_at,labs(name)")

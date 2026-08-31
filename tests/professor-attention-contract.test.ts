@@ -84,3 +84,14 @@ test("Attention page is scoped to supervisor data and contains no mutation or ra
   assert.doesNotMatch(loader, /insert\(|update\(|delete\(/);
   assert.doesNotMatch(loader, /storage\.from|signedUrl|result_markdown|input_prompt/);
 });
+
+test("Professor dashboard limits management controls to owned Labs", () => {
+  const dashboard = readFileSync(`${root}/app/professor/dashboard/page.tsx`, "utf8");
+  const workspace = readFileSync(`${root}/components/workspace/ProfessorWorkspaceHome.tsx`, "utf8");
+  const billing = readFileSync(`${root}/app/billing/page.tsx`, "utf8");
+  assert.match(dashboard, /canManage=\{profile\.role === "professor" && ownedLabs\.length > 0\}/);
+  assert.match(dashboard, /profile\.role === "professor" && ownedLabs\.length > 0 \?\s*\(/);
+  assert.match(workspace, /canManage \? <Link href="\/billing"/);
+  assert.match(billing, /eq\("owner_professor_id", user\.id\)/);
+  assert.match(billing, /if \(!ownedLab\) redirect\("\/professor\/dashboard"\)/);
+});

@@ -144,7 +144,7 @@ export function ProfessorWorkspaceHome({
                 <>
                   <Link href="/professor/attention" className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-center text-sm font-semibold text-amber-100 transition hover:bg-amber-400/15">需要注意的學生</Link>
                   <Link href="/learn" className="rounded-2xl border border-cyan-300/20 bg-cyan-400/10 px-4 py-3 text-center text-sm font-semibold text-cyan-100 transition hover:bg-cyan-400/15">觀看 Lab 課程</Link>
-                  <Link href="/billing" className="rounded-2xl border border-blue-300/20 bg-blue-400/10 px-4 py-3 text-center text-sm font-semibold text-blue-100 transition hover:bg-blue-400/15">管理訂閱</Link>
+                  {canManage ? <Link href="/billing" className="rounded-2xl border border-blue-300/20 bg-blue-400/10 px-4 py-3 text-center text-sm font-semibold text-blue-100 transition hover:bg-blue-400/15">管理訂閱</Link> : null}
                 </>
               )}
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">

@@ -222,9 +222,9 @@ export default async function ProfessorDashboardPage() {
       subscriptionMode={subscriptionMode}
       subscriptionPlanKey={currentSubscription?.plan_key}
       subscriptionStatus={currentSubscription?.status}
-      canManage={profile.role === "professor"}
+      canManage={profile.role === "professor" && ownedLabs.length > 0}
       managerControls={
-        profile.role === "professor" ? (
+        profile.role === "professor" && ownedLabs.length > 0 ? (
           <ProfessorLabControls
             labs={ownedLabs.map((lab) => ({
               id: lab.id,
