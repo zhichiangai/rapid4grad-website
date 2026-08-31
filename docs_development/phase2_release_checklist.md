@@ -1120,3 +1120,14 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Vercel runtime errors: NONE in the selected verification window.
 - Production mutation: NONE. No Production Supabase SQL/migration, user, Lab, membership, subscription, Meeting or Action data was changed.
 - Meeting Actions V1: FROZEN. Do not expand scope without a separate release task.
+
+## 21. 2026-09-01 Thesis Progress Tracker V1 Preview Stage
+
+- Scope: student-private thesis navigation only; fixed eight milestones, status, student target date, short note, current stage and completion count.
+- New schema: `public.thesis_milestones` via local-only `20260831182930_add_thesis_milestones_v1.sql`; no remote migration has been run.
+- Privacy: authenticated active students can read/write only their own rows. Professor, Assistant and Admin have no automatic read access. No DELETE policy; identity fields are immutable and `completed_at` is enforced by trigger.
+- Implementation: `/dashboard/thesis` plus compact Student Dashboard card and navigation entry. No Professor UI, Student 360, AI, notifications, analytics or graduation risk logic.
+- Automated validation: Passed, `npm test` 115/115、lint、TypeScript、build、diff check。
+- Local fresh replay: Passed through `20260831182930_add_thesis_milestones_v1.sql`; Thesis RLS fixture and existing V2 regression suites passed. Local authenticated browser QA: NOT RUN because no `agent-browser`/disposable browser harness was available; this is not claimed as Passed.
+- Implementation commit: `41114c8` (`feat(thesis): add thesis progress tracker`). Preview deployment: `READY`, deployment `dpl_7VSpcFSs3cqYcMvWCakbZcHgiZDU`, URL `https://rapid4grad-website-izxchf3f3-zhichiang-ai-s-projects.vercel.app`, branch `thesis-progress-tracker-v1`.
+- Preview/Production Supabase migration, authenticated browser QA, responsive/keyboard QA and real external service checks remain pending. Production: NOT RELEASED.
