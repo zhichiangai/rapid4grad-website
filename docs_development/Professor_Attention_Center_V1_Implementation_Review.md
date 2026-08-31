@@ -46,13 +46,16 @@ Never-submitted members receive a seven-day grace period. A future scheduled Mee
 - Existing Lab creation, subscription, invite and member management controls remain unchanged.
 - Cards and links have visible keyboard focus states and semantic headings.
 - Attention cards link to the existing student detail route; no new mutation is exposed.
+- Professor subscription management is owner-only: assistants and non-owner roles do not receive the billing link, and `/billing` redirects non-owners back to the Professor dashboard.
 
 ## Local Validation
 
 - Attention rule contract tests: Passed.
-- Existing automated suite: Passed during implementation; rerun all quality gates before commit.
-- Local Supabase/RLS integration: must be rerun if the local environment is available. This feature adds no migration, so the existing schema replay remains the source of truth.
-- Browser visual QA at 375px, 768px and 1440px: Preview-only gate; not claimed until a Preview session is available.
+- Existing automated suite: Passed, 99 tests.
+- Local Supabase/RLS integration: Existing 18-migration replay and integration suites remained green; this feature adds no migration.
+- Local authenticated browser QA: Passed with disposable Local Supabase accounts for Professor A/B, Assistant A, Student, Admin and Suspended Professor. Verified Attention signals, same-Lab visibility, cross-Lab denial, workspace redirects, suspended redirect, assistant read-only boundary and no raw audit fields.
+- Responsive QA: Passed at 375px, 768px and 1440px with no horizontal overflow.
+- Browser console QA: Passed; no warning or error entries on `/professor/attention`.
 
 ## Explicit Non-Goals
 
@@ -62,7 +65,8 @@ No Attention Center notifications, cron jobs, email/LINE alerts, Meeting Center 
 
 - Review branch: `professor-attention-center-v1`
 - Implementation commit: `dd23bb15577ccdc56366459bc96a3e08d3f8440c`
+- Local QA correctness fix: `b45b401` limits Professor management controls and billing to owned Labs.
 - Preview URL: https://rapid4grad-website-git-professor-1f6411-zhichiang-ai-s-projects.vercel.app
-- Deployment ID: `dpl_FrbzeqiGn7sUvqoAum49ETJedKup`
-- Preview state: `READY`
+- Deployment ID: `dpl_5FkGKseDWVCtU8ynyFJFinFkf24e` (pre-fix Preview)
+- Preview state: new Preview required for `b45b401`
 - Runtime errors at release check: none reported in the selected 10-minute window.

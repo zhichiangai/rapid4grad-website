@@ -1007,3 +1007,12 @@ git diff --check                          Passed
 
 - Real notification delivery, cron scheduling, Meeting Center UI, Student 360, AI Professor Assistant and expanded PDF sharing remain out of scope.
 - Preview runtime, authenticated RLS behavior, deployment logs and visual QA are not claimed complete until the branch Preview is tested.
+
+### 17.5 Local authenticated QA recovery (2026-08-31)
+
+- Local-only disposable Auth users and fixture data were created for Professor A/B, Assistant A, six Lab A students, one Lab B student, Admin and Suspended Professor. No Production or Preview account/data was used.
+- Passed: Professor Attention rules and rendering, This Week/Upcoming Meetings, same-Lab visibility, cross-Lab isolation, student/admin workspace routing, suspended-account routing, no raw audit/PDF fields, responsive 375/768/1440 layouts and no browser console warnings/errors.
+- Passed: assistant is observation-only in the Professor workspace. Owner-only Lab management and `/billing` are hidden/redirected when the authenticated user does not own an active Lab.
+- Automated validation after the fix: `npm test` 99/99, lint, TypeScript, build and `git diff --check` passed.
+- The temporary `/local-qa/login` harness and Local fixture are QA-only and must not be committed or deployed. Local Supabase reset is the cleanup operation after QA.
+- Preview authenticated QA remains a separate external gate; this Local result must not be described as Preview or Production verification. The owner-only billing fix is committed as `b45b401`; its Preview deployment must be rechecked before release review.
