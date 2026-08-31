@@ -1661,6 +1661,42 @@ export type Database = {
         }
         Relationships: []
       }
+      thesis_milestones: {
+        Row: {
+          id: string
+          student_user_id: string
+          milestone_key: string
+          status: string
+          target_date: string | null
+          note: string | null
+          completed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          student_user_id: string
+          milestone_key: string
+          status?: string
+          target_date?: string | null
+          note?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          student_user_id?: string
+          milestone_key?: string
+          status?: string
+          target_date?: string | null
+          note?: string | null
+          completed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       weekly_updates: {
         Row: {
           id: string

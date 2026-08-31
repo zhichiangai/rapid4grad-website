@@ -7,6 +7,7 @@ import {
 } from "@/components/workspace/StudentWorkspaceHome";
 import { createClient } from "@/lib/supabase/client";
 import { getTaipeiMonday } from "@/lib/supervision/week";
+import { getThesisProgressSummary, mergeMilestoneDefinitionsWithRows, type ThesisMilestoneRow } from "@/lib/thesis-progress/thesis-domain";
 
 type AdvisorMemory = {
   id: string;
@@ -36,6 +37,7 @@ export default function DashboardPage() {
   const [weeklyCheckIn, setWeeklyCheckIn] = useState<{ updatedAt: string | null }>({ updatedAt: null });
   const [meetingSummary, setMeetingSummary] = useState<{ pendingCount: number; nextMeetingAt: string | null }>({ pendingCount: 0, nextMeetingAt: null });
   const [actionSummary, setActionSummary] = useState({ overdueCount: 0, dueSoonCount: 0, openCount: 0 });
+  const [thesisSummary, setThesisSummary] = useState<{ currentLabel: string; completedCount: number; blocked: boolean } | undefined>();
 
   useEffect(() => {
     let isMounted = true;
@@ -89,6 +91,19 @@ export default function DashboardPage() {
         dueSoonCount: openActions.filter((action: { due_date: string | null }) => Boolean(action.due_date && action.due_date >= today && action.due_date <= maxDateString)).length,
         openCount: openActions.length,
       });
+
+      const { data: thesisRows } = await supabase
+        .from("thesis_milestones")
+        .select("milestone_key,status,target_date,completed_at")
+        .eq("student_user_id", user.id);
+      if (isMounted) {
+        const thesis = getThesisProgressSummary(mergeMilestoneDefinitionsWithRows(user.id, (thesisRows ?? []) as ThesisMilestoneRow[]));
+        setThesisSummary({
+          currentLabel: thesis.current?.label ?? "所有論文里程碑已完成",
+          completedCount: thesis.completedCount,
+          blocked: thesis.current?.status === "blocked",
+        });
+      }
 
       if (email) {
         const { data: lead } = await supabase
@@ -206,6 +221,7 @@ export default function DashboardPage() {
       weeklyCheckIn={weeklyCheckIn}
       meetingSummary={meetingSummary}
       actionSummary={actionSummary}
+      thesisSummary={thesisSummary}
     />
   );
 }
