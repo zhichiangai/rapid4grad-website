@@ -1016,3 +1016,11 @@ git diff --check                          Passed
 - Automated validation after the fix: `npm test` 99/99, lint, TypeScript, build and `git diff --check` passed.
 - The temporary `/local-qa/login` harness and Local fixture are QA-only and must not be committed or deployed. Local Supabase reset is the cleanup operation after QA.
 - Preview authenticated QA remains a separate external gate; this Local result must not be described as Preview or Production verification. The owner-only billing fix is committed as `b45b401`; Preview deployment `dpl_31eXp3rrG9nbAHBbUX9zdPMkuj4n` is `READY` for external authenticated QA.
+
+### 17.6 Production release (2026-08-31)
+
+- `professor-attention-center-v1` was fast-forward merged into `main` at `0465687c6f73eee88a2b4fd028cfb0ae9098b77f`; GitHub `main` and the local HEAD are synchronized.
+- Vercel Production deployment `dpl_475FCcogBvaj4xssfrTMsq2FoMLZ` is `READY` for `0465687c6f73eee88a2b4fd028cfb0ae9098b77f`; Production URL: `https://www.rapid4grad.com`.
+- Read-only browser smoke reached the homepage and the existing authenticated Admin/Professor workspace pages without a runtime crash. Anonymous and Professor-role production checks were not claimed because the available browser session was Admin-authenticated.
+- Production Supabase read-only verification and no-mutation policy were preserved. No migration, SQL write, user fixture, Lab, membership, subscription, Storage, or environment change was performed.
+- Attention Center V1 is now frozen in Production. Meeting Center, Attention expansion, notifications and AI advice remain future scope.

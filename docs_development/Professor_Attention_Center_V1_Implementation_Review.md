@@ -72,3 +72,12 @@ No Attention Center notifications, cron jobs, email/LINE alerts, Meeting Center 
 - Preview URL: https://rapid4grad-website-git-professor-1f6411-zhichiang-ai-s-projects.vercel.app
 - Preview state: `READY`
 - Runtime errors at release check: none reported in the selected 10-minute window.
+
+## Production Release
+
+- The approved branch was fast-forward merged into `main` at `0465687c6f73eee88a2b4fd028cfb0ae9098b77f` and pushed to GitHub.
+- Vercel Production deployment `dpl_475FCcogBvaj4xssfrTMsq2FoMLZ` is `READY` for commit `0465687c6f73eee88a2b4fd028cfb0ae9098b77f`.
+- Production URL: https://www.rapid4grad.com
+- Read-only browser smoke opened the homepage and authenticated Professor workspace pages without a runtime crash. The browser session was already authenticated as Admin, so anonymous and Professor-role production checks were not inferred from that session.
+- No Production Supabase, user, Lab, membership, subscription, Storage, migration, or configuration mutation was performed.
+- Professor Attention Center V1 is frozen after this release; Meeting Center and further Attention expansion remain separate work.
