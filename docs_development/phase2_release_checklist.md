@@ -173,7 +173,17 @@ Phase 1 fallback 必須保留：
 - 過期或 archived Lab 顯示唯讀；服務端以管理 client 只解析成員/訂閱 metadata，Meeting rows 仍由 authenticated client 讀取。
 - 本機 blank replay、authenticated browser QA 與 375/768/1440 responsive check 通過。
 
-狀態：本機通過；GitHub Review branch 與 Preview deployment 待本輪推送後驗收。
+狀態：
+
+- Feature implementation: PASS
+- Final correction: PASS
+- Local authenticated QA: PASS
+- Authorization QA: PASS
+- Responsive QA: PASS
+- Final functional Preview: READY
+- External Review: PASS
+- Production: NOT YET RELEASED
+- `main`: NOT YET MERGED
 
 ### 3.1 Subscription Checkout
 

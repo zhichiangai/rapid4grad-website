@@ -29,13 +29,24 @@
 
 ## Validation
 
-- `npm test`: PASS, 104 tests.
+- `npm test`: 105/105 PASS.
 - `npm run lint`: PASS.
 - `npx tsc --noEmit --incremental false`: PASS.
 - `npm run build`: PASS.
 - `git diff --check`: PASS.
 - Local Supabase blank replay: PASS through `20260830064359_add_professor_supervision_data_v1.sql`.
-- Authenticated local browser QA: PASS for student and professor flows.
+- Initial implementation: `c0d424c98ee29d768d59ef4bbe91daf4bea54ba0` (`feat(meetings): add meeting center v1`).
+- Final correction: `b4de9bdfc50e26369398735190c60c2e1deeced0` (`fix(meetings): preserve completed meeting summary`).
+- Professor A: PASS.
+- Assistant A same-Lab read: PASS.
+- Assistant A same-Lab create Meeting: PASS.
+- Professor B cross-Lab direct access: DENIED.
+- Removed Assistant: DENIED.
+- Student reads Professor-created Meeting: PASS.
+- Student reschedule Professor-created Meeting: DENIED.
+- Student complete Professor-created Meeting: DENIED.
+- Student cancel Professor-created Meeting: DENIED.
+- Student edit Professor-created Meeting: DENIED.
 - Responsive checks: PASS at 375, 768 and 1440 pixels; no horizontal overflow.
 - Completed-summary invariant contract: PASS; blank `complete` and blank `edit` are rejected server-side.
 - Local authorization QA: Professor A and Assistant A could read Lab A Meeting rows; Assistant A created a Meeting successfully.
@@ -47,5 +58,14 @@
 
 - GitHub branch: `meeting-center-v1`
 - QA harness removed after local verification; disposable Local Supabase data reset.
-- Preview deployment: `dpl_3thCuqQPJ31qQ7EiJ3JgziyAUfQH`, READY before this correction; a new Preview is required after the correction push.
+- Completed Meeting summary invariant: PASS. `complete` and `edit` both reject blank summaries server-side without UPDATE.
+- Temporary Local QA auth harness: REMOVED.
+- Disposable Local Supabase fixtures: RESET.
+- QA credentials committed: NO.
+- Production data modified: NO.
+- Final functional Preview deployment: `dpl_C5eutTKwgFcnp22a1Xay7X2y6pPP`, READY.
+- Preview URL: `https://rapid4grad-website-j77qnqgfm-zhichiang-ai-s-projects.vercel.app/`.
+- Branch alias: `https://rapid4grad-website-git-meeting-c-24b992-zhichiang-ai-s-projects.vercel.app/`.
+- Preview commit: `b4de9bdfc50e26369398735190c60c2e1deeced0`.
+- Preview runtime fatal/error: NONE.
 - Production: unchanged.
