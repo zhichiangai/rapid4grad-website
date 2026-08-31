@@ -79,6 +79,7 @@ export async function updateMeetingAction(_previousState: MeetingActionState = i
   const intent = value(formData, "intent", 16);
   const expectedUpdatedAt = value(formData, "expected_updated_at", 80);
   if (!actionId || !intent || !expectedUpdatedAt) return failure("目前無法修改這項 Action，請重新整理後再試。");
+  if (!["edit", "start", "todo", "done", "cancel"].includes(intent)) return failure("目前無法修改這項 Action，請重新整理後再試。");
   const supabase = context.supabase as unknown as SupabaseClient;
   const currentResult = await supabase.from("meeting_actions").select("id,lab_id,title,due_date,status,owner_type,owner_user_id,updated_at").eq("id", actionId).maybeSingle();
   const current = currentResult.data as { id: string; lab_id: string; title: string; due_date: string | null; status: ActionStatus; owner_type: "student" | "supervisor"; owner_user_id: string; updated_at: string } | null;

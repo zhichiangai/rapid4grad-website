@@ -30,6 +30,24 @@ test("Meeting Actions server boundary derives ownership and forbids delete", () 
   assert.match(actions, /completed_at: nextStatus === "done"/);
   assert.doesNotMatch(actions, /\.delete\(/);
   assert.doesNotMatch(actions, /owner_user_id.*formData/);
+  assert.match(actions, /\["edit", "start", "todo", "done", "cancel"\]/);
+  assert.match(actions, /includes\(intent\)/);
+});
+
+test("Student Action Center resolves subscription metadata through the server loader", () => {
+  const page = fs.readFileSync("app/dashboard/actions/page.tsx", "utf8");
+  assert.match(page, /createV2AdminClient/);
+  assert.match(page, /getMeetingMode/);
+  assert.doesNotMatch(page, /context\.supabase\.from\("subscriptions"\)/);
+  assert.match(page, /mode === "functional"/);
+});
+
+test("Professor Action cards do not link to the Student Meeting route", () => {
+  const list = fs.readFileSync("components/meeting-actions/MeetingActionList.tsx", "utf8");
+  const card = fs.readFileSync("components/meeting-actions/ActionCard.tsx", "utf8");
+  assert.doesNotMatch(list, /meetingHref/);
+  assert.match(card, /meetingHref\?/);
+  assert.match(card, /meetingHref \? <Link/);
 });
 
 test("Meeting Actions UI keeps completed-only creation and read-only supervisor actions", () => {

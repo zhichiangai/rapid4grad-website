@@ -23,7 +23,7 @@ function subscriptionMode(subscription: { status: string; current_period_end: st
   return active || grace ? "functional" : "read_only";
 }
 
-async function getMode(supabase: DbClient, labId: string) {
+export async function getMeetingMode(supabase: DbClient, labId: string) {
   const { data } = await supabase
     .from("subscriptions")
     .select("status,current_period_end,grace_ends_at")
@@ -72,7 +72,7 @@ export async function loadStudentMeetings() {
   if (error) console.error("[meetings] student read failed", { code: error.code });
   const meetings = await enrichMeetings(supabase, data ?? []);
   const actions = await loadActionsForMeetings(supabase, meetings);
-  return { context, meetings, actions, activeLab, mode: activeLab ? await getMode(createV2AdminClient(), activeLab.lab_id) : "none" as MeetingMode };
+  return { context, meetings, actions, activeLab, mode: activeLab ? await getMeetingMode(createV2AdminClient(), activeLab.lab_id) : "none" as MeetingMode };
 }
 
 export async function loadProfessorLabMeetings(labId: string) {
@@ -101,7 +101,7 @@ export async function loadProfessorLabMeetings(labId: string) {
     meetings,
     actions,
     students: (profiles ?? []).map((profile: { id: string; email: string; full_name: string | null; degree: string | null; research_area: string | null }) => ({ id: profile.id, name: profile.full_name ?? profile.email, email: profile.email, degree: profile.degree, researchArea: profile.research_area })),
-    mode: lab.status === "active" ? await getMode(createV2AdminClient(), labId) : "read_only",
+    mode: lab.status === "active" ? await getMeetingMode(createV2AdminClient(), labId) : "read_only",
   };
 }
 
