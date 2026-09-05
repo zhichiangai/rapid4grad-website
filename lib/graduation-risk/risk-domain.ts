@@ -88,7 +88,11 @@ export function deriveGraduationRiskSignals(input: {
   const weeklyAge = input.latestWeekly ? daysBetween(taipeiDateFromIso(input.latestWeekly.updated_at), today) : null;
   if (input.activeLab && weeklyAge !== null && weeklyAge >= 14) signals.push({ key: "update_overdue", severity: "urgent", title: "Weekly 已超過兩週未更新", reason: "最近一次 Weekly 更新距今已達 14 天以上。", recommendation: "先填寫本週研究進度，重新建立研究節奏。", href: "/dashboard/weekly-check-in", source: "weekly" });
   else if (input.activeLab && weeklyAge !== null && weeklyAge >= 7) signals.push({ key: "no_recent_update", severity: "attention", title: "Weekly 最近較少更新", reason: "最近一次 Weekly 更新距今已達 7 天以上。", recommendation: "更新本週研究進度，讓下一步更清楚。", href: "/dashboard/weekly-check-in", source: "weekly" });
-  else if (input.activeLab && weeklyAge === null && input.joinedAt && daysBetween(taipeiDateFromIso(input.joinedAt), today) >= 7) signals.push({ key: "no_recent_update", severity: "attention", title: "還沒有 Weekly 更新", reason: "加入 Lab 後尚未留下本週研究進度。", recommendation: "填寫第一筆 Weekly，建立可追蹤的研究節奏。", href: "/dashboard/weekly-check-in", source: "weekly" });
+  else if (input.activeLab && weeklyAge === null && input.joinedAt) {
+    const membershipAge = daysBetween(taipeiDateFromIso(input.joinedAt), today);
+    if (membershipAge >= 14) signals.push({ key: "update_overdue", severity: "urgent", title: "Weekly 已超過兩週未更新", reason: "加入 Lab 後已超過 14 天，尚未留下 Weekly 研究進度。", recommendation: "先填寫本週研究進度，重新建立研究節奏。", href: "/dashboard/weekly-check-in", source: "weekly" });
+    else if (membershipAge >= 7) signals.push({ key: "no_recent_update", severity: "attention", title: "還沒有 Weekly 更新", reason: "加入 Lab 後已超過 7 天，尚未留下 Weekly 研究進度。", recommendation: "填寫第一筆 Weekly，建立可追蹤的研究節奏。", href: "/dashboard/weekly-check-in", source: "weekly" });
+  }
 
   const targetOverdue = input.thesisMilestones.filter((milestone) => milestone.status !== "completed" && milestone.target_date && milestone.target_date < today).sort((a, b) => a.target_date!.localeCompare(b.target_date!))[0];
   if (targetOverdue) {

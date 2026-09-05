@@ -1152,3 +1152,9 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Automated validation: Passed, `npm test` 122/122, lint, TypeScript, build and `git diff --check`.
 - Local Supabase replay and authenticated browser QA: Blocked by unavailable Docker daemon. No Production database, account or fixture was used as a substitute.
 - Preview: READY, deployment `dpl_HeAprmRPXV1yQRgszV7Ugw9HCcnx`, URL `https://rapid4grad-website-y6wbymwkh-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `bcf658938f1e6d6e8fc851180d12bd0b2072d4e0`. Vercel Authentication protects the Preview URL; no authenticated application mutation was performed. Production: NOT RELEASED; main: NOT MERGED.
+
+### 23.1 Final correction status
+
+- Never-submitted Weekly boundaries corrected: 0-6 days no signal, 7-13 days `no_recent_update` / attention, and 14+ days `update_overdue` / urgent.
+- Weekly, Meeting and Meeting Action risk reads now require the current active Lab `lab_id`; Thesis remains student-private and student-level.
+- Regression suite: `123/123` passed. Authenticated QA remains blocked because Docker is unavailable and Vercel Preview env read-back did not expose a verifiable Supabase URL/ref. No cloud or Production fixture was mutated.

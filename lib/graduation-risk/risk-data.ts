@@ -25,9 +25,9 @@ export async function loadStudentGraduationRisk() {
   }
 
   const [weeklyResult, meetingsResult, actionsResult] = await Promise.all([
-    supabase.from("weekly_updates").select("updated_at").eq("student_user_id", context.user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("meetings").select("status,meeting_at").eq("student_user_id", context.user.id),
-    supabase.from("meeting_actions").select("status,due_date,owner_type,owner_user_id,student_user_id").eq("student_user_id", context.user.id),
+    supabase.from("weekly_updates").select("updated_at").eq("student_user_id", context.user.id).eq("lab_id", activeLab.labId).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("meetings").select("status,meeting_at").eq("student_user_id", context.user.id).eq("lab_id", activeLab.labId),
+    supabase.from("meeting_actions").select("status,due_date,owner_type,owner_user_id,student_user_id").eq("student_user_id", context.user.id).eq("lab_id", activeLab.labId),
   ]);
   if (weeklyResult.error) console.error("[graduation-risk] weekly read failed", { operation: "load", code: weeklyResult.error.code });
   if (meetingsResult.error) console.error("[graduation-risk] meetings read failed", { operation: "load", code: meetingsResult.error.code });

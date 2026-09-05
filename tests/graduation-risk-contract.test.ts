@@ -25,13 +25,22 @@ test("Supervisor-owned and completed/canceled actions never become student risk"
 test("Graduation Risk differentiates weekly stale windows, thesis targets, meeting gaps and priority", () => {
   const weekly = deriveGraduationRiskSignals({ ...base, joinedAt: "2026-09-01T00:00:00Z", today: "2026-09-05", latestWeekly: { updated_at: "2026-08-22T00:00:00Z" } });
   assert.equal(weekly[0].key, "update_overdue");
-  const target = deriveGraduationRiskSignals({ ...base, today: "2026-09-05", thesisMilestones: [{ milestone_key: "proposal", status: "in_progress", target_date: "2026-09-02" }] });
+  const target = deriveGraduationRiskSignals({ ...base, today: "2026-09-05", latestWeekly: { updated_at: "2026-09-05T00:00:00Z" }, thesisMilestones: [{ milestone_key: "proposal", status: "in_progress", target_date: "2026-09-02" }] });
   assert.equal(target[0].key, "thesis_target_overdue");
   assert.equal(target[0].severity, "attention");
   const meeting = deriveGraduationRiskSignals({ ...base, today: "2026-09-05", now: new Date("2026-09-05T00:00:00Z"), joinedAt: "2026-08-01T00:00:00Z", latestWeekly: { updated_at: "2026-09-05T00:00:00Z" } });
   assert.equal(meeting[0].key, "no_recent_meeting");
   const upcoming = deriveGraduationRiskSignals({ ...base, today: "2026-09-05", now: new Date("2026-09-05T00:00:00Z"), joinedAt: "2026-08-01T00:00:00Z", latestWeekly: { updated_at: "2026-09-05T00:00:00Z" }, meetings: [{ status: "scheduled", meeting_at: "2026-09-06T00:00:00Z" }] });
   assert.equal(upcoming.length, 0);
+});
+
+test("Never-submitted Weekly uses the 7/14-day membership boundaries", () => {
+  const at = (joinedAt: string) => deriveGraduationRiskSignals({ ...base, joinedAt, today: "2026-09-05" }).find((signal) => signal.source === "weekly");
+  assert.equal(at("2026-08-30"), undefined);
+  assert.equal(at("2026-08-29")?.key, "no_recent_update");
+  assert.equal(at("2026-08-23")?.key, "no_recent_update");
+  assert.equal(at("2026-08-22")?.key, "update_overdue");
+  assert.equal(at("2026-08-16")?.severity, "urgent");
 });
 
 test("Graduation Risk overall status includes stable and setup_needed without scores", () => {
@@ -50,6 +59,9 @@ test("Graduation Risk is a student-only authenticated server boundary with zero 
   assert.match(data, /context\.supabase/);
   assert.doesNotMatch(data, /createV2AdminClient|createAdminClient/);
   assert.doesNotMatch(page, /createV2AdminClient|createAdminClient/);
+  assert.match(data, /from\("weekly_updates"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
+  assert.match(data, /from\("meetings"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
+  assert.match(data, /from\("meeting_actions"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
   assert.equal(fs.readdirSync("supabase/migrations").length, 19);
 });
 

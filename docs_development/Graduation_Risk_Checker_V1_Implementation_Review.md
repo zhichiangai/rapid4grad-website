@@ -39,6 +39,13 @@ The first screen shows current status, primary reason, recommendation and CTA. S
 - Local Supabase replay and authenticated browser QA: **BLOCKED BY LOCAL ENVIRONMENT** because Docker daemon was unavailable. No Production account or database was used as a substitute.
 - Preview: READY, deployment `dpl_HeAprmRPXV1yQRgszV7Ugw9HCcnx`, URL `https://rapid4grad-website-y6wbymwkh-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `bcf658938f1e6d6e8fc851180d12bd0b2072d4e0`. The deployment is protected by Vercel Authentication; no authenticated application mutation was performed.
 
+## Final Correction
+
+- External Review correction: never-submitted Weekly is now `no_recent_update` / attention from 7 through 13 membership days, and `update_overdue` / urgent from 14 membership days onward. The 0 through 6 day window emits no Weekly signal.
+- Weekly, Meeting and Meeting Action risk reads are explicitly filtered to the current active Lab. Thesis milestone reads remain student-private and student-level without a Lab filter.
+- Regression coverage: 123 tests pass, including the 7/14-day boundary cases and source-level current-Lab query guards.
+- Authenticated QA: **BLOCKED**. Docker daemon is unavailable, and Vercel Preview environment read-back did not expose a verifiable Supabase URL/ref. No cloud fixture, mutation or Production account was used as a fallback.
+
 ## Explicit Exclusions
 
 No Professor risk route, Admin risk access, AI inference, numeric probability, persistence/history table, cron, notifications, Calendar, Email, LINE, Student 360 or Thesis RLS change is included. Production remains unchanged until a separate release decision.
