@@ -44,13 +44,21 @@ The existing dashboard queries remain the source of compact summaries. No all-hi
 - `npm run build`: PASS
 - `git diff --check`: PASS
 - Migration diff against `origin/main`: empty
-- Authenticated browser QA: pending Preview access; no Production mutation performed
+- Authenticated browser QA: not run; no safe authenticated Preview test account was available, and no Production mutation was performed
 
 ## Preview
 
 Branch: `student-workspace-ux-v2`
 
-Production remains unchanged and `main` is not merged. Preview URL and deployment state are recorded after Git integration creates the deployment.
+Production remains unchanged and `main` is not merged.
+
+Preview deployment:
+- URL: https://rapid4grad-website-4c3biofib-zhichiang-ai-s-projects.vercel.app
+- Deployment ID: `dpl_4cwxDZVWrgrLZP7U31d3wV4bda7H`
+- Branch: `student-workspace-ux-v2`
+- Commit: `ace192d2bcd9b69c06d59942e73a23efe72d41f7`
+- State: `READY`
+- Runtime errors in the selected 30-minute window: none
 
 ## Explicit Exclusions
 

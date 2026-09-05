@@ -1183,5 +1183,6 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Advisor Memory: large inline dashboard form relocated to `/dashboard/advisor-profile`; existing `advisor_memories` fields and authenticated read/write behavior preserved.
 - Architecture: no new table, migration, RPC, RLS change, risk rule, Weekly/Meeting/Action/Thesis semantic change, Professor change, or Production change.
 - Automated validation: `npm test` 124/124, lint, TypeScript, build and `git diff --check` passed. Migration diff against `origin/main` is empty.
-- Preview: `student-workspace-ux-v2` is pushed for Preview deployment. Preview URL, deployment ID, browser visual QA and runtime read-back are recorded after Git integration completes.
+- Preview: `student-workspace-ux-v2` is pushed. Deployment `dpl_4cwxDZVWrgrLZP7U31d3wV4bda7H` is `READY` for commit `ace192d2bcd9b69c06d59942e73a23efe72d41f7`; URL: `https://rapid4grad-website-4c3biofib-zhichiang-ai-s-projects.vercel.app`. Build completed successfully, and Vercel reported no runtime errors in the selected 30-minute window.
+- Authenticated browser QA: `NOT RUN` because no safe authenticated Preview test account was available. Anonymous Preview homepage read-back returned HTTP 200; no Production mutation was performed.
 - Production: `NOT RELEASED`; `main`: `NOT MERGED`. Authenticated browser QA must use isolated Preview/local data only and must not mutate Production.
