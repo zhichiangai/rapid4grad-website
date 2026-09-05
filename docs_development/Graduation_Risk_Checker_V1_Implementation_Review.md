@@ -39,7 +39,7 @@ The first screen shows current status, primary reason, recommendation and CTA. S
 - Authenticated QA environment: Local Next.js with isolated `rapid4grad-preview` Supabase (`jpvvcniktyjcdpkfopna`), using real `signInWithPassword`, JWT and RLS. Production was not used.
 - Authenticated browser QA: Passed for Student A current-Lab isolation and urgent signals, Student B cross-student isolation, Setup state, Professor redirect, Dashboard integration, 375/768/1440 layouts, keyboard focus, HTTP 200 responses and clean console/page errors.
 - QA cleanup: Passed. All marked `RISK_QA_` database rows and disposable Auth users were removed; no QA rows remained.
-- Preview: READY, deployment `dpl_3rbZA4LJE8k1zhpmotQZUMFn4dRR`, URL `https://rapid4grad-website-opbnrm6b0-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `5b5f5f62fbb23ce0f5bd324a52932a214065350e`. Vercel runtime errors: none observed.
+- Preview: READY, deployment `dpl_Gs6J64JuQ4j6UAHyhL83AZFUKB8S`, URL `https://rapid4grad-website-3wuiogadv-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `eea9924abed213c54f3f98f49be52450f206139b`. Vercel runtime errors: none observed.
 
 ## Final Correction
 

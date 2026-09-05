@@ -1153,11 +1153,11 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Automated validation: Passed, `npm test` 123/123, lint, TypeScript, build and `git diff --check`.
 - Authenticated QA: Passed on Local Next.js + isolated `rapid4grad-preview` Supabase (`jpvvcniktyjcdpkfopna`) using real `signInWithPassword`, JWT and RLS. Current-Lab, cross-student, urgent, setup, Professor redirect, Dashboard, responsive and console checks passed.
 - QA cleanup: Passed. Disposable `RISK_QA_` Auth users and database fixtures were removed; verified zero remaining marked rows/users.
-- Preview: `READY`, deployment `dpl_3rbZA4LJE8k1zhpmotQZUMFn4dRR`, URL `https://rapid4grad-website-opbnrm6b0-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `5b5f5f62fbb23ce0f5bd324a52932a214065350e`. Production: `NOT RELEASED`; main: `NOT MERGED`.
+- Preview: `READY`, deployment `dpl_Gs6J64JuQ4j6UAHyhL83AZFUKB8S`, URL `https://rapid4grad-website-3wuiogadv-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `eea9924abed213c54f3f98f49be52450f206139b`. Vercel runtime errors: none observed. Production: `NOT RELEASED`; main: `NOT MERGED`.
 - Preview: READY, deployment `dpl_HeAprmRPXV1yQRgszV7Ugw9HCcnx`, URL `https://rapid4grad-website-y6wbymwkh-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `bcf658938f1e6d6e8fc851180d12bd0b2072d4e0`. Vercel Authentication protects the Preview URL; no authenticated application mutation was performed. Production: NOT RELEASED; main: NOT MERGED.
 
 ### 23.1 Final correction status
 
 - Never-submitted Weekly boundaries corrected: 0-6 days no signal, 7-13 days `no_recent_update` / attention, and 14+ days `update_overdue` / urgent.
 - Weekly, Meeting and Meeting Action risk reads now require the current active Lab `lab_id`; Thesis remains student-private and student-level.
-- Regression suite: `123/123` passed. Authenticated QA remains blocked because Docker is unavailable and Vercel Preview env read-back did not expose a verifiable Supabase URL/ref. No cloud or Production fixture was mutated.
+- Regression suite: `123/123` passed. Authenticated QA passed on isolated Preview Supabase using real Auth/JWT/RLS; Docker was not required for this disposable cloud-isolated run. No Production fixture was mutated.
