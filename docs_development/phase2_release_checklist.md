@@ -1149,8 +1149,11 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 
 - Scope: deterministic student-only navigation from existing Weekly, completed Meeting, student-owned Meeting Actions and private thesis milestones. No numeric probability, AI inference, Professor risk route or Admin access.
 - Architecture: `/dashboard/graduation-risk` uses the authenticated student server boundary and existing RLS. No new table, migration, RLS policy, service-role Action/thesis read, cron or background worker was added. Professor Attention semantics remain unchanged.
-- Automated validation: Passed, `npm test` 122/122, lint, TypeScript, build and `git diff --check`.
-- Local Supabase replay and authenticated browser QA: Blocked by unavailable Docker daemon. No Production database, account or fixture was used as a substitute.
+- Compatibility correction: Passed. Dashboard `advisor_memories` reads/writes now use the existing `preference_style`, `common_questions` and `custom_notes` schema fields; no database or authorization change.
+- Automated validation: Passed, `npm test` 123/123, lint, TypeScript, build and `git diff --check`.
+- Authenticated QA: Passed on Local Next.js + isolated `rapid4grad-preview` Supabase (`jpvvcniktyjcdpkfopna`) using real `signInWithPassword`, JWT and RLS. Current-Lab, cross-student, urgent, setup, Professor redirect, Dashboard, responsive and console checks passed.
+- QA cleanup: Passed. Disposable `RISK_QA_` Auth users and database fixtures were removed; verified zero remaining marked rows/users.
+- Preview: `READY`, deployment `dpl_3rbZA4LJE8k1zhpmotQZUMFn4dRR`, URL `https://rapid4grad-website-opbnrm6b0-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `5b5f5f62fbb23ce0f5bd324a52932a214065350e`. Production: `NOT RELEASED`; main: `NOT MERGED`.
 - Preview: READY, deployment `dpl_HeAprmRPXV1yQRgszV7Ugw9HCcnx`, URL `https://rapid4grad-website-y6wbymwkh-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `bcf658938f1e6d6e8fc851180d12bd0b2072d4e0`. Vercel Authentication protects the Preview URL; no authenticated application mutation was performed. Production: NOT RELEASED; main: NOT MERGED.
 
 ### 23.1 Final correction status

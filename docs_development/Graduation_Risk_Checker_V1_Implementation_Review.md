@@ -29,22 +29,29 @@ The first screen shows current status, primary reason, recommendation and CTA. S
 
 ## Validation
 
-- Domain and server contract tests: Passed, 6 new tests.
-- Full automated suite: Passed, `122/122`.
+- Domain and server contract tests: Passed, including the 7/14-day never-submitted Weekly boundaries and current-Lab query guards.
+- Full automated suite: Passed, `123/123`.
 - Lint: Passed.
-- TypeScript: Passed after sequential Next build/type validation.
+- TypeScript: Passed.
 - Build: Passed.
 - `git diff --check`: Passed.
 - Migration diff against base: Empty; no migration was added.
-- Local Supabase replay and authenticated browser QA: **BLOCKED BY LOCAL ENVIRONMENT** because Docker daemon was unavailable. No Production account or database was used as a substitute.
-- Preview: READY, deployment `dpl_HeAprmRPXV1yQRgszV7Ugw9HCcnx`, URL `https://rapid4grad-website-y6wbymwkh-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `bcf658938f1e6d6e8fc851180d12bd0b2072d4e0`. The deployment is protected by Vercel Authentication; no authenticated application mutation was performed.
+- Authenticated QA environment: Local Next.js with isolated `rapid4grad-preview` Supabase (`jpvvcniktyjcdpkfopna`), using real `signInWithPassword`, JWT and RLS. Production was not used.
+- Authenticated browser QA: Passed for Student A current-Lab isolation and urgent signals, Student B cross-student isolation, Setup state, Professor redirect, Dashboard integration, 375/768/1440 layouts, keyboard focus, HTTP 200 responses and clean console/page errors.
+- QA cleanup: Passed. All marked `RISK_QA_` database rows and disposable Auth users were removed; no QA rows remained.
+- Preview: READY, deployment `dpl_3rbZA4LJE8k1zhpmotQZUMFn4dRR`, URL `https://rapid4grad-website-opbnrm6b0-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `5b5f5f62fbb23ce0f5bd324a52932a214065350e`. Vercel runtime errors: none observed.
 
 ## Final Correction
 
 - External Review correction: never-submitted Weekly is now `no_recent_update` / attention from 7 through 13 membership days, and `update_overdue` / urgent from 14 membership days onward. The 0 through 6 day window emits no Weekly signal.
 - Weekly, Meeting and Meeting Action risk reads are explicitly filtered to the current active Lab. Thesis milestone reads remain student-private and student-level without a Lab filter.
 - Regression coverage: 123 tests pass, including the 7/14-day boundary cases and source-level current-Lab query guards.
-- Authenticated QA: **BLOCKED**. Docker daemon is unavailable, and Vercel Preview environment read-back did not expose a verifiable Supabase URL/ref. No cloud fixture, mutation or Production account was used as a fallback.
+- Authenticated QA: **PASS** on isolated Preview Supabase with real Auth/JWT/RLS. Old Lab Weekly, Meeting and Action data did not contaminate the current-Lab result; cross-student, urgent, setup and Professor boundary checks passed.
+- QA-only fixture and harness: removed after verification. Production ref `ktfvscyxsdrcrbaemlbl` was not mutated.
+
+## Compatibility Correction
+
+- During authenticated Dashboard QA, the existing `advisor_memories` client query used fields that do not exist in the V2 schema and returned HTTP 400. The minimum fix maps the existing UI to `preference_style`, `common_questions` and `custom_notes` in `app/dashboard/page.tsx`. No schema, migration or authorization change was made.
 
 ## Explicit Exclusions
 
