@@ -37,7 +37,7 @@ The first screen shows current status, primary reason, recommendation and CTA. S
 - `git diff --check`: Passed.
 - Migration diff against base: Empty; no migration was added.
 - Local Supabase replay and authenticated browser QA: **BLOCKED BY LOCAL ENVIRONMENT** because Docker daemon was unavailable. No Production account or database was used as a substitute.
-- Preview: Pending branch commit and Git-integrated Vercel Preview.
+- Preview: READY, deployment `dpl_HeAprmRPXV1yQRgszV7Ugw9HCcnx`, URL `https://rapid4grad-website-y6wbymwkh-zhichiang-ai-s-projects.vercel.app`, branch `graduation-risk-checker-v1`, commit `bcf658938f1e6d6e8fc851180d12bd0b2072d4e0`. The deployment is protected by Vercel Authentication; no authenticated application mutation was performed.
 
 ## Explicit Exclusions
 
