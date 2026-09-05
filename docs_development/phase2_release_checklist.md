@@ -152,6 +152,32 @@ Phase 1 fallback 必須保留：
 
 ## 3. Phase 2 Flow 驗收
 
+### 3.0.1 Student Workspace UX V2 Production Release
+
+- Information Architecture: PASS
+- Dashboard Research 360: PASS
+- Current Status: PASS
+- Primary CTA: PASS
+- Risk Terminology: PASS
+- Navigation: PASS
+- Mobile: PASS
+- Advisor Memory Relocation: PASS
+- Authenticated UX: PASS (isolated Preview QA)
+- Professor Regression: PASS
+- Responsive: PASS
+- Accessibility: PASS
+- Regression: PASS (`npm test` 124/124)
+- Migration: NONE
+- RLS: NO CHANGE
+- Merged main: PASS (fast-forward)
+- Production: READY
+- Anonymous Production smoke: PASS; no HTTP 500 or redirect loop observed.
+- Authenticated Production smoke: NOT EXECUTED; no safe dedicated Production session was used.
+- Student Workspace UX V2: FROZEN
+- Feature Production deployment: `dpl_CPLzZ67tSnFojQh3utcVChDCw28Q`
+- Production URL: https://www.rapid4grad.com
+- Release commit: `60a59ea83c7ef5d14a76f29af7af9c749372334e`
+
 ### 3.0 Meeting Center V1
 
 涉及檔案：
