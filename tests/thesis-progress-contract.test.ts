@@ -60,3 +60,17 @@ test("Thesis Progress migration keeps data student-private and identity immutabl
   assert.doesNotMatch(migration, /CREATE POLICY[^;]+TO authenticated[\s\S]+admin/i);
   assert.match(migration, /thesis_milestones_completion_consistency/);
 });
+
+test("Thesis privacy fixture keeps real student rows during every isolation check", () => {
+  const fixture = fs.readFileSync("supabase/tests/v2_thesis_progress_integration.sql", "utf8");
+  assert.match(fixture, /student_a[\s\S]*research_direction[\s\S]*Student A private milestone/);
+  assert.match(fixture, /student_b[\s\S]*literature_review[\s\S]*Student B private milestone/);
+  assert.match(fixture, /both real student rows must exist before privacy tests/);
+  assert.match(fixture, /Professor must see zero while student rows exist/);
+  assert.match(fixture, /Assistant must see zero while student rows exist/);
+  assert.match(fixture, /Admin must see zero while student rows exist/);
+  assert.match(fixture, /cross-student insert unexpectedly succeeded/);
+  assert.match(fixture, /professor insert unexpectedly succeeded/);
+  assert.match(fixture, /assistant insert unexpectedly succeeded/);
+  assert.match(fixture, /admin insert unexpectedly succeeded/);
+});
