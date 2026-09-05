@@ -39,16 +39,28 @@ The layout uses responsive grids at 375, 768, 1024, and 1440 pixels, keeps the n
 ## Validation
 
 - Homepage positioning contract: PASS
-- Existing regression suite: PASS
+- Existing regression suite: 126/126 PASS
+- Lint: PASS
+- TypeScript: PASS
+- Build: PASS
+- Diff check: PASS
 - Migration diff: EMPTY
+- Responsive browser QA: PASS at 375, 768, 1024, and 1440 pixels; no horizontal overflow
+- Mobile navigation: PASS
+- Preview runtime errors: NONE
 - Production data or Supabase QA: NOT USED
 - Production: unchanged
 
 ## Preview
 
 Branch: `homepage-positioning-v2`
+Implementation commit: `42150adabeb655fb111dfb8d50e6a54b671d5d66`
+Deployment ID: `dpl_GoXJHUAjdnXt79d9SzkfuoSNYtKP`
+Preview URL: `https://rapid4grad-website-lld28w0gd-zhichiang-ai-s-projects.vercel.app`
+Preview state: `READY`
+Review branch: `PUSHED`
 
-Preview details will be recorded here after the branch deployment is READY. This sprint is Preview-only and must not be merged to `main` or deployed to Production before external review.
+This sprint is Preview-only and must not be merged to `main` or deployed to Production before external review.
 
 ## Explicit Exclusions
 

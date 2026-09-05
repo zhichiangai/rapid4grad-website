@@ -163,13 +163,15 @@ Phase 1 fallback 必須保留：
 - AI repositioning: PASS
 - Course / Guide hierarchy: PASS
 - SEO metadata: PASS
-- Responsive / accessibility: pending Preview browser QA
-- Regression: pending
+- Responsive / accessibility: PASS (375, 768, 1024, 1440; no horizontal overflow)
+- Regression: PASS (126/126, lint, TypeScript, build, diff check)
 - Migration: NONE
 - RLS: NO CHANGE
 - Main: NOT MERGED
 - Production: UNCHANGED
 - Release stage: PREVIEW ONLY
+- Preview: READY
+- Review branch: homepage-positioning-v2 (PUSHED)
 
 ### 3.0.1 Student Workspace UX V2 Production Release
 
