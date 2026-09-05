@@ -38,4 +38,12 @@ Implementation commit：`c543c32` (`test(thesis): harden thesis privacy isolatio
 
 Preview：`READY`，本輪 deployment `dpl_A1ZQ6VzU8SSo9pc9PoxmkdR8Qwsw`，URL `https://rapid4grad-website-r98rthfkq-zhichiang-ai-s-projects.vercel.app`，branch `thesis-progress-tracker-v1`，commit `c543c328a57853c46c5052eae87c8912d7958289`。Preview Supabase `rapid4grad-preview` migration history 18/18，dry-run 顯示 up to date；本輪未修改雲端設定。此 Preview 仍不代表 Production release。
 
-Production：NOT RELEASED；不得由本任務自動合併或部署。
+## Production Release
+
+- Source branch `thesis-progress-tracker-v1` 已以 fast-forward 合併至 `main`，merged SHA：`003c7f65a1116f2c8fb471c99ea9c436958f26f8`。
+- Production Supabase `rapid4grad-v2`（ref `ktfvscyxsdrcrbaemlbl`）已套用唯一 Thesis migration `20260831182930_add_thesis_milestones_v1.sql`。Migration history 為 19/19，dry-run 顯示 up to date。
+- Production schema read-back：`public.thesis_milestones` 存在，欄位、RLS 與預期三個 student-own policies 正確；authenticated DELETE 為 denied，identity 欄位不可更新；未建立任何 Production row 或 QA user。
+- Production Vercel deployment `dpl_7LdigHq5L5vWR1RNc6h5sCFyw6gf`，commit `003c7f65a1116f2c8fb471c99ea9c436958f26f8`，target `production`，狀態 `READY`；正式網址：`https://www.rapid4grad.com`。
+- Anonymous smoke：首頁、Thesis、Actions 與 Professor protected routes 通過，無 HTTP 500 或 redirect loop。Authenticated Production smoke 未執行，因沒有安全專用 Production session；Local/Preview authenticated QA 已完成。
+- Production schema mutation：YES，僅核准的 Thesis additive migration。Production Thesis row、user、Lab、membership、subscription、Meeting、Action mutation：NONE。
+- Thesis Progress Tracker V1：`PRODUCTION READY — FROZEN`。不在本版本加入 Professor sharing/editing、custom milestones、AI、通知、Gantt 或 graduation prediction。

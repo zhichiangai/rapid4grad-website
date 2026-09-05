@@ -1133,3 +1133,14 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Authenticated Preview browser QA: Passed for first-use 8-card rendering, 0/8 summary, status/target date/note save and reload persistence, completed 1/8, completed-to-in-progress reopen, blocked summary, dashboard and related student routes. The disposable Preview test state was reset to not-started; no Production account or data was used.
 - Implementation commit: `627d680` (`fix(thesis): prevent stale milestone overwrites`) follows `41114c8`; privacy fixture hardening is in `c543c32` (`test(thesis): harden thesis privacy isolation fixtures`). Current Preview deployment is `READY`, deployment `dpl_A1ZQ6VzU8SSo9pc9PoxmkdR8Qwsw`, URL `https://rapid4grad-website-r98rthfkq-zhichiang-ai-s-projects.vercel.app`, branch `thesis-progress-tracker-v1`, commit `c543c328a57853c46c5052eae87c8912d7958289`.
 - 375/768/1440 viewport overflow checks, Preview console error/warn read-back, keyboard traversal, and `:focus-visible` were passed. Professor/Assistant/Admin privacy remains intentional and is covered by Local RLS tests; no Professor UI is claimed. Real external provider checks and Production release remain out of scope for this task. Production: NOT RELEASED.
+
+## 22. 2026-09-05 Thesis Progress Tracker V1 Production Release
+
+- Production target verified: `rapid4grad-v2` / `ktfvscyxsdrcrbaemlbl`; CLI was relinked from Preview before the migration gate.
+- Production migration: `20260831182930_add_thesis_milestones_v1.sql` applied successfully. Production migration history is 19/19 and `supabase db push --linked --dry-run` reports up to date.
+- Production schema/RLS read-back passed: `public.thesis_milestones` exists with the expected columns, RLS enabled, only the three active-student policies, no DELETE policy, no Professor/Assistant policy, no Admin bypass, and restricted identity-column grants.
+- `thesis-progress-tracker-v1` was fast-forward merged into `main` at `003c7f65a1116f2c8fb471c99ea9c436958f26f8`; GitHub `main` and local `HEAD` are synchronized.
+- Vercel Production deployment `dpl_7LdigHq5L5vWR1RNc6h5sCFyw6gf` is `READY` for the merged SHA; Production URL: `https://www.rapid4grad.com`.
+- Anonymous Production smoke passed for `/`, `/dashboard/thesis`, `/dashboard/actions`, and `/professor/dashboard`; protected routes resolved to `/login` with no HTTP 500 or redirect loop. Authenticated Production smoke was not executed because no safe dedicated Production session was available.
+- Production schema mutation: YES, only the approved additive Thesis migration. Production Thesis rows, users, Labs, memberships, subscriptions, Meetings and Actions were not mutated.
+- Thesis Progress Tracker V1 is `PRODUCTION READY — FROZEN`. No next-sprint feature work is started in this release task.
