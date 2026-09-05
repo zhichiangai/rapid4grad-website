@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isValidMuxPlaybackId, signMuxPlaybackToken } from "@/lib/course/mux";
 import { resolvePlaybackSource } from "@/lib/course/playback";
 import { createV2Client } from "@/lib/supabase/server";
 
@@ -52,11 +53,13 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 
   try {
-    const source = resolvePlaybackSource(
-      lesson.video_provider,
-      lesson.video_external_id,
-      request.nextUrl.origin,
-    );
+    const source = lesson.video_provider === "mux"
+      ? isValidMuxPlaybackId(lesson.video_external_id)
+        ? { provider: "mux" as const, playbackId: lesson.video_external_id, playbackToken: await signMuxPlaybackToken(lesson.video_external_id) }
+        : null
+      : resolvePlaybackSource(lesson.video_provider, lesson.video_external_id, request.nextUrl.origin);
+
+    if (!source) throw new Error("Invalid Mux playback ID");
 
     return NextResponse.json(
       {

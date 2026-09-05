@@ -157,7 +157,8 @@ Phase 1 fallback 必須保留：
 - Student Learning Center `/learn`: IMPLEMENTED
 - Continue/resume progress: IMPLEMENTED
 - Curriculum/module grouping: IMPLEMENTED
-- Native HTML5 MP4/WebM playback: IMPLEMENTED
+- Mux signed playback provider: IMPLEMENTED
+- Native HTML5 MP4/WebM fallback: IMPLEMENTED
 - Previous/next lesson navigation: IMPLEMENTED
 - Mobile collapsible curriculum: IMPLEMENTED
 - Dashboard compact course entry: IMPLEMENTED
@@ -168,6 +169,7 @@ Phase 1 fallback 必須保留：
 - Hard delete: NOT PROVIDED
 - Existing course schema reused: PASS
 - New migration/table/RLS/RPC: NONE
+- Mux Direct Upload/webhook/status sync: NOT PROVIDED
 - Production: NOT RELEASED
 - Preview: PENDING BRANCH PUSH
 

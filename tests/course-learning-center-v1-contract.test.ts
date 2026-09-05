@@ -59,7 +59,9 @@ test("Course Studio is active-admin protected and validates server-side", async 
   assert.match(studio, /requireAdminContext\("\/admin\/course"\)/);
   assert.match(studio, /saveCourseLesson/);
   assert.match(actions, /requireAdminContext\("\/admin\/course"\)/);
-  assert.match(actions, /videoProvider === "html5"/);
+  assert.match(actions, /VIDEO_PROVIDERS/);
+  assert.match(actions, /videoProvider === "mux"/);
+  assert.match(actions, /muxPlaybackId/);
   assert.match(actions, /https:/);
   assert.match(actions, /isPublished/);
   assert.doesNotMatch(actions, /\.delete\(/);
@@ -79,4 +81,62 @@ test("Course release remains zero-migration and preserves existing access tiers"
   assert.doesNotMatch(actions, /ALTER TABLE|CREATE TABLE|CREATE POLICY|CREATE FUNCTION/);
   assert.match(player, /public_preview|lab_basic|full_course/);
   assert.match(courseAccess, /all three tiers/);
+});
+
+test("Mux provider uses opaque Playback IDs while HTML5 remains a fallback", async () => {
+  const [actions, route, playback, player] = await Promise.all([
+    source(files.studioActions),
+    source("app/api/course/lessons/[lessonId]/playback/route.ts"),
+    source("lib/course/playback.ts"),
+    source(files.player),
+  ]);
+  assert.match(actions, /VIDEO_PROVIDERS = \["mux", "html5"\]/);
+  assert.match(actions, /video_external_id: playbackId/);
+  assert.match(route, /provider: "mux"/);
+  assert.match(route, /playbackId: lesson.video_external_id/);
+  assert.match(route, /playbackToken/);
+  assert.match(playback, /provider: "html5"/);
+  assert.match(player, /playback\?\.provider === "mux"/);
+  assert.match(player, /<video/);
+});
+
+test("Mux signing secrets stay on the server boundary", async () => {
+  const [mux, route, player, studio] = await Promise.all([
+    source("lib/course/mux.ts"),
+    source("app/api/course/lessons/[lessonId]/playback/route.ts"),
+    source(files.player),
+    source(files.studio),
+  ]);
+  assert.match(mux, /server-only/);
+  assert.match(mux, /MUX_SIGNING_KEY_ID/);
+  assert.match(mux, /MUX_SIGNING_PRIVATE_KEY/);
+  assert.match(mux, /SignJWT/);
+  assert.match(route, /signMuxPlaybackToken/);
+  for (const content of [player, studio]) {
+    assert.doesNotMatch(content, /MUX_SIGNING_PRIVATE_KEY|MUX_SIGNING_KEY_ID|NEXT_PUBLIC_MUX/);
+  }
+});
+
+test("Published Mux lessons require a valid opaque Playback ID", async () => {
+  const [actions, mux] = await Promise.all([source(files.studioActions), source("lib/course/mux.ts")]);
+  assert.match(actions, /isValidMuxPlaybackId\(playbackId\)/);
+  assert.match(actions, /!lesson\.isPublished/);
+  assert.match(mux, /MAX_PLAYBACK_ID_LENGTH/);
+  assert.match(mux, /\[\\u0000-\\u001f\\u007f\\s\]/);
+});
+
+test("Preview mode does not request playback or persist progress", async () => {
+  const [player, preview] = await Promise.all([source(files.player), source(files.preview)]);
+  assert.match(player, /if \(previewMode \|\| !isAuthenticated/);
+  assert.match(player, /previewMode \? <p/);
+  assert.match(player, /不會取得影片來源或寫入觀看進度/);
+  assert.match(preview, /previewMode/);
+  assert.doesNotMatch(preview, /playbackToken|signMuxPlaybackToken|course_progress/);
+});
+
+test("Course progress remains the authenticated course_progress workflow", async () => {
+  const [player, progress] = await Promise.all([source(files.player), source("app/api/course/progress/route.ts")]);
+  assert.match(player, /\/api\/course\/progress/);
+  assert.match(progress, /course_progress/);
+  assert.doesNotMatch(player, /createV2AdminClient|SUPABASE_SECRET_KEY|SERVICE_ROLE/);
 });

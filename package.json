@@ -10,10 +10,12 @@
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
+    "@mux/mux-player-react": "^3.13.2",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "ai": "^6.0.216",
     "clsx": "^2.1.1",
+    "jose": "^6.2.12",
     "next": "15.5.19",
     "react": "19.1.0",
     "react-dom": "19.1.0",

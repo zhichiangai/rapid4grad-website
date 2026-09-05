@@ -1,6 +1,7 @@
 import "server-only";
 
 export type PlaybackSource = {
+  provider: "html5";
   src: string;
   contentType: "video/mp4" | "video/webm";
 };
@@ -35,6 +36,7 @@ export function resolvePlaybackSource(
   }
 
   return {
+    provider: "html5",
     src: url.toString(),
     contentType: inferContentType(url.pathname),
   };
