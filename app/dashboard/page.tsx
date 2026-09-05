@@ -8,6 +8,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { getTaipeiMonday } from "@/lib/supervision/week";
 import { getThesisProgressSummary, mergeMilestoneDefinitionsWithRows, type ThesisMilestoneRow } from "@/lib/thesis-progress/thesis-domain";
+import { deriveGraduationRiskSignals, deriveGraduationRiskStatus, getPrimaryGraduationRiskSignal } from "@/lib/graduation-risk/risk-domain";
 
 type AdvisorMemory = {
   id: string;
@@ -38,6 +39,7 @@ export default function DashboardPage() {
   const [meetingSummary, setMeetingSummary] = useState<{ pendingCount: number; nextMeetingAt: string | null }>({ pendingCount: 0, nextMeetingAt: null });
   const [actionSummary, setActionSummary] = useState({ overdueCount: 0, dueSoonCount: 0, openCount: 0 });
   const [thesisSummary, setThesisSummary] = useState<{ currentLabel: string; completedCount: number; blocked: boolean } | undefined>();
+  const [graduationRisk, setGraduationRisk] = useState<{ status: "urgent" | "attention" | "stable" | "setup_needed"; label: string; reason: string } | undefined>();
 
   useEffect(() => {
     let isMounted = true;
@@ -103,6 +105,14 @@ export default function DashboardPage() {
           completedCount: thesis.completedCount,
           blocked: thesis.current?.status === "blocked",
         });
+        const membership = await supabase.from("lab_memberships").select("lab_id,joined_at,labs(status)").eq("user_id", user.id).eq("role", "student").eq("status", "active").limit(1).maybeSingle();
+        const member = membership.data as { lab_id: string; joined_at: string; labs: { status: string } | null } | null;
+        const activeLab = member?.labs?.status === "active";
+        const signals = deriveGraduationRiskSignals({ activeLab, joinedAt: member?.joined_at, latestWeekly: weekly ?? null, meetings: (meetings ?? []) as Array<{ status: string; meeting_at: string }>, actions: (actions ?? []) as Array<{ status: string; due_date: string | null; owner_type: string; owner_user_id: string; student_user_id: string }>, thesisMilestones: (thesisRows ?? []) as ThesisMilestoneRow[] });
+        const status = deriveGraduationRiskStatus({ signals, hasThesisRows: (thesisRows ?? []).length > 0, activeLab });
+        const primary = getPrimaryGraduationRiskSignal(signals);
+        const labels = { urgent: "需要優先處理", attention: "需要注意", stable: "目前穩定", setup_needed: "資料尚未完整" } as const;
+        setGraduationRisk({ status, label: labels[status], reason: primary?.title ?? (status === "setup_needed" ? "先設定論文進度或加入 Lab" : "目前沒有明顯的進度風險") });
       }
 
       if (email) {
@@ -222,6 +232,7 @@ export default function DashboardPage() {
       meetingSummary={meetingSummary}
       actionSummary={actionSummary}
       thesisSummary={thesisSummary}
+      graduationRisk={graduationRisk}
     />
   );
 }
