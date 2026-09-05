@@ -12,9 +12,9 @@ import { deriveGraduationRiskSignals, deriveGraduationRiskStatus, getPrimaryGrad
 
 type AdvisorMemory = {
   id: string;
-  thinking_style: string | null;
-  frequent_questions: string[] | null;
-  raw_content: string;
+  preference_style: string | null;
+  common_questions: string[] | null;
+  custom_notes: string | null;
 };
 
 function splitQuestions(value: string) {
@@ -132,7 +132,7 @@ export default function DashboardPage() {
 
       const { data: memory } = await supabase
         .from("advisor_memories")
-        .select("id,thinking_style,frequent_questions,raw_content")
+        .select("id,preference_style,common_questions,custom_notes")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -140,8 +140,8 @@ export default function DashboardPage() {
 
       if (isMounted && memory) {
         setMemoryId(memory.id);
-        setAdvisorStyle(memory.thinking_style ?? "");
-        setFrequentQuestions((memory.frequent_questions ?? []).join("\n"));
+        setAdvisorStyle(memory.preference_style ?? "");
+        setFrequentQuestions((memory.common_questions ?? []).join("\n"));
       }
 
       if (isMounted) {
@@ -176,7 +176,7 @@ export default function DashboardPage() {
     setIsSaving(true);
     setMessage("");
 
-    const rawContent = [
+    const customNotes = [
       advisorStyle.trim() ? `教授偏好風格：${advisorStyle.trim()}` : "",
       questions.length ? `常問問題：\n${questions.join("\n")}` : "",
     ]
@@ -186,11 +186,9 @@ export default function DashboardPage() {
     const supabase = createClient();
     const payload = {
       user_id: userId,
-      source_type: "note",
-      raw_content: rawContent,
-      thinking_style: advisorStyle.trim() || null,
-      frequent_questions: questions,
-      general_preferences: advisorStyle.trim() ? [advisorStyle.trim()] : [],
+      preference_style: advisorStyle.trim() || null,
+      common_questions: questions,
+      custom_notes: customNotes || null,
     };
 
     const { data, error } = memoryId
