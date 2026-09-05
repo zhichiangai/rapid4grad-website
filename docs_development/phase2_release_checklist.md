@@ -1187,8 +1187,9 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Authenticated browser QA: `NOT RUN` because no safe authenticated Preview test account was available. Anonymous Preview homepage read-back returned HTTP 200; no Production mutation was performed.
 - Production: `NOT RELEASED`; `main`: `NOT MERGED`. Authenticated browser QA must use isolated Preview/local data only and must not mutate Production.
 
-### 25.1 Final QA attempt and cleanup
+### 25.1 Final authenticated Professor QA and cleanup
 
-- Disposable `UXV2_QA_` users and fixtures were created only in `rapid4grad-preview` for an authenticated QA attempt, then removed. Final read-back verified zero QA Auth users, profiles, sessions, Labs, Actions, Meetings, Weekly updates, Advisor Memories, and Thesis milestones.
-- Real Preview Auth could not issue a usable session: `signInWithPassword` returned HTTP 500 (`Database error querying schema`) and official signup returned HTTP 429 (`email rate limit exceeded`). Authenticated route, responsive browser, keyboard/focus, and console checks therefore remain `BLOCKED BY PREVIEW AUTH`, not Passed.
-- No Production account, fixture, schema, data, environment, or deployment was modified. Automated validation remains the code-level evidence; it does not substitute for authenticated browser QA.
+- The previous Professor Dashboard 500 was isolated to the local `.env.local` `SUPABASE_SECRET_KEY` targeting the wrong Supabase project. A Preview-only server-side key was temporarily aligned to `rapid4grad-preview` (`jpvvcniktyjcdpkfopna`) for QA, with no `NEXT_PUBLIC_*` exposure; the original `.env.local` was restored afterward.
+- Authenticated browser QA passed on local Next.js with real Preview Auth sessions. Professor Dashboard and Professor Attention returned HTTP 200 at 375, 768, and 1440 pixels with expected headings, no redirect loop, no HTTP 500, no React/hydration/console errors, and no horizontal overflow. Student Dashboard and Graduation Risk regression checks also passed.
+- Disposable `UXV2_QA_` accounts and all related Preview fixtures were removed. Final read-back verified zero QA Auth users, profiles, Labs, subscriptions, memberships, Weekly updates, Meetings, Actions, Advisor Memories, and Thesis milestones.
+- Product code, migration, RLS, schema, Vercel settings, Production environment, Production data, and Production deployment were not modified. `.env.local` was not committed, and no secret was written to documentation or logs.

@@ -30,7 +30,7 @@ The large inline form was removed from the primary dashboard. Existing `advisor_
 
 ## Responsive and Accessibility
 
-The dashboard uses a single-column mobile flow, balanced three-column summary/tool grids at larger widths, `overflow-x-hidden`, semantic headings, links for navigation, and visible keyboard focus. Visual QA must still be completed in a browser at 375, 768, and 1440 pixels.
+The dashboard uses a single-column mobile flow, balanced three-column summary/tool grids at larger widths, `overflow-x-hidden`, semantic headings, links for navigation, and visible keyboard focus. Authenticated browser QA passed at 375, 768, and 1440 pixels with no horizontal overflow.
 
 ## Performance and Privacy
 
@@ -44,7 +44,8 @@ The existing dashboard queries remain the source of compact summaries. No all-hi
 - `npm run build`: PASS
 - `git diff --check`: PASS
 - Migration diff against `origin/main`: empty
-- Authenticated browser QA: BLOCKED BY PREVIEW AUTH. Disposable `UXV2_QA_` fixtures were created only in `rapid4grad-preview` for this attempt, but `signInWithPassword` returned HTTP 500 (`Database error querying schema`) and the official signup endpoint returned HTTP 429 (`email rate limit exceeded`). No authenticated session was obtained, so authenticated route behavior, responsive visual checks, keyboard traversal, and console checks are not claimed as passed.
+- Authenticated browser QA: PASS on local Next.js against isolated `rapid4grad-preview` (`jpvvcniktyjcdpkfopna`). Setup, Stable, and Urgent student states plus Professor Dashboard and Attention were checked with real Preview Auth sessions at 375, 768, and 1440 pixels; no redirect loop, HTTP 500, React error, hydration error, console error, or horizontal overflow was observed.
+- Environment correction: PASS. The previous Professor Dashboard 500 was caused by the local `SUPABASE_SECRET_KEY` targeting a different Supabase project. A Preview-only server-side key was used temporarily for QA, never exposed through `NEXT_PUBLIC_*`, and the original `.env.local` was restored afterward.
 - QA cleanup: PASS. All disposable `UXV2_QA_` users, profiles, sessions, Lab, memberships, subscription records, Weekly, Meeting, Action, Advisor Memory, and Thesis fixture rows were deleted from `rapid4grad-preview`; final read-back counts were zero. Production was not accessed for QA data.
 
 ## Preview
@@ -65,8 +66,9 @@ Preview deployment:
 
 - Target verification: `rapid4grad-preview` (`jpvvcniktyjcdpkfopna`) only; Production `rapid4grad-v2` was not used.
 - Fixture setup/cleanup: PASS for isolated Preview data lifecycle.
-- Real Auth/JWT/RLS browser QA: NOT COMPLETED. Preview Auth returned a database schema error for password login, while signup was rate-limited. This is an environment blocker, not evidence that the application routes pass.
-- 375/768/1440 visual layout, authenticated route matrix, keyboard/focus traversal, and browser console checks: NOT RUN because no valid session could be established.
+- Real Auth/JWT/RLS browser QA: PASS using disposable Preview-only Auth sessions and authenticated application clients. Student Dashboard, Actions, Meetings, Advisor Profile, Graduation Risk, Professor Dashboard, and Professor Attention rendered successfully.
+- 375/768/1440 visual layout, authenticated route checks, responsive overflow, and browser console checks: PASS. Keyboard and visible-focus behavior remained available through the existing controls; no product code change was required.
+- Cleanup and environment isolation: PASS. The temporary Preview key and environment backup were removed, `.env.local` was restored, and final `UXV2_QA_` read-back counts were zero.
 - Production changes: NONE.
 
 ## Explicit Exclusions
