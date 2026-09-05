@@ -37,11 +37,16 @@ test("Thesis Progress allows out-of-order completion and all-complete state", ()
 test("Thesis Progress server boundary derives identity and has no delete path", () => {
   const actions = fs.readFileSync("app/dashboard/thesis/actions.ts", "utf8");
   assert.match(actions, /requireStudentWorkspace/);
+  assert.match(actions, /expected_updated_at/);
+  assert.match(actions, /updated_at.*expectedUpdatedAt|expectedUpdatedAt.*updated_at/);
+  assert.match(actions, /這個里程碑已被其他人更新/);
   assert.match(actions, /student_user_id: context\.user\.id/);
   assert.match(actions, /\.update\(\{[\s\S]*status/);
   assert.match(actions, /\.insert\(\{[\s\S]*student_user_id: context\.user\.id/);
   assert.doesNotMatch(actions, /\.delete\(/);
   assert.doesNotMatch(actions, /student_user_id.*formData/);
+  const card = fs.readFileSync("components/thesis-progress/ThesisMilestoneCard.tsx", "utf8");
+  assert.match(card, /name="expected_updated_at"/);
 });
 
 test("Thesis Progress migration keeps data student-private and identity immutable", () => {
