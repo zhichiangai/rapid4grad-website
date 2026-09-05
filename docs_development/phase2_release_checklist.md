@@ -152,6 +152,26 @@ Phase 1 fallback 必須保留：
 
 ## 3. Phase 2 Flow 驗收
 
+### 3.0.3 Course Learning Center V1 / Admin Course Studio V1 Preview
+
+- Student Learning Center `/learn`: IMPLEMENTED
+- Continue/resume progress: IMPLEMENTED
+- Curriculum/module grouping: IMPLEMENTED
+- Native HTML5 MP4/WebM playback: IMPLEMENTED
+- Previous/next lesson navigation: IMPLEMENTED
+- Mobile collapsible curriculum: IMPLEMENTED
+- Dashboard compact course entry: IMPLEMENTED
+- `/dashboard/course` compatibility redirect: PASS
+- Admin Course Studio `/admin/course`: IMPLEMENTED
+- Active Admin server-side guard: IMPLEMENTED
+- Draft/publish via existing `is_published`: IMPLEMENTED
+- Hard delete: NOT PROVIDED
+- Existing course schema reused: PASS
+- New migration/table/RLS/RPC: NONE
+- Production: NOT RELEASED
+- Preview: PENDING BRANCH PUSH
+
+
 ### 3.0.2 Homepage Positioning V2
 
 - Positioning: Graduate Navigation System

@@ -19,7 +19,7 @@ export const studentWorkspaceGroups = [
   ] },
   { label: "其他", links: [
     { href: "/dashboard/lab-join", label: "加入 Lab" },
-    { href: "/dashboard/course", label: "課程觀看" },
+    { href: "/learn", label: "課程學習" },
     { href: "/dashboard/advisor-profile", label: "教授偏好" },
     { href: "/course", label: "課程方案" },
   ] },

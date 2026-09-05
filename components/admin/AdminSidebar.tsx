@@ -28,6 +28,7 @@ const groups = [
     label: "內容與 QA",
     links: [
       { href: "/admin/templates", label: "AI 模板" },
+      { href: "/admin/course", label: "課程內容" },
       { href: "/admin/previews", label: "介面預覽" },
     ],
   },

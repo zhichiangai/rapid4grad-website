@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [thesisSummary, setThesisSummary] = useState<{ currentLabel: string; completedCount: number; blocked: boolean } | undefined>();
   const [graduationRisk, setGraduationRisk] = useState<{ status: "urgent" | "attention" | "stable" | "setup_needed"; label: string; reason: string } | undefined>();
   const [advisorConfigured, setAdvisorConfigured] = useState(false);
+  const [learningSummary, setLearningSummary] = useState<{ courseTitle: string; lessonTitle: string | null; completedCount: number; visibleCount: number }>({ courseTitle: "", lessonTitle: null, completedCount: 0, visibleCount: 0 });
 
   useEffect(() => {
     let isMounted = true;
@@ -55,6 +56,28 @@ export default function DashboardPage() {
         .maybeSingle<{ id: string; updated_at: string }>();
 
       if (isMounted) setWeeklyCheckIn({ updatedAt: weekly?.updated_at ?? null });
+
+      const { data: learningCourse } = await supabase
+        .from("courses")
+        .select("id,title")
+        .eq("slug", "rapid4grad-core")
+        .eq("is_published", true)
+        .maybeSingle<{ id: string; title: string }>();
+      if (learningCourse) {
+        const { data: visibleLessons } = await supabase
+          .from("course_lessons")
+          .select("id,title,sort_order")
+          .eq("course_id", learningCourse.id)
+          .eq("is_published", true)
+          .order("sort_order", { ascending: true });
+        const lessonIds = (visibleLessons ?? []).map((lesson) => lesson.id);
+        const { data: progress } = lessonIds.length
+          ? await supabase.from("course_progress").select("lesson_id,status").eq("user_id", user.id).in("lesson_id", lessonIds)
+          : { data: [] as Array<{ lesson_id: string; status: string }> };
+        const progressByLesson = new Map((progress ?? []).map((row) => [row.lesson_id, row.status]));
+        const nextLesson = (visibleLessons ?? []).find((lesson) => progressByLesson.get(lesson.id) === "in_progress") ?? (visibleLessons ?? []).find((lesson) => progressByLesson.get(lesson.id) !== "completed");
+        if (isMounted) setLearningSummary({ courseTitle: learningCourse.title, lessonTitle: nextLesson?.title ?? null, completedCount: (visibleLessons ?? []).filter((lesson) => progressByLesson.get(lesson.id) === "completed").length, visibleCount: (visibleLessons ?? []).length });
+      }
 
       const { data: meetings } = await supabase
         .from("meetings")
@@ -149,6 +172,7 @@ export default function DashboardPage() {
       thesisSummary={thesisSummary}
       graduationRisk={graduationRisk}
       advisorConfigured={advisorConfigured}
+      learningSummary={learningSummary}
     />
   );
 }
