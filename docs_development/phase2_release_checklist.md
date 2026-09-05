@@ -167,11 +167,12 @@ Phase 1 fallback 必須保留：
 - Regression: PASS (126/126, lint, TypeScript, build, diff check)
 - Migration: NONE
 - RLS: NO CHANGE
-- Main: NOT MERGED
-- Production: UNCHANGED
-- Release stage: PREVIEW ONLY
+- Main: MERGED (fast-forward)
+- Production: READY
+- Release stage: PRODUCTION RELEASED
 - Preview: READY
-- Review branch: homepage-positioning-v2 (PUSHED)
+- Review branch: homepage-positioning-v2 (PUSHED / RETAINED)
+- Homepage Positioning V2: FROZEN
 
 ### 3.0.1 Student Workspace UX V2 Production Release
 

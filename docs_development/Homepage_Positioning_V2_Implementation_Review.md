@@ -62,6 +62,23 @@ Review branch: `PUSHED`
 
 This sprint is Preview-only and must not be merged to `main` or deployed to Production before external review.
 
+## Production Release
+
+- Source branch: `homepage-positioning-v2`
+- Approved source SHA: `6fe2df4648025dbf4f952bab37f6a739a7292c9d`
+- Merge: `FAST-FORWARD`
+- Feature Production Deployment: `dpl_A41uYCQEKk3KH9EcLJ8nWMQcxAt5`
+- Production URL: `https://www.rapid4grad.com`
+- State: `READY`
+- Public smoke: `PASS`
+- Positioning smoke: `PASS`
+- Responsive smoke: `PASS`
+- Migration: `NONE`
+- RLS: `NO CHANGE`
+- Production data mutation: `NONE`
+
+Homepage Positioning V2 is now frozen. Future homepage changes require a new sprint.
+
 ## Explicit Exclusions
 
 No new migration, table, RLS policy, RPC, auth change, payment change, Student Workspace change, Professor Workspace change, risk rule, analytics, AI backend, onboarding flow, or Production operation.
