@@ -1161,3 +1161,16 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Never-submitted Weekly boundaries corrected: 0-6 days no signal, 7-13 days `no_recent_update` / attention, and 14+ days `update_overdue` / urgent.
 - Weekly, Meeting and Meeting Action risk reads now require the current active Lab `lab_id`; Thesis remains student-private and student-level.
 - Regression suite: `123/123` passed. Authenticated QA passed on isolated Preview Supabase using real Auth/JWT/RLS; Docker was not required for this disposable cloud-isolated run. No Production fixture was mutated.
+
+## 24. 2026-09-06 Graduation Risk Checker V1 Production Release
+
+- Implementation: PASS. Risk rules, current-Lab isolation, cross-student isolation, authenticated QA, responsive QA and keyboard/focus QA all passed.
+- Regression: `npm test` 123/123, lint, TypeScript, build and `git diff --check` passed.
+- Migration: NONE. RLS change: NONE. Service-role Risk bypass: NONE. Professor Attention semantics: UNCHANGED.
+- Merge: `graduation-risk-checker-v1` fast-forward merged to `main` at `1c875869e374e5ab1838ed6d7ae44cc2c9741ec5`.
+- Production deployment: `dpl_B1NZYKHSAZiha3XzWeqDi3Gq4dW1`, branch `main`, target `production`, state `READY`.
+- Production URL: `https://www.rapid4grad.com`.
+- Anonymous smoke: PASS. Homepage returned HTTP 200; `/dashboard`, `/dashboard/graduation-risk`, `/dashboard/weekly-check-in`, `/dashboard/meetings`, `/dashboard/actions`, `/dashboard/thesis`, `/professor/dashboard` and `/professor/attention` redirected to `/login` with no HTTP 500 or redirect loop.
+- Authenticated Production smoke: NOT EXECUTED because no safe dedicated Production session was available. Isolated Preview Supabase authenticated QA remains the role-specific evidence.
+- Production schema mutation: NONE. Production migration: NONE. Production data/user mutation: NONE.
+- Final decision: `GRADUATION RISK CHECKER V1 FROZEN`.

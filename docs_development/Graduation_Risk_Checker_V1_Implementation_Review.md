@@ -56,3 +56,23 @@ The first screen shows current status, primary reason, recommendation and CTA. S
 ## Explicit Exclusions
 
 No Professor risk route, Admin risk access, AI inference, numeric probability, persistence/history table, cron, notifications, Calendar, Email, LINE, Student 360 or Thesis RLS change is included. Production remains unchanged until a separate release decision.
+
+## Production Release
+
+- Source branch: `graduation-risk-checker-v1`
+- Merged source SHA: `1c875869e374e5ab1838ed6d7ae44cc2c9741ec5`
+- Merge: **FAST-FORWARD**
+- Feature Production deployment: `dpl_B1NZYKHSAZiha3XzWeqDi3Gq4dW1`
+- Production URL: `https://www.rapid4grad.com`
+- State: **READY**
+- Production migration: **NONE**
+- RLS change: **NONE**
+- Production data mutation: **NONE**
+- Anonymous smoke: **PASS**. `/` returned HTTP 200; protected student and Professor routes redirected to `/login` without a loop or HTTP 500.
+- Authenticated smoke: **NOT EXECUTED** because no safe dedicated Production authenticated session was available; authenticated QA was completed against isolated Preview Supabase.
+- Current-Lab isolation: **VERIFIED**
+- Cross-student isolation: **VERIFIED**
+- Numeric graduation probability: **NOT IMPLEMENTED**
+- AI inference: **NOT IMPLEMENTED**
+
+Graduation Risk Checker V1 is now frozen. Further risk scoring, AI prediction, Professor/Admin risk views, notifications or history require a new sprint.
