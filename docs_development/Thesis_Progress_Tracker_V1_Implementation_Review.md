@@ -24,7 +24,7 @@ Migration：`20260831182930_add_thesis_milestones_v1.sql`，已在 Local fresh r
 
 自動測試覆蓋 canonical definitions、current stage priority、completed count、out-of-order/all-complete、Server Action identity derivation、no-delete 與 migration/RLS contract；完整 suite `npm test` 115/115、lint、TypeScript、build、diff check 均通過。Local fresh replay 與 `supabase/tests/v2_thesis_progress_integration.sql` 通過，既有 V2 database、Email、course、Professor、PDF pool、Admin suites 亦通過。
 
-Preview authenticated QA 已使用隔離的 `rapid4grad-preview` 完成：首次進入顯示 8 個里程碑與 `0 / 8`，設定狀態、目標日期與備註後重新整理資料仍保留；完成後顯示 `1 / 8`，completed 可重新開啟，blocked 狀態會顯示「目前卡在」摘要。測試資料最後已重設為未開始，未操作 Production。另補上 milestone `expected_updated_at` 的 Server-side optimistic concurrency guard，避免舊頁面覆蓋新資料；contract 與自動驗證已通過。Preview route/runtime 基本檢查通過；本輪未取得 375/768/1440 三個獨立 viewport、鍵盤 focus 與瀏覽器 console 的完整證據，這些仍列為待補人工 QA。
+Preview authenticated QA 已使用隔離的 `rapid4grad-preview` 完成：首次進入顯示 8 個里程碑與 `0 / 8`，設定狀態、目標日期與備註後重新整理資料仍保留；完成後顯示 `1 / 8`，completed 可重新開啟，blocked 狀態會顯示「目前卡在」摘要。測試資料最後已重設為未開始，未操作 Production。另補上 milestone `expected_updated_at` 的 Server-side optimistic concurrency guard，避免舊頁面覆蓋新資料；contract 與自動驗證已通過。Preview route/runtime 與 375/768/1440 viewport overflow 檢查通過，首頁及已登入學生頁 console 無 error/warn；Enter 開啟表單與控制項可達性已確認。完整逐項 keyboard traversal、focus ring 視覺證據仍待人工補驗。
 
 ## Explicit Exclusions
 
