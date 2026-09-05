@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   StudentLeadSummary,
   StudentWorkspaceHome,
@@ -17,29 +17,17 @@ type AdvisorMemory = {
   custom_notes: string | null;
 };
 
-function splitQuestions(value: string) {
-  return value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-}
-
 export default function DashboardPage() {
   const [leadSummary, setLeadSummary] = useState<StudentLeadSummary | null>(
     null,
   );
-  const [memoryId, setMemoryId] = useState("");
-  const [advisorStyle, setAdvisorStyle] = useState("");
-  const [frequentQuestions, setFrequentQuestions] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const [userId, setUserId] = useState("");
   const [weeklyCheckIn, setWeeklyCheckIn] = useState<{ updatedAt: string | null }>({ updatedAt: null });
   const [meetingSummary, setMeetingSummary] = useState<{ pendingCount: number; nextMeetingAt: string | null }>({ pendingCount: 0, nextMeetingAt: null });
   const [actionSummary, setActionSummary] = useState({ overdueCount: 0, dueSoonCount: 0, openCount: 0 });
   const [thesisSummary, setThesisSummary] = useState<{ currentLabel: string; completedCount: number; blocked: boolean } | undefined>();
   const [graduationRisk, setGraduationRisk] = useState<{ status: "urgent" | "attention" | "stable" | "setup_needed"; label: string; reason: string } | undefined>();
+  const [advisorConfigured, setAdvisorConfigured] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,7 +45,6 @@ export default function DashboardPage() {
 
       if (!isMounted) return;
 
-      setUserId(user.id);
       const email = user.email?.toLowerCase();
 
       const { data: weekly } = await supabase
@@ -132,17 +119,13 @@ export default function DashboardPage() {
 
       const { data: memory } = await supabase
         .from("advisor_memories")
-        .select("id,preference_style,common_questions,custom_notes")
+        .select("id")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle<AdvisorMemory>();
 
-      if (isMounted && memory) {
-        setMemoryId(memory.id);
-        setAdvisorStyle(memory.preference_style ?? "");
-        setFrequentQuestions((memory.common_questions ?? []).join("\n"));
-      }
+      if (isMounted) setAdvisorConfigured(Boolean(memory));
 
       if (isMounted) {
         setIsLoading(false);
@@ -156,81 +139,16 @@ export default function DashboardPage() {
     };
   }, []);
 
-  async function handleSubmitAdvisorMemory(
-    event: FormEvent<HTMLFormElement>,
-  ) {
-    event.preventDefault();
-
-    if (!userId) {
-      setMessage("請先登入後再儲存教授記憶庫。");
-      return;
-    }
-
-    const questions = splitQuestions(frequentQuestions);
-
-    if (!advisorStyle.trim() && questions.length === 0) {
-      setMessage("請至少填寫教授偏好風格或常問問題。");
-      return;
-    }
-
-    setIsSaving(true);
-    setMessage("");
-
-    const customNotes = [
-      advisorStyle.trim() ? `教授偏好風格：${advisorStyle.trim()}` : "",
-      questions.length ? `常問問題：\n${questions.join("\n")}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n\n");
-
-    const supabase = createClient();
-    const payload = {
-      user_id: userId,
-      preference_style: advisorStyle.trim() || null,
-      common_questions: questions,
-      custom_notes: customNotes || null,
-    };
-
-    const { data, error } = memoryId
-      ? await supabase
-          .from("advisor_memories")
-          .update(payload)
-          .eq("id", memoryId)
-          .select("id")
-          .single()
-      : await supabase
-          .from("advisor_memories")
-          .insert(payload)
-          .select("id")
-          .single();
-
-    setIsSaving(false);
-
-    if (error) {
-      setMessage("儲存失敗，請稍後再試。");
-      return;
-    }
-
-    setMemoryId(data.id);
-    setMessage("已儲存指導教授長期記憶庫。下次產生 AI 指令時可手動填入這些偏好。");
-  }
-
   return (
     <StudentWorkspaceHome
       leadSummary={leadSummary}
       isLoading={isLoading}
-      advisorStyle={advisorStyle}
-      frequentQuestions={frequentQuestions}
-      onAdvisorStyleChange={setAdvisorStyle}
-      onFrequentQuestionsChange={setFrequentQuestions}
-      onSubmitAdvisorMemory={handleSubmitAdvisorMemory}
-      isSaving={isSaving}
-      message={message}
       weeklyCheckIn={weeklyCheckIn}
       meetingSummary={meetingSummary}
       actionSummary={actionSummary}
       thesisSummary={thesisSummary}
       graduationRisk={graduationRisk}
+      advisorConfigured={advisorConfigured}
     />
   );
 }

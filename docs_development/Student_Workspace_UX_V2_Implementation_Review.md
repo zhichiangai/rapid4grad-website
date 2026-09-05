@@ -1,0 +1,57 @@
+# Student Workspace UX V2 Implementation Review
+
+## Scope
+
+Student Workspace UX V2 is an information architecture and presentation refactor. `/dashboard` remains the single Student Research 360 entry point. Existing Weekly, Meeting, Actions, Thesis, Graduation Risk, AI, PDF, Lab, and Course routes remain in place.
+
+This sprint does not add a product feature, table, migration, RPC, RLS policy, or new risk rule. Professor workspace, public homepage, and the frozen domain semantics are out of scope.
+
+## Information Architecture
+
+The dashboard hierarchy is now:
+
+1. Current Research Status and one primary CTA.
+2. Now: next action and next Meeting.
+3. This Week: Weekly, Meeting, and Action summaries.
+4. Thesis Journey.
+5. Graduation Risk summary and recent research context.
+6. Research Tools.
+7. Workspace setup and utility links.
+
+Graduation Risk is the current navigation state. The old quiz is presented as `初始研究狀態診斷`, a historical intake diagnosis, and no longer competes with current Graduation Risk as the dashboard's primary status.
+
+## Navigation
+
+Student navigation is grouped into `核心`, `研究工具`, and `其他`. Desktop uses grouped links; mobile uses an accessible menu with `aria-expanded`, `aria-controls`, active `aria-current`, visible focus, and Escape-to-close behavior. Existing route destinations are preserved, with Advisor Memory available at `/dashboard/advisor-profile`.
+
+## Advisor Memory
+
+The large inline form was removed from the primary dashboard. Existing `advisor_memories` fields `preference_style`, `common_questions`, and `custom_notes` remain readable and writable at `/dashboard/advisor-profile` through the authenticated Supabase client. No schema or authorization change was made.
+
+## Responsive and Accessibility
+
+The dashboard uses a single-column mobile flow, balanced three-column summary/tool grids at larger widths, `overflow-x-hidden`, semantic headings, links for navigation, and visible keyboard focus. Visual QA must still be completed in a browser at 375, 768, and 1440 pixels.
+
+## Performance and Privacy
+
+The existing dashboard queries remain the source of compact summaries. No all-history aggregation, service-role bypass, private PDF read, raw AI read, or new data loader was introduced.
+
+## Validation
+
+- `npm test`: 124/124 PASS
+- `npm run lint`: PASS
+- `npx tsc --noEmit --incremental false`: PASS
+- `npm run build`: PASS
+- `git diff --check`: PASS
+- Migration diff against `origin/main`: empty
+- Authenticated browser QA: pending Preview access; no Production mutation performed
+
+## Preview
+
+Branch: `student-workspace-ux-v2`
+
+Production remains unchanged and `main` is not merged. Preview URL and deployment state are recorded after Git integration creates the deployment.
+
+## Explicit Exclusions
+
+No new AI coach, notifications, calendar, analytics, risk rules, graduation probability, Professor UX, public homepage redesign, database migration, RLS change, or changes to Weekly, Meeting, Action, Thesis, or Graduation Risk semantics.

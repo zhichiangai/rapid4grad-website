@@ -1174,3 +1174,14 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Authenticated Production smoke: NOT EXECUTED because no safe dedicated Production session was available. Isolated Preview Supabase authenticated QA remains the role-specific evidence.
 - Production schema mutation: NONE. Production migration: NONE. Production data/user mutation: NONE.
 - Final decision: `GRADUATION RISK CHECKER V1 FROZEN`.
+
+## 25. 2026-09-06 Student Workspace UX V2 Preview Stage
+
+- Scope: Student-only information architecture and presentation refactor. `/dashboard` remains the single Research 360 entry point; no new product feature was added.
+- Dashboard hierarchy: current research status, Now, This Week, Thesis Journey, recent context, Research Tools, then setup/utility. Graduation Risk remains the current navigation state; the old quiz is reframed as `初始研究狀態診斷`.
+- Navigation: grouped into `核心`, `研究工具`, and `其他`; desktop grouped links and mobile accessible menu with active `aria-current`, `aria-expanded`, `aria-controls`, visible focus, and Escape close.
+- Advisor Memory: large inline dashboard form relocated to `/dashboard/advisor-profile`; existing `advisor_memories` fields and authenticated read/write behavior preserved.
+- Architecture: no new table, migration, RPC, RLS change, risk rule, Weekly/Meeting/Action/Thesis semantic change, Professor change, or Production change.
+- Automated validation: `npm test` 124/124, lint, TypeScript, build and `git diff --check` passed. Migration diff against `origin/main` is empty.
+- Preview: `student-workspace-ux-v2` is pushed for Preview deployment. Preview URL, deployment ID, browser visual QA and runtime read-back are recorded after Git integration completes.
+- Production: `NOT RELEASED`; `main`: `NOT MERGED`. Authenticated browser QA must use isolated Preview/local data only and must not mutate Production.
