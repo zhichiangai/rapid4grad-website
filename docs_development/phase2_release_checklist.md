@@ -1186,3 +1186,9 @@ Production remains unchanged. Meeting Actions V1 is not marked Production releas
 - Preview: `student-workspace-ux-v2` is pushed. Deployment `dpl_4cwxDZVWrgrLZP7U31d3wV4bda7H` is `READY` for commit `ace192d2bcd9b69c06d59942e73a23efe72d41f7`; URL: `https://rapid4grad-website-4c3biofib-zhichiang-ai-s-projects.vercel.app`. Build completed successfully, and Vercel reported no runtime errors in the selected 30-minute window.
 - Authenticated browser QA: `NOT RUN` because no safe authenticated Preview test account was available. Anonymous Preview homepage read-back returned HTTP 200; no Production mutation was performed.
 - Production: `NOT RELEASED`; `main`: `NOT MERGED`. Authenticated browser QA must use isolated Preview/local data only and must not mutate Production.
+
+### 25.1 Final QA attempt and cleanup
+
+- Disposable `UXV2_QA_` users and fixtures were created only in `rapid4grad-preview` for an authenticated QA attempt, then removed. Final read-back verified zero QA Auth users, profiles, sessions, Labs, Actions, Meetings, Weekly updates, Advisor Memories, and Thesis milestones.
+- Real Preview Auth could not issue a usable session: `signInWithPassword` returned HTTP 500 (`Database error querying schema`) and official signup returned HTTP 429 (`email rate limit exceeded`). Authenticated route, responsive browser, keyboard/focus, and console checks therefore remain `BLOCKED BY PREVIEW AUTH`, not Passed.
+- No Production account, fixture, schema, data, environment, or deployment was modified. Automated validation remains the code-level evidence; it does not substitute for authenticated browser QA.

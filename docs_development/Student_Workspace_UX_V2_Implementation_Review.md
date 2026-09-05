@@ -44,7 +44,8 @@ The existing dashboard queries remain the source of compact summaries. No all-hi
 - `npm run build`: PASS
 - `git diff --check`: PASS
 - Migration diff against `origin/main`: empty
-- Authenticated browser QA: not run; no safe authenticated Preview test account was available, and no Production mutation was performed
+- Authenticated browser QA: BLOCKED BY PREVIEW AUTH. Disposable `UXV2_QA_` fixtures were created only in `rapid4grad-preview` for this attempt, but `signInWithPassword` returned HTTP 500 (`Database error querying schema`) and the official signup endpoint returned HTTP 429 (`email rate limit exceeded`). No authenticated session was obtained, so authenticated route behavior, responsive visual checks, keyboard traversal, and console checks are not claimed as passed.
+- QA cleanup: PASS. All disposable `UXV2_QA_` users, profiles, sessions, Lab, memberships, subscription records, Weekly, Meeting, Action, Advisor Memory, and Thesis fixture rows were deleted from `rapid4grad-preview`; final read-back counts were zero. Production was not accessed for QA data.
 
 ## Preview
 
@@ -59,6 +60,14 @@ Preview deployment:
 - Commit: `ace192d2bcd9b69c06d59942e73a23efe72d41f7`
 - State: `READY`
 - Runtime errors in the selected 30-minute window: none
+
+## Authenticated QA Gate
+
+- Target verification: `rapid4grad-preview` (`jpvvcniktyjcdpkfopna`) only; Production `rapid4grad-v2` was not used.
+- Fixture setup/cleanup: PASS for isolated Preview data lifecycle.
+- Real Auth/JWT/RLS browser QA: NOT COMPLETED. Preview Auth returned a database schema error for password login, while signup was rate-limited. This is an environment blocker, not evidence that the application routes pass.
+- 375/768/1440 visual layout, authenticated route matrix, keyboard/focus traversal, and browser console checks: NOT RUN because no valid session could be established.
+- Production changes: NONE.
 
 ## Explicit Exclusions
 
