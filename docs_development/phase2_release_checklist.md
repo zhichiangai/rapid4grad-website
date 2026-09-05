@@ -152,6 +152,25 @@ Phase 1 fallback 必須保留：
 
 ## 3. Phase 2 Flow 驗收
 
+### 3.0.2 Homepage Positioning V2
+
+- Positioning: Graduate Navigation System
+- Student-first funnel: PASS
+- Hero and Research 360 preview: PASS
+- Research navigation loop: PASS
+- Student Workspace value: PASS
+- Professor value: PASS (secondary path)
+- AI repositioning: PASS
+- Course / Guide hierarchy: PASS
+- SEO metadata: PASS
+- Responsive / accessibility: pending Preview browser QA
+- Regression: pending
+- Migration: NONE
+- RLS: NO CHANGE
+- Main: NOT MERGED
+- Production: UNCHANGED
+- Release stage: PREVIEW ONLY
+
 ### 3.0.1 Student Workspace UX V2 Production Release
 
 - Information Architecture: PASS

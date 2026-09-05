@@ -17,18 +17,18 @@ export const metadata: Metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.rapid4grad.com",
   ),
   title: {
-    default: "RAPID4GRAD | Meeting 前，先知道教授會怎麼問",
+    default: "RAPID4GRAD｜研究生畢業導航系統",
     template: "%s | RAPID4GRAD",
   },
   description:
-    "RAPID4GRAD 是研究生 AI 工作導航系統，提供 ChatGPT、Claude、Gemini、Grok 的研究 Prompt Pack，以及 Codex、Claude Code、Cursor、GitHub Copilot、OpenCode 的 Agent 執行包與研究 Skill 工作流。",
+    "整合研究進度、教授 Meeting、下一步、論文里程碑與風險提醒，幫助研究生看懂目前研究狀態與接下來最值得處理的事情。",
   icons: {
     icon: "/logo.svg",
   },
   openGraph: {
-    title: "RAPID4GRAD | Meeting 前，先知道教授會怎麼問",
+    title: "RAPID4GRAD｜研究生畢業導航系統",
       description:
-        "從研究分析到直接執行，一次準備 Chat AI Prompt Pack 與 Coding / Research Agent 執行工作流。",
+        "整合研究進度、教授 Meeting、下一步、論文里程碑與風險提醒。",
     url: "/",
     siteName: "RAPID4GRAD",
     images: [
@@ -44,8 +44,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "RAPID4GRAD",
-    description: "研究 Prompt 與 Agent 工作流，一次準備好。",
+    title: "RAPID4GRAD｜研究生畢業導航系統",
+    description: "整合研究進度、教授 Meeting、下一步、論文里程碑與風險提醒。",
     images: ["/og-image.png"],
   },
 };
