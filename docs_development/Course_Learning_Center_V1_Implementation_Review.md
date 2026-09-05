@@ -41,8 +41,8 @@ Admin route：`/admin/course`。頁面與 Server Action 都重新驗證 active A
 
 - Contract tests cover deterministic resume, progress persistence, module navigation, mobile curriculum, dashboard entry, Admin guard, Mux/HTML5 provider validation, server-only signing boundary, Preview no-playback behavior, no-delete rule and no browser service credentials.
 - `npm test`、lint、TypeScript、build、`git diff --check` 應於本分支完成後記錄實際結果。
-- Local authenticated data mutation QA 需使用 disposable local fixtures；若 local Supabase 不可用，不以 Production account 或 Production data 替代。
-- Preview QA 僅檢查 route、runtime、responsive layout、video shell 與 Admin protection；不執行 Production mutation。
+- Local authenticated data mutation QA 需使用 disposable local fixtures；若 local Supabase 不可用，不以 Production account 或 Production data 替代。Mux signed playback 的真實端到端播放仍需配置隔離 Preview Mux environment 與安全測試 asset，不能以 Production secret 或 Production data 替代。
+- 本輪 Preview QA 已確認 build、`/learn` 公開 route、Admin protection 與 runtime errors；沒有安全 Preview 登入帳號，因此 authenticated course playback/progress mutation QA 記為 NOT EXECUTED，不視為 Production blocker。
 
 ## Explicit Exclusions
 
@@ -53,4 +53,8 @@ Admin route：`/admin/course`。頁面與 Server Action 都重新驗證 active A
 - Feature branch: `course-learning-center-v1`
 - Main merge: NOT PERFORMED
 - Production: NOT CHANGED
-- Preview deployment: 待本輪 branch push 後填入實際 URL、Deployment ID、commit 與 READY 狀態
+- Preview deployment: `https://rapid4grad-website-l4usbh6k2-zhichiang-ai-s-projects.vercel.app`
+- Preview deployment ID: `dpl_2v8dX1uVbjNmc2ec1gSt5z389Ey9`
+- Preview commit: `8def25d995e8f852ddca198f36b3c3633c100060`
+- Preview state: READY
+- Preview target: Preview（未部署 Production）
