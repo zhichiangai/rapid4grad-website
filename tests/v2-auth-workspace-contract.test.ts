@@ -19,6 +19,7 @@ const callbackRoute = readSource("../app/auth/callback/route.ts");
 test("OAuth starts and completes on the current request origin", () => {
   assert.match(loginPage, /new URL\("\/auth\/login", window\.location\.origin\)/);
   assert.match(loginRoute, /new URL\("\/auth\/callback", requestUrl\.origin\)/);
+  assert.match(loginRoute, /callbackUrl\.searchParams\.set\("next", nextPath\)/);
   assert.match(callbackRoute, /const origin = requestUrl\.origin/);
   assert.match(callbackRoute, /new URL\(nextPath, request\.url\)/);
   assert.doesNotMatch(loginPage, /NEXT_PUBLIC_SITE_URL/);

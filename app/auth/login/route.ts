@@ -10,6 +10,13 @@ export async function GET(request: NextRequest) {
   const nextPath = isSafeNextPath(rawNextPath) ? rawNextPath : null;
   const callbackUrl = new URL("/auth/callback", requestUrl.origin);
 
+  // Keep the destination in the OAuth redirect itself as well as the cookie.
+  // The query parameter survives cases where the host-only cookie is not sent
+  // back by the provider or across a Preview host transition.
+  if (nextPath) {
+    callbackUrl.searchParams.set("next", nextPath);
+  }
+
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: "google",
