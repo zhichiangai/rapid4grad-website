@@ -86,7 +86,8 @@ Mux Direct Upload、signed webhook 與 asset lifecycle 只更新目前 lesson �
 
 - Feature branch: `admin-course-operations-v2`
 - Local validation: `npm test` 145/145 passed; lint, TypeScript, production build, and `git diff --check` passed.
-- Preview deployment: NOT CREATED — branch push and Vercel Preview require the next release authorization.
-- Authenticated Preview playback, publication lifecycle, and destructive-action E2E: NOT EXECUTED — no isolated Preview Mux/data environment was available; Production was not used as a substitute.
-- Main merge: NOT PERFORMED
-- Production: NOT CHANGED
+- Preview deployment: `https://rapid4grad-website-1aktos8oa-zhichiang-ai-s-projects.vercel.app` (`dpl_EFyVsXuTGgjziAbcZLVZVo2B9YRh`), READY.
+- Production deployment: `https://rapid4grad-website-7ssapr3l1-zhichiang-ai-s-projects.vercel.app` (`dpl_E4soyM594u1xUt37TGXoZMTqNpdr`), READY; aliases include `https://www.rapid4grad.com`.
+- Authenticated Admin UI playback and destructive-action E2E: NOT EXECUTED — no isolated Preview Mux/data environment was available; Production was not used as a substitute. Production smoke QA remained non-destructive.
+- Main merge: COMPLETED via fast-forward to `20b03dee26304667448b44f0b4381dc58e9051ba`
+- Production: DEPLOYED and READY; no destructive operations performed.
