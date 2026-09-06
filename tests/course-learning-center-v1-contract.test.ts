@@ -75,6 +75,7 @@ test("Course Studio is active-admin protected and validates server-side", async 
   assert.match(workspace, /createDraftCourseLesson/);
   assert.match(workspace, /選擇影片/);
   assert.match(workspace, /進階設定/);
+  assert.match(workspace, /發布課程/);
   assert.match(studio, /影片上傳/);
   assert.match(actions, /select\("id"\)\.single\(\)/);
 });
