@@ -64,6 +64,7 @@ test("Course Studio is active-admin protected and validates server-side", async 
   assert.match(actions, /muxPlaybackId/);
   assert.match(actions, /https:/);
   assert.match(actions, /isPublished/);
+  assert.match(actions, /video_status/);
   assert.doesNotMatch(actions, /\.delete\(/);
   assert.match(preview, /previewMode/);
   assert.match(sidebar, /href: "\/admin\/course", label: "課程內容"/);
@@ -139,4 +140,71 @@ test("Course progress remains the authenticated course_progress workflow", async
   assert.match(player, /\/api\/course\/progress/);
   assert.match(progress, /course_progress/);
   assert.doesNotMatch(player, /createV2AdminClient|SUPABASE_SECRET_KEY|SERVICE_ROLE/);
+});
+
+test("Direct upload is an Admin-only browser-to-Mux workflow", async () => {
+  const [route, uploader, auth] = await Promise.all([
+    source("app/api/admin/course/lessons/[lessonId]/upload/route.ts"),
+    source("components/admin/MuxVideoUploader.tsx"),
+    source("lib/admin/authorization.ts"),
+  ]);
+  assert.match(route, /requireAdminContext/);
+  assert.match(route, /video\.uploads\.create/);
+  assert.match(route, /cors_origin: request\.nextUrl\.origin/);
+  assert.match(route, /playback_policies: \["signed"\]/);
+  assert.match(route, /external_id: lesson\.id/);
+  assert.match(route, /video_upload_id: upload\.id/);
+  assert.match(uploader, /MuxUploader/);
+  assert.match(uploader, /uploadUrl/);
+  assert.match(uploader, /直接傳送至 Mux/);
+  assert.doesNotMatch(uploader, /MUX_TOKEN_SECRET|MUX_SIGNING_PRIVATE_KEY/);
+  assert.match(auth, /accountStatus: "active"/);
+});
+
+test("Video bytes never pass through a RAPID upload body", async () => {
+  const [route, uploader] = await Promise.all([
+    source("app/api/admin/course/lessons/[lessonId]/upload/route.ts"),
+    source("components/admin/MuxVideoUploader.tsx"),
+  ]);
+  assert.doesNotMatch(route, /request\.formData|request\.arrayBuffer|request\.blob/);
+  assert.doesNotMatch(uploader, /FormData|arrayBuffer|\/api\/admin\/course\/upload/);
+  assert.match(uploader, /endpoint=\{endpoint\}/);
+});
+
+test("Mux webhook requires a verified signature and is idempotent by current asset", async () => {
+  const webhook = await source("app/api/webhooks/mux/route.ts");
+  assert.match(webhook, /webhooks\.unwrap/);
+  assert.match(webhook, /status: 401/);
+  assert.match(webhook, /video\.upload\.asset_created/);
+  assert.match(webhook, /video\.asset\.ready/);
+  assert.match(webhook, /video\.asset\.errored/);
+  assert.match(webhook, /eq\("video_upload_id", uploadId\)/);
+  assert.match(webhook, /eq\("video_asset_id", assetId\)/);
+  assert.match(webhook, /external_id/);
+  assert.match(webhook, /video_status: "processing"/);
+  assert.match(webhook, /video_status: "ready"/);
+  assert.match(webhook, /video_status: "errored"/);
+});
+
+test("Publishing requires ready video and replacement preserves the old Playback ID", async () => {
+  const [actions, upload, adminPlayback] = await Promise.all([
+    source(files.studioActions),
+    source("app/api/admin/course/lessons/[lessonId]/upload/route.ts"),
+    source("app/api/admin/course/lessons/[lessonId]/playback/route.ts"),
+  ]);
+  assert.match(actions, /muxReady/);
+  assert.match(actions, /video_status/);
+  assert.match(upload, /video_upload_id: upload\.id/);
+  assert.doesNotMatch(upload, /video_external_id/);
+  assert.match(adminPlayback, /video_status !== "ready"/);
+  assert.match(adminPlayback, /video_external_id/);
+});
+
+test("Course video lifecycle is narrow and does not change access policy", async () => {
+  const migration = await source("supabase/migrations/20260906100000_course_video_upload_lifecycle.sql");
+  assert.match(migration, /ADD COLUMN video_upload_id/);
+  assert.match(migration, /ADD COLUMN video_asset_id/);
+  assert.match(migration, /video_status/);
+  assert.match(migration, /video_status IN \('empty', 'uploading', 'processing', 'ready', 'errored'\)/);
+  assert.doesNotMatch(migration, /CREATE POLICY|DROP POLICY|CREATE TABLE|ALTER TABLE public\.course_lessons\s+ENABLE/);
 });

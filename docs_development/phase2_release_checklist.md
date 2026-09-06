@@ -159,6 +159,9 @@ Phase 1 fallback 必須保留：
 - Curriculum/module grouping: IMPLEMENTED
 - Mux signed playback provider: IMPLEMENTED
 - Native HTML5 MP4/WebM fallback: IMPLEMENTED
+- RAPID Direct Upload to Mux: IMPLEMENTED
+- Mux signed webhook lifecycle: IMPLEMENTED
+- Draft/ready/publish gate: IMPLEMENTED
 - Previous/next lesson navigation: IMPLEMENTED
 - Mobile collapsible curriculum: IMPLEMENTED
 - Dashboard compact course entry: IMPLEMENTED
@@ -168,10 +171,11 @@ Phase 1 fallback 必須保留：
 - Draft/publish via existing `is_published`: IMPLEMENTED
 - Hard delete: NOT PROVIDED
 - Existing course schema reused: PASS
-- New migration/table/RLS/RPC: NONE
-- Mux Direct Upload/webhook/status sync: NOT PROVIDED
+- New table/RLS/RPC: NONE
+- Course video lifecycle migration: `20260906100000` (Preview only, not applied to Production)
+- Mux Direct Upload/webhook/status sync: IMPLEMENTED
 - Production: NOT RELEASED
-- Preview: PENDING BRANCH PUSH
+- Preview: PENDING authenticated upload QA with Preview-only Mux credentials
 
 
 ### 3.0.2 Homepage Positioning V2

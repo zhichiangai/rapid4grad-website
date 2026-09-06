@@ -395,8 +395,11 @@ export type Database = {
           sort_order: number
           title: string
           updated_at: string
+          video_asset_id: string | null
           video_external_id: string | null
           video_provider: string
+          video_status: string
+          video_upload_id: string | null
         }
         Insert: {
           access_level: Database["public"]["Enums"]["lesson_access_level"]
@@ -411,8 +414,11 @@ export type Database = {
           sort_order?: number
           title: string
           updated_at?: string
+          video_asset_id?: string | null
           video_external_id?: string | null
           video_provider?: string
+          video_status?: string
+          video_upload_id?: string | null
         }
         Update: {
           access_level?: Database["public"]["Enums"]["lesson_access_level"]
@@ -427,8 +433,11 @@ export type Database = {
           sort_order?: number
           title?: string
           updated_at?: string
+          video_asset_id?: string | null
           video_external_id?: string | null
           video_provider?: string
+          video_status?: string
+          video_upload_id?: string | null
         }
         Relationships: [
           {

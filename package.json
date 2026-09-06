@@ -10,7 +10,9 @@
     "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
+    "@mux/mux-node": "^15.1.0",
     "@mux/mux-player-react": "^3.13.2",
+    "@mux/mux-uploader-react": "^1.5.0",
     "@supabase/ssr": "^0.12.0",
     "@supabase/supabase-js": "^2.108.2",
     "ai": "^6.0.216",
