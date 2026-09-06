@@ -1,5 +1,14 @@
 # RAPID4GRAD Course Learning Center V1 / Admin Course Studio V1
 
+## UX Consolidation Update
+
+- `/admin/course` now presents a unified lesson workspace: metadata, one-step video selection, upload progress, processing state, preview and draft save stay together.
+- Selecting a video for a new lesson creates an Admin-authorized Draft automatically; slug and sort order are generated server-side, so normal Admins do not need to manage either field.
+- Mux is the normal provider path. Playback ID, provider choice and legacy HTML5 fallback controls are kept under Advanced settings.
+- Upload status polls through an Admin-authorized status endpoint and stops at `ready` or `errored`; the existing replacement safety and server publish gate remain unchanged.
+- The desktop Admin sidebar now has an independent scroll region and the mobile menu is constrained to the viewport.
+- Automated regression: 143 tests passed, lint passed, TypeScript passed, and production build passed. No migration, RLS, OAuth, credential, webhook, or Production data changes were made in this UX update.
+
 ## Release Scope
 
 本輪建立學生課程學習中心與 Admin 課程內容工作台，重用既有 `courses`、`course_lessons`、`course_progress` 資料模型。Direct Upload 只新增狹窄的 course video lifecycle 欄位，不新增 table、不改 RLS policy、RPC 或課程權限模型；既有 `public_preview`、`lab_basic`、`full_course` access tier 保持不變。

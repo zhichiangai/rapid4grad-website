@@ -8,6 +8,7 @@ const files = {
   dashboard: "app/dashboard/page.tsx",
   nav: "components/workspace/StudentWorkspaceNavigation.tsx",
   studio: "app/admin/course/page.tsx",
+  workspace: "components/admin/CourseLessonWorkspace.tsx",
   studioActions: "app/admin/course/actions.ts",
   preview: "app/admin/course/preview/page.tsx",
   sidebar: "components/admin/AdminSidebar.tsx",
@@ -55,9 +56,9 @@ test("dashboard uses a compact authenticated course query and entry", async () =
 });
 
 test("Course Studio is active-admin protected and validates server-side", async () => {
-  const [studio, actions, preview, sidebar] = await Promise.all([source(files.studio), source(files.studioActions), source(files.preview), source(files.sidebar)]);
+  const [studio, workspace, actions, preview, sidebar] = await Promise.all([source(files.studio), source(files.workspace), source(files.studioActions), source(files.preview), source(files.sidebar)]);
   assert.match(studio, /requireAdminContext\("\/admin\/course"\)/);
-  assert.match(studio, /saveCourseLesson/);
+  assert.match(workspace, /saveCourseLesson/);
   assert.match(actions, /requireAdminContext\("\/admin\/course"\)/);
   assert.match(actions, /VIDEO_PROVIDERS/);
   assert.match(actions, /videoProvider === "mux"/);
@@ -71,9 +72,10 @@ test("Course Studio is active-admin protected and validates server-side", async 
   assert.doesNotMatch(sidebar, /Course Admin Studio/);
   assert.match(studio, /Video Course/);
   assert.match(studio, /課程影片管理/);
-  assert.match(studio, /上傳影片/);
-  assert.match(studio, /更換影片/);
-  assert.match(studio, /影片準備完成/);
+  assert.match(workspace, /createDraftCourseLesson/);
+  assert.match(workspace, /選擇影片/);
+  assert.match(workspace, /進階設定/);
+  assert.match(studio, /影片上傳/);
   assert.match(actions, /select\("id"\)\.single\(\)/);
 });
 
@@ -161,9 +163,9 @@ test("Direct upload is an Admin-only browser-to-Mux workflow", async () => {
   assert.match(route, /playback_policies: \["signed"\]/);
   assert.match(route, /external_id: lesson\.id/);
   assert.match(route, /video_upload_id: upload\.id/);
-  assert.match(uploader, /MuxUploader/);
+  assert.match(uploader, /XMLHttpRequest/);
   assert.match(uploader, /uploadUrl/);
-  assert.match(uploader, /直接傳送至 Mux/);
+  assert.match(uploader, /直接安全傳送至 Mux/);
   assert.doesNotMatch(uploader, /MUX_TOKEN_SECRET|MUX_SIGNING_PRIVATE_KEY/);
   assert.match(auth, /accountStatus: "active"/);
 });
@@ -175,7 +177,7 @@ test("Video bytes never pass through a RAPID upload body", async () => {
   ]);
   assert.doesNotMatch(route, /request\.formData|request\.arrayBuffer|request\.blob/);
   assert.doesNotMatch(uploader, /FormData|arrayBuffer|\/api\/admin\/course\/upload/);
-  assert.match(uploader, /endpoint=\{endpoint\}/);
+  assert.match(uploader, /request\.send\(file\)/);
 });
 
 test("Mux webhook requires a verified signature and is idempotent by current asset", async () => {

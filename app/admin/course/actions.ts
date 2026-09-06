@@ -52,6 +52,60 @@ function validMaterialUrl(valueToCheck: string) {
   }
 }
 
+function automaticSlug(title: string) {
+  const slug = title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 96);
+  return slug || `lesson-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+async function nextSortOrder(admin: Awaited<ReturnType<typeof requireAdminContext>>["admin"]) {
+  const { data } = await admin.from("course_lessons").select("sort_order").order("sort_order", { ascending: false }).limit(1).maybeSingle();
+  return ((data?.sort_order ?? 0) + 10);
+}
+
+export async function createDraftCourseLesson(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const courseId = value(formData, "courseId", 80);
+  const title = value(formData, "title");
+  const moduleKey = value(formData, "moduleKey", 40) || "Research";
+  const accessLevel = value(formData, "accessLevel", 30) || "public_preview";
+  const description = value(formData, "description", 4000);
+  const materialUrl = value(formData, "materialUrl", 2048);
+  if (!courseId || !title || !MODULE_KEYS.includes(moduleKey as (typeof MODULE_KEYS)[number]) || !ACCESS_LEVELS.includes(accessLevel as (typeof ACCESS_LEVELS)[number]) || !validMaterialUrl(materialUrl)) {
+    return { success: false as const, error: "請先輸入課程標題並確認基本資料。" };
+  }
+  const { data: course } = await admin.from("courses").select("id").eq("id", courseId).maybeSingle();
+  if (!course) return { success: false as const, error: "找不到指定課程。" };
+  let slug = automaticSlug(title);
+  const { data: collision } = await admin.from("course_lessons").select("id").eq("slug", slug).maybeSingle();
+  if (collision) slug = `${slug}-${crypto.randomUUID().slice(0, 6)}`;
+  const { data, error } = await admin.from("course_lessons").insert({
+    course_id: courseId,
+    title,
+    slug,
+    module_key: moduleKey,
+    description: description || null,
+    access_level: accessLevel as (typeof ACCESS_LEVELS)[number],
+    video_provider: "mux",
+    video_external_id: null,
+    video_status: "empty",
+    material_url: materialUrl || null,
+    sort_order: await nextSortOrder(admin),
+    is_published: false,
+  }).select("id").single();
+  if (error || !data) {
+    console.error("[admin-course] Draft creation failed", { code: error?.code });
+    return { success: false as const, error: "目前無法建立課程草稿。" };
+  }
+  revalidatePath("/admin/course");
+  return { success: true as const, lessonId: data.id };
+}
+
 export async function saveCourseLesson(formData: FormData) {
   const { admin } = await requireAdminContext("/admin/course");
   const courseId = value(formData, "courseId", 80);
