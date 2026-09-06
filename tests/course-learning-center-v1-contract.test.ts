@@ -67,8 +67,14 @@ test("Course Studio is active-admin protected and validates server-side", async 
   assert.match(actions, /video_status/);
   assert.doesNotMatch(actions, /\.delete\(/);
   assert.match(preview, /previewMode/);
-  assert.match(sidebar, /href="\/admin\/course"/);
-  assert.match(sidebar, /Course Admin Studio/);
+  assert.match(sidebar, /href: "\/admin\/course", label: "Video Course"/);
+  assert.doesNotMatch(sidebar, /Course Admin Studio/);
+  assert.match(studio, /Video Course/);
+  assert.match(studio, /課程影片管理/);
+  assert.match(studio, /上傳影片/);
+  assert.match(studio, /更換影片/);
+  assert.match(studio, /影片準備完成/);
+  assert.match(actions, /select\("id"\)\.single\(\)/);
 });
 
 test("Course Studio never exposes service credentials to browser components", async () => {

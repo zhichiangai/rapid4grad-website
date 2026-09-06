@@ -69,12 +69,13 @@ export async function saveCourseLesson(formData: FormData) {
   const payload = { course_id: courseId, title: lesson.title, slug: lesson.slug, module_key: lesson.moduleKey, description: lesson.description || null, access_level: lesson.accessLevel as (typeof ACCESS_LEVELS)[number], video_provider: lesson.videoProvider, video_external_id: playbackId || null, video_status: lesson.videoProvider === "html5" ? (playbackId ? "ready" : "empty") : lesson.muxPlaybackId ? "ready" : current?.video_status ?? "empty", material_url: lesson.materialUrl || null, sort_order: lesson.sortOrder, is_published: lesson.isPublished };
   const result = lesson.lessonId
     ? await admin.from("course_lessons").update(payload).eq("id", lesson.lessonId).eq("course_id", courseId)
-    : await admin.from("course_lessons").insert(payload);
+    : await admin.from("course_lessons").insert(payload).select("id").single();
   if (result.error) {
     console.error("[admin-course] Lesson mutation failed", { operation: lesson.lessonId ? "update" : "insert", code: result.error.code });
     redirect("/admin/course?message=save-failed");
   }
   revalidatePath("/admin/course");
   revalidatePath("/learn");
-  redirect("/admin/course?message=saved");
+  const savedLessonId = lesson.lessonId || (result.data as { id?: string } | null)?.id;
+  redirect(savedLessonId ? `/admin/course?edit=${savedLessonId}&message=saved` : "/admin/course?message=saved");
 }
