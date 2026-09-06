@@ -38,6 +38,7 @@ test("middleware protects every workspace and loads the profile once", () => {
   assert.equal((middleware.match(/\.select\("role,account_status"\)/g) ?? []).length, 1);
   assert.match(middleware, /profile\.account_status !== "active"/);
   assert.match(middleware, /pathname = "\/account-suspended"/);
+  assert.match(middleware, /isAdminPath\(pathname\) \? "\/admin-login" : "\/login"/);
   assert.match(middleware, /profile\.role === "professor" \? "\/professor\/dashboard" : "\/dashboard"/);
 });
 

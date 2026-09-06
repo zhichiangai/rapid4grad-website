@@ -52,7 +52,7 @@ export async function middleware(request: NextRequest) {
 
   if (!user && isProtected) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
+    redirectUrl.pathname = isAdminPath(pathname) ? "/admin-login" : "/login";
     redirectUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(redirectUrl);
   }

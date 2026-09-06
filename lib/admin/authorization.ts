@@ -27,7 +27,7 @@ export async function requireAdminContext(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+    redirect(`/admin-login?next=${encodeURIComponent(nextPath)}`);
   }
 
   const { data: profile, error } = await supabase
