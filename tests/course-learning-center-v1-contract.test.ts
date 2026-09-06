@@ -67,7 +67,8 @@ test("Course Studio is active-admin protected and validates server-side", async 
   assert.match(actions, /video_status/);
   assert.doesNotMatch(actions, /\.delete\(/);
   assert.match(preview, /previewMode/);
-  assert.match(sidebar, /href: "\/admin\/course", label: "Course Admin Studio"/);
+  assert.match(sidebar, /href="\/admin\/course"/);
+  assert.match(sidebar, /Course Admin Studio/);
 });
 
 test("Course Studio never exposes service credentials to browser components", async () => {

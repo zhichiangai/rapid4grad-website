@@ -28,7 +28,6 @@ const groups = [
     label: "內容與 QA",
     links: [
       { href: "/admin/templates", label: "AI 模板" },
-      { href: "/admin/course", label: "Course Admin Studio" },
       { href: "/admin/previews", label: "介面預覽" },
     ],
   },
@@ -88,13 +87,14 @@ export function AdminSidebar({ adminName, adminEmail }: AdminSidebarProps) {
           {open ? "關閉選單" : "選單"}
         </button>
       </div>
-      {open ? <><button type="button" aria-label="關閉管理者選單" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-slate-950/70 lg:hidden" /><div id="admin-mobile-navigation" className="relative z-50 border-b border-white/10 bg-slate-950 px-4 py-4 shadow-2xl lg:hidden"><p className="mb-4 text-xs text-slate-500">{adminName} · {adminEmail}</p>{navigation}</div></> : null}
+      {open ? <><button type="button" aria-label="關閉管理者選單" onClick={() => setOpen(false)} className="fixed inset-0 z-40 bg-slate-950/70 lg:hidden" /><div id="admin-mobile-navigation" className="relative z-50 border-b border-white/10 bg-slate-950 px-4 py-4 shadow-2xl lg:hidden"><p className="mb-4 text-xs text-slate-500">{adminName} · {adminEmail}</p><Link href="/admin/course" onClick={() => setOpen(false)} className="mb-5 block rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.08] px-4 py-3 text-sm font-semibold text-cyan-100"><span className="block text-[10px] uppercase tracking-[0.2em] text-cyan-200">Course Admin Studio</span><span className="mt-1 block">管理課程與影片</span></Link>{navigation}</div></> : null}
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-68 border-r border-white/10 bg-slate-950/95 px-4 py-7 lg:block">
         <div className="mb-8 px-3">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200">RAPID4GRAD ADMIN</p>
           <p className="mt-2 text-lg font-semibold text-white">營運控制台</p>
           <p className="mt-2 truncate text-xs text-slate-500" title={adminEmail}>{adminName}</p>
         </div>
+        <Link href="/admin/course" onClick={() => setOpen(false)} className={`mb-7 block rounded-2xl border px-4 py-3 text-sm font-semibold transition ${pathname.startsWith("/admin/course") ? "border-cyan-200/40 bg-cyan-300/20 text-cyan-50" : "border-cyan-300/20 bg-cyan-400/[0.08] text-cyan-100 hover:bg-cyan-300/15 hover:text-white"}`}><span className="block text-[10px] uppercase tracking-[0.2em] text-cyan-200">Course Admin Studio</span><span className="mt-1 block">管理課程與影片</span></Link>
         {navigation}
       </aside>
     </>
