@@ -66,7 +66,10 @@ test("Course Studio is active-admin protected and validates server-side", async 
   assert.match(actions, /https:/);
   assert.match(actions, /isPublished/);
   assert.match(actions, /video_status/);
-  assert.doesNotMatch(actions, /\.delete\(/);
+  assert.match(actions, /deleteDraftCourseLesson/);
+  assert.match(actions, /removeCourseLessonVideo/);
+  assert.match(actions, /createMuxClient\(\)\.video\.assets\.delete/);
+  assert.match(actions, /course_progress/);
   assert.match(preview, /previewMode/);
   assert.match(sidebar, /href: "\/admin\/course", label: "Video Course"/);
   assert.doesNotMatch(sidebar, /Course Admin Studio/);
@@ -140,9 +143,39 @@ test("Preview mode does not request playback or persist progress", async () => {
   const [player, preview] = await Promise.all([source(files.player), source(files.preview)]);
   assert.match(player, /if \(previewMode \|\| !isAuthenticated/);
   assert.match(player, /previewMode \? <p/);
-  assert.match(player, /不會取得影片來源或寫入觀看進度/);
+  assert.match(player, /previewPlaybackEnabled/);
+  assert.match(player, /不會取得或寫入學生觀看進度/);
+  assert.match(player, /\/playback/);
   assert.match(preview, /previewMode/);
   assert.doesNotMatch(preview, /playbackToken|signMuxPlaybackToken|course_progress/);
+});
+
+test("Admin preview playback is ready-only and progress-free", async () => {
+  const [preview, player, adminPlayback] = await Promise.all([source(files.preview), source(files.player), source("app/api/admin/course/lessons/[lessonId]/playback/route.ts")]);
+  assert.match(preview, /previewMode previewPlaybackEnabled=\{canPlay\}/);
+  assert.match(preview, /playbackEndpoint="\/api\/admin\/course\/lessons"/);
+  assert.match(player, /previewMode && !previewPlaybackEnabled/);
+  assert.match(adminPlayback, /requireAdminContext/);
+  assert.match(adminPlayback, /video_status !== "ready"/);
+  assert.match(player, /if \(previewMode \|\| !isAuthenticated/);
+});
+
+test("Course operations preserve metadata while controlling publication and deletion", async () => {
+  const [actions, workspace] = await Promise.all([source(files.studioActions), source(files.workspace)]);
+  assert.match(actions, /unpublishCourseLesson/);
+  assert.match(actions, /is_published: false/);
+  assert.match(actions, /video_external_id: null/);
+  assert.match(actions, /video_asset_id: null/);
+  assert.match(actions, /confirmPublishedRemove/);
+  assert.match(actions, /confirmDelete/);
+  assert.match(actions, /count: "exact", head: true/);
+  assert.match(actions, /deleteTrustedMuxAsset\(lesson\.video_asset_id\)/);
+  assert.match(actions, /current\?\.video_provider === "mux"/);
+  assert.match(actions, /current\?\.video_status === "ready"/);
+  assert.match(workspace, /取消發布/);
+  assert.match(workspace, /取消發布並移除影片/);
+  assert.match(workspace, /危險區：刪除草稿單元/);
+  assert.match(workspace, /實際學生入口/);
 });
 
 test("Course progress remains the authenticated course_progress workflow", async () => {

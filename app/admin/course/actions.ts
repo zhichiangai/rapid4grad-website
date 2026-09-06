@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdminContext } from "@/lib/admin/authorization";
 import { isValidMuxPlaybackId } from "@/lib/course/mux";
+import { createMuxClient } from "@/lib/course/mux-server";
 
 const MODULE_KEYS = ["Research", "Application", "Presentation", "Interpersonal", "Direction"] as const;
 const ACCESS_LEVELS = ["public_preview", "lab_basic", "full_course"] as const;
@@ -68,6 +69,22 @@ async function nextSortOrder(admin: Awaited<ReturnType<typeof requireAdminContex
   return ((data?.sort_order ?? 0) + 10);
 }
 
+function isMuxNotFound(error: unknown) {
+  const candidate = error as { status?: number; statusCode?: number; message?: string } | null;
+  return candidate?.status === 404 || candidate?.statusCode === 404 || candidate?.message?.includes("404");
+}
+
+async function deleteTrustedMuxAsset(assetId: string | null) {
+  if (!assetId) return { deleted: false, associationOnly: true };
+  try {
+    await createMuxClient().video.assets.delete(assetId);
+    return { deleted: true, associationOnly: false };
+  } catch (error) {
+    if (isMuxNotFound(error)) return { deleted: false, associationOnly: false };
+    throw error;
+  }
+}
+
 export async function createDraftCourseLesson(formData: FormData) {
   const { admin } = await requireAdminContext("/admin/course");
   const courseId = value(formData, "courseId", 80);
@@ -114,13 +131,13 @@ export async function saveCourseLesson(formData: FormData) {
     ? (await admin.from("course_lessons").select("id,course_id,video_provider,video_external_id,video_upload_id,video_asset_id,video_status").eq("id", lesson.lessonId).eq("course_id", courseId).maybeSingle()).data
     : null;
   const validProvider = VIDEO_PROVIDERS.includes(lesson.videoProvider as (typeof VIDEO_PROVIDERS)[number]);
-  const playbackId = lesson.videoProvider === "mux" ? lesson.muxPlaybackId || (current?.video_provider === "mux" ? current.video_external_id ?? "" : "") : lesson.videoSource;
-  const muxReady = lesson.videoProvider === "mux" && (lesson.muxPlaybackId.length > 0 || current?.video_status === "ready");
+  const playbackId = lesson.videoProvider === "mux" ? (current?.video_provider === "mux" ? current.video_external_id ?? "" : "") : lesson.videoSource;
+  const muxReady = lesson.videoProvider === "mux" && current?.video_status === "ready" && Boolean(playbackId);
   const validVideo = lesson.videoProvider === "mux" ? (!lesson.isPublished || (muxReady && isValidMuxPlaybackId(playbackId))) : validUrl(playbackId, !lesson.isPublished);
   const valid = lesson.title.length > 0 && lesson.slug.length > 0 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(lesson.slug) && MODULE_KEYS.includes(lesson.moduleKey as (typeof MODULE_KEYS)[number]) && ACCESS_LEVELS.includes(lesson.accessLevel as (typeof ACCESS_LEVELS)[number]) && validProvider && validVideo && validMaterialUrl(lesson.materialUrl) && Number.isSafeInteger(lesson.sortOrder) && lesson.sortOrder >= 0;
   if (!courseId || (lesson.lessonId && !current) || !valid) redirect("/admin/course?message=invalid");
 
-  const payload = { course_id: courseId, title: lesson.title, slug: lesson.slug, module_key: lesson.moduleKey, description: lesson.description || null, access_level: lesson.accessLevel as (typeof ACCESS_LEVELS)[number], video_provider: lesson.videoProvider, video_external_id: playbackId || null, video_status: lesson.videoProvider === "html5" ? (playbackId ? "ready" : "empty") : lesson.muxPlaybackId ? "ready" : current?.video_status ?? "empty", material_url: lesson.materialUrl || null, sort_order: lesson.sortOrder, is_published: lesson.isPublished };
+  const payload = { course_id: courseId, title: lesson.title, slug: lesson.slug, module_key: lesson.moduleKey, description: lesson.description || null, access_level: lesson.accessLevel as (typeof ACCESS_LEVELS)[number], video_provider: lesson.videoProvider, video_external_id: playbackId || null, video_status: lesson.videoProvider === "html5" ? (playbackId ? "ready" : "empty") : current?.video_status ?? "empty", material_url: lesson.materialUrl || null, sort_order: lesson.sortOrder, is_published: lesson.isPublished };
   const result = lesson.lessonId
     ? await admin.from("course_lessons").update(payload).eq("id", lesson.lessonId).eq("course_id", courseId)
     : await admin.from("course_lessons").insert(payload).select("id").single();
@@ -132,4 +149,56 @@ export async function saveCourseLesson(formData: FormData) {
   revalidatePath("/learn");
   const savedLessonId = lesson.lessonId || (result.data as { id?: string } | null)?.id;
   redirect(savedLessonId ? `/admin/course?edit=${savedLessonId}&message=saved` : "/admin/course?message=saved");
+}
+
+export async function unpublishCourseLesson(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const lessonId = value(formData, "lessonId", 80);
+  const { data: lesson } = await admin.from("course_lessons").select("id,is_published").eq("id", lessonId).maybeSingle();
+  if (!lesson || !lesson.is_published) redirect(`/admin/course?edit=${lessonId}&message=invalid`);
+  const { error } = await admin.from("course_lessons").update({ is_published: false }).eq("id", lessonId);
+  if (error) redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  revalidatePath("/admin/course");
+  revalidatePath("/learn");
+  redirect(`/admin/course?edit=${lessonId}&message=unpublished`);
+}
+
+export async function removeCourseLessonVideo(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const lessonId = value(formData, "lessonId", 80);
+  const { data: lesson } = await admin.from("course_lessons").select("id,is_published,video_asset_id,video_upload_id,video_external_id").eq("id", lessonId).maybeSingle();
+  if (!lesson) redirect("/admin/course?message=invalid");
+  if (lesson.is_published && formData.get("confirmPublishedRemove") !== "on") redirect(`/admin/course?edit=${lessonId}&message=remove-confirmation`);
+  try {
+    const result = await deleteTrustedMuxAsset(lesson.video_asset_id);
+    const { error } = await admin.from("course_lessons").update({ is_published: false, video_external_id: null, video_asset_id: null, video_upload_id: null, video_status: "empty" }).eq("id", lessonId);
+    if (error) redirect(`/admin/course?edit=${lessonId}&message=remove-failed`);
+    revalidatePath("/admin/course");
+    revalidatePath("/learn");
+    redirect(`/admin/course?edit=${lessonId}&message=${result.associationOnly ? "removed-association" : "removed"}`);
+  } catch (error) {
+    console.error("[admin-course] Video removal failed", { code: isMuxNotFound(error) ? "not-found" : "mux-error" });
+    redirect(`/admin/course?edit=${lessonId}&message=remove-failed`);
+  }
+}
+
+export async function deleteDraftCourseLesson(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const lessonId = value(formData, "lessonId", 80);
+  const { data: lesson } = await admin.from("course_lessons").select("id,is_published,video_asset_id,video_upload_id,video_status").eq("id", lessonId).maybeSingle();
+  if (!lesson || lesson.is_published || formData.get("confirmDelete") !== "on") redirect(`/admin/course?edit=${lessonId}&message=delete-blocked`);
+  const { count, error: progressError } = await admin.from("course_progress").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId);
+  if (progressError || (count ?? 0) > 0) redirect(`/admin/course?edit=${lessonId}&message=delete-has-history`);
+  if (lesson.video_upload_id && !lesson.video_asset_id && lesson.video_status !== "empty") redirect(`/admin/course?edit=${lessonId}&message=delete-processing`);
+  try {
+    await deleteTrustedMuxAsset(lesson.video_asset_id);
+    const { error } = await admin.from("course_lessons").delete().eq("id", lessonId).eq("is_published", false);
+    if (error) redirect(`/admin/course?edit=${lessonId}&message=delete-failed`);
+    revalidatePath("/admin/course");
+    revalidatePath("/learn");
+    redirect("/admin/course?message=deleted");
+  } catch (error) {
+    console.error("[admin-course] Draft deletion failed", { code: isMuxNotFound(error) ? "not-found" : "mux-error" });
+    redirect(`/admin/course?edit=${lessonId}&message=delete-failed`);
+  }
 }

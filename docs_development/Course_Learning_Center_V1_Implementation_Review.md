@@ -1,4 +1,12 @@
-# RAPID4GRAD Course Learning Center V1 / Admin Course Studio V1
+# RAPID4GRAD Course Learning Center V1 / Admin Course Operations V2
+
+## Admin Course Operations V2
+
+- `/admin/course/preview` is an explicit Admin Preview surface. Ready lessons request `/api/admin/course/lessons/{lessonId}/playback`; processing and errored lessons show state-specific messages. Preview playback does not create or update `course_progress`.
+- The lesson workspace now shows publication state, `觀看對象`, video state, and the actual learner surface. Publication and unpublication are server-authorized actions; unpublishing retains lesson metadata, video identifiers, and learning history.
+- Video removal is separate from lesson deletion. A published lesson is unpublished before removal, and a trusted database `video_asset_id` is the only identifier sent to `client.video.assets.delete`. A missing asset is idempotent; unknown Mux failures stop database cleanup.
+- Draft lesson deletion is isolated in a danger section, requires a second confirmation, rejects published lessons, rejects lessons with any `course_progress`, and refuses deletion while an upload is still processing without a known asset. No learning history is deleted.
+- No migration, RLS, schema, OAuth, credential, or Production data changes are part of this V2 operations layer.
 
 ## UX Consolidation Update
 
@@ -73,3 +81,12 @@ Mux Direct Upload、signed webhook 與 asset lifecycle 只更新目前 lesson �
 - Preview commit: `8def25d995e8f852ddca198f36b3c3633c100060`
 - Preview state: READY
 - Preview target: Preview（未部署 Production）
+
+## Current V2 Release State
+
+- Feature branch: `admin-course-operations-v2`
+- Local validation: `npm test` 145/145 passed; lint, TypeScript, production build, and `git diff --check` passed.
+- Preview deployment: NOT CREATED — branch push and Vercel Preview require the next release authorization.
+- Authenticated Preview playback, publication lifecycle, and destructive-action E2E: NOT EXECUTED — no isolated Preview Mux/data environment was available; Production was not used as a substitute.
+- Main merge: NOT PERFORMED
+- Production: NOT CHANGED
