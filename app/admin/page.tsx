@@ -46,6 +46,16 @@ export default async function AdminHomePage() {
   return (
     <section>
       <AdminPageHeader eyebrow="Operations Overview" title="營運總覽" description="以真實資料掌握帳號、Lab、訂閱與 PDF shared pool 狀態。所有管理異動仍需進入對應頁面二次確認。" />
+      <section className="mb-6 rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.06] p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-200">Course Admin Studio</p>
+            <h2 className="mt-2 text-xl font-semibold text-white">管理課程與影片</h2>
+            <p className="mt-1 text-sm text-slate-400">建立課程單元、上傳 Mux 影片、預覽並發布。</p>
+          </div>
+          <Link href="/admin/course" className="rounded-xl bg-cyan-400 px-4 py-3 text-center text-sm font-semibold text-slate-950 hover:bg-cyan-300">開啟 Course Admin Studio</Link>
+        </div>
+      </section>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <AdminMetricCard label="使用者" value={users.count ?? 0} detail="Profiles 總數" href="/admin/users" />
         <AdminMetricCard label="Active Labs" value={labs.count ?? 0} detail="目前營運中的 Lab" href="/admin/labs" />
