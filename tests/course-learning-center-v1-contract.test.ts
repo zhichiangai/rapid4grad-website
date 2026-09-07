@@ -276,7 +276,7 @@ test("Publishing requires ready video and replacement preserves the old Playback
 });
 
 test("Course video lifecycle is narrow and does not change access policy", async () => {
-  const migration = await source("supabase/migrations/20260906100000_course_video_upload_lifecycle.sql");
+  const migration = await source("supabase/migrations/20260906021917_course_video_upload_lifecycle.sql");
   assert.match(migration, /ADD COLUMN video_upload_id/);
   assert.match(migration, /ADD COLUMN video_asset_id/);
   assert.match(migration, /video_status/);

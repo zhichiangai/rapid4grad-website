@@ -172,7 +172,7 @@ Phase 1 fallback 必須保留：
 - Hard delete: NOT PROVIDED
 - Existing course schema reused: PASS
 - New table/RLS/RPC: NONE
-- Course video lifecycle migration: `20260906100000` (Preview only, not applied to Production)
+- Course video lifecycle migration: `20260906021917` (Production-applied baseline; filename aligned with Production history)
 - Mux Direct Upload/webhook/status sync: IMPLEMENTED
 - Production: NOT RELEASED
 - Preview: PENDING authenticated upload QA with Preview-only Mux credentials
