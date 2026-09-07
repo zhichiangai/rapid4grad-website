@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireActiveUser } from "@/lib/auth/authorization";
 import type { ActionStatus } from "@/lib/meeting-actions/action-domain";
+import { resolveStudentCapabilities } from "@/lib/student/capabilities";
 
 export type MeetingActionState = { status: "idle" | "success" | "error"; message: string };
 const initialState: MeetingActionState = { status: "idle", message: "" };
@@ -20,7 +21,7 @@ function value(formData: FormData, key: string, max: number) {
 function failure(message = "儲存失敗，請稍後再試。"): MeetingActionState { return { status: "error", message }; }
 function success(message: string): MeetingActionState { return { status: "success", message }; }
 function validDueDate(valueToCheck: string | null) { return valueToCheck === null || valueToCheck === "" || DATE_PATTERN.test(valueToCheck); }
-function revalidateActionPaths(labId?: string) {
+function revalidateActionPaths(labId?: string | null) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/actions");
   revalidatePath("/dashboard/meetings");
@@ -56,6 +57,9 @@ export async function createMeetingAction(_previousState: MeetingActionState = i
     }
   } else if (meeting.student_user_id !== context.user.id) {
     return failure("目前無法在這筆 Meeting 建立 Action。");
+  } else if (meeting.lab_id) {
+    const capabilities = await resolveStudentCapabilities(supabase, context.user.id);
+    if (!capabilities.lab.canManageLabActions || capabilities.lab.labId !== meeting.lab_id) return failure("目前 Lab 協作為唯讀模式；Personal Action 仍可使用。");
   }
 
   const result = await supabase.from("meeting_actions").insert({ meeting_id: meeting.id, lab_id: meeting.lab_id, student_user_id: meeting.student_user_id, title, owner_type: ownerType, owner_user_id: ownerUserId, due_date: dueDate || null, status: "todo", completed_at: null }).select("id").maybeSingle();
@@ -81,9 +85,16 @@ export async function updateMeetingAction(_previousState: MeetingActionState = i
   if (!actionId || !intent || !expectedUpdatedAt) return failure("目前無法修改這項 Action，請重新整理後再試。");
   if (!["edit", "start", "todo", "done", "cancel"].includes(intent)) return failure("目前無法修改這項 Action，請重新整理後再試。");
   const supabase = context.supabase as unknown as SupabaseClient;
-  const currentResult = await supabase.from("meeting_actions").select("id,lab_id,title,due_date,status,owner_type,owner_user_id,updated_at").eq("id", actionId).maybeSingle();
-  const current = currentResult.data as { id: string; lab_id: string; title: string; due_date: string | null; status: ActionStatus; owner_type: "student" | "supervisor"; owner_user_id: string; updated_at: string } | null;
+  const currentResult = await supabase.from("meeting_actions").select("id,meeting_id,lab_id,student_user_id,title,due_date,status,owner_type,owner_user_id,updated_at").eq("id", actionId).maybeSingle();
+  const current = currentResult.data as { id: string; meeting_id: string; lab_id: string | null; student_user_id: string; title: string; due_date: string | null; status: ActionStatus; owner_type: "student" | "supervisor"; owner_user_id: string; updated_at: string } | null;
   if (currentResult.error || !current || current.updated_at !== expectedUpdatedAt) return failure("這項 Action 已被其他人更新，請重新整理後再試。");
+  if (context.profile.role === "student") {
+    if (current.student_user_id !== context.user.id || current.owner_user_id !== context.user.id || current.owner_type !== "student") return failure("目前無法修改這項 Action，請重新整理後再試。");
+    if (current.lab_id) {
+      const capabilities = await resolveStudentCapabilities(supabase, context.user.id);
+      if (!capabilities.lab.canManageLabActions || capabilities.lab.labId !== current.lab_id) return failure("目前 Lab 協作為唯讀模式；Personal Action 仍可使用。");
+    }
+  }
   const nextStatus = intent === "start" ? "doing" : intent === "todo" ? "todo" : intent === "done" ? "done" : intent === "cancel" ? "canceled" : current.status;
   if (!allowedTransition(current.status, nextStatus)) return failure("目前無法修改這項 Action，請重新整理後再試。");
   const title = intent === "edit" ? value(formData, "title", TITLE_MAX) : current.title;

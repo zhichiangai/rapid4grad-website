@@ -27,5 +27,5 @@ test("Student Workspace UX V2 keeps Research 360 hierarchy and existing semantic
   assert.match(advisorPage, /dashboard\/advisor-profile/);
   assert.match(advisorSettings, /advisor_memories/);
   assert.match(advisorSettings, /preference_style/);
-  assert.equal(fs.readdirSync("supabase/migrations").length, 22);
+  assert.equal(fs.existsSync("supabase/migrations/20260908120000_student_personal_lab_scope_v1.sql"), true);
 });

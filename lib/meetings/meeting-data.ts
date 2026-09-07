@@ -6,6 +6,7 @@ import { createV2AdminClient } from "@/lib/supabase/server";
 import type { MeetingMode, MeetingRecord, MeetingStatus } from "@/lib/meetings/meeting-domain";
 import { loadActionsForMeetings } from "@/lib/meeting-actions/action-data";
 import type { MeetingActionRecord } from "@/lib/meeting-actions/action-domain";
+import { resolveStudentCapabilities } from "@/lib/student/capabilities";
 
 type DbClient = SupabaseClient;
 
@@ -36,7 +37,7 @@ export async function getMeetingMode(supabase: DbClient, labId: string) {
 
 async function enrichMeetings(supabase: DbClient, rows: RawMeeting[]) {
   const studentIds = [...new Set(rows.map((row) => row.student_user_id))];
-  const labIds = [...new Set(rows.map((row) => row.lab_id))];
+  const labIds = [...new Set(rows.map((row) => row.lab_id).filter((labId): labId is string => Boolean(labId)))];
   const [profilesResult, labsResult] = await Promise.all([
     studentIds.length ? supabase.from("profiles").select("id,email,full_name,degree,research_area").in("id", studentIds) : Promise.resolve({ data: [] }),
     labIds.length ? supabase.from("labs").select("id,name").in("id", labIds) : Promise.resolve({ data: [] }),
@@ -47,7 +48,7 @@ async function enrichMeetings(supabase: DbClient, rows: RawMeeting[]) {
     const profile = profiles.get(row.student_user_id);
     return {
       ...row,
-      lab_name: labs.get(row.lab_id),
+      lab_name: row.lab_id ? labs.get(row.lab_id) : undefined,
       student_name: profile?.full_name ?? profile?.email,
       student_email: profile?.email,
       degree: profile?.degree,
@@ -59,20 +60,15 @@ async function enrichMeetings(supabase: DbClient, rows: RawMeeting[]) {
 export async function loadStudentMeetings() {
   const context = await requireActiveUser("/dashboard/meetings");
   const supabase = asDbClient(context.supabase);
-  const { data: memberships } = await supabase
-    .from("lab_memberships")
-    .select("lab_id,labs(id,name,status)")
-    .eq("user_id", context.user.id)
-    .eq("role", "student")
-    .eq("status", "active")
-    .limit(1);
-  const activeMembership = memberships?.[0] as { lab_id: string; labs: { id: string; name: string; status: string } | null } | undefined;
-  const activeLab = activeMembership?.labs?.status === "active" ? activeMembership : null;
+  const capabilities = await resolveStudentCapabilities(supabase, context.user.id);
+  const activeLab = capabilities.lab.labId
+    ? { lab_id: capabilities.lab.labId, labs: { id: capabilities.lab.labId, name: capabilities.lab.labName ?? "研究 Lab", status: "active" } }
+    : null;
   const { data, error } = await supabase.from("meetings").select("id,lab_id,student_user_id,meeting_at,status,summary,decisions,next_meeting_at,created_by,created_at,updated_at").eq("student_user_id", context.user.id).order("meeting_at", { ascending: false }).returns<RawMeeting[]>();
   if (error) console.error("[meetings] student read failed", { code: error.code });
   const meetings = await enrichMeetings(supabase, data ?? []);
   const actions = await loadActionsForMeetings(supabase, meetings);
-  return { context, meetings, actions, activeLab, mode: activeLab ? await getMeetingMode(createV2AdminClient(), activeLab.lab_id) : "none" as MeetingMode };
+  return { context, meetings, actions, activeLab, mode: capabilities.lab.mode };
 }
 
 export async function loadProfessorLabMeetings(labId: string) {

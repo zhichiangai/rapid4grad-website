@@ -25,6 +25,17 @@ export const studentWorkspaceGroups = [
   ] },
 ] as const;
 
+export type StudentNavigationCapabilities = {
+  lab: {
+    hasActiveLab: boolean;
+    canUsePdfAudit: boolean;
+    labName: string | null;
+  };
+  course: {
+    canOpenLearningCenter: boolean;
+  };
+};
+
 export const studentWorkspaceLinks = ([] as Array<{ href: string; label: string }>).concat(
   ...studentWorkspaceGroups.map((group) => group.links as readonly { href: string; label: string }[]),
 );
@@ -36,9 +47,10 @@ type StudentWorkspaceNavigationProps = {
   previewMode?: boolean;
   activeHref?: StudentWorkspaceHref;
   onPreviewNavigate?: (href: StudentWorkspaceHref) => void;
+  capabilities?: StudentNavigationCapabilities;
 };
 
-export function StudentWorkspaceNavigation({ previewMode = false, activeHref, onPreviewNavigate }: StudentWorkspaceNavigationProps) {
+export function StudentWorkspaceNavigation({ previewMode = false, activeHref, onPreviewNavigate, capabilities }: StudentWorkspaceNavigationProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => {
     if (!menuOpen) return;
@@ -62,6 +74,14 @@ export function StudentWorkspaceNavigation({ previewMode = false, activeHref, on
       <Link key={href} href={href} onClick={() => setMenuOpen(false)} aria-current={active ? "page" : undefined} className={className}>{label}</Link>
     );
   };
+  const groups = studentWorkspaceGroups.map((group) => ({
+    ...group,
+    links: group.links.filter((link) => (
+      (link.href !== "/dashboard/ai-audit" && link.href !== "/dashboard/ai-audit/history" || capabilities?.lab.canUsePdfAudit)
+      && (link.href !== "/learn" || capabilities?.course.canOpenLearningCenter !== false)
+    )),
+  })).filter((group) => group.links.length > 0);
+
   return (
     <header className="border-b border-white/10 bg-slate-950/95 px-4 py-4 backdrop-blur">
       <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
@@ -69,7 +89,7 @@ export function StudentWorkspaceNavigation({ previewMode = false, activeHref, on
         <button type="button" aria-expanded={menuOpen} aria-controls="student-workspace-menu" onClick={() => setMenuOpen((open) => !open)} className="rounded-xl border border-white/10 px-3 py-2 text-sm text-slate-200 hover:border-cyan-300/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70 md:hidden">{menuOpen ? "關閉選單" : "選單"}</button>
         <nav id="student-workspace-menu" aria-label="學生工作台導覽" className={`${menuOpen ? "absolute inset-x-4 top-[4.5rem] z-20 block" : "hidden"} rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-2xl shadow-black/30 md:static md:block md:border-0 md:bg-transparent md:p-0 md:shadow-none`}>
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
-            {studentWorkspaceGroups.map((group) => <div key={group.label} className="flex flex-col gap-1 md:gap-0"><p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 md:mb-1">{group.label}</p><div className="flex flex-col gap-1 md:flex-row">{group.links.map((link) => renderLink(link.href, link.label))}</div></div>)}
+            {groups.map((group) => <div key={group.label} className="flex flex-col gap-1 md:gap-0"><p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 md:mb-1">{group.label}</p><div className="flex flex-col gap-1 md:flex-row">{group.links.map((link) => renderLink(link.href, link.label))}</div></div>)}
           </div>
         </nav>
       </div>

@@ -7,5 +7,5 @@ export default async function GraduationRiskPage() {
   const data = await loadStudentGraduationRisk();
   if (!data.allowed) redirect("/dashboard");
   const signals = deriveGraduationRiskSignals({ activeLab: Boolean(data.activeLab), joinedAt: data.activeLab?.joinedAt, latestWeekly: data.latestWeekly, meetings: data.meetings, actions: data.actions, thesisMilestones: data.thesisMilestones });
-  return <GraduationRiskOverview result={{ status: deriveGraduationRiskStatus({ signals, hasThesisRows: data.hasThesisRows, activeLab: Boolean(data.activeLab) }), signals, primary: getPrimaryGraduationRiskSignal(signals) }} />;
+  return <GraduationRiskOverview result={{ status: deriveGraduationRiskStatus({ signals, hasThesisRows: data.hasThesisRows, activeLab: Boolean(data.activeLab), hasResearchData: Boolean(data.latestWeekly || data.meetings.length || data.actions.length) }), signals, primary: getPrimaryGraduationRiskSignal(signals) }} />;
 }

@@ -20,14 +20,11 @@ export async function loadStudentGraduationRisk() {
 
   const membership = membershipResult.data as { lab_id: string; joined_at: string; labs: { status: string } | null } | null;
   const activeLab = membership?.labs?.status === "active" ? { labId: membership.lab_id, joinedAt: membership.joined_at } : null;
-  if (!activeLab) {
-    return { context, allowed: true as const, activeLab: null, latestWeekly: null, meetings: [] as RiskMeeting[], actions: [] as RiskAction[], thesisMilestones: (thesisResult.data ?? []) as RiskThesisMilestone[], hasThesisRows: (thesisResult.data ?? []).length > 0 };
-  }
 
   const [weeklyResult, meetingsResult, actionsResult] = await Promise.all([
-    supabase.from("weekly_updates").select("updated_at").eq("student_user_id", context.user.id).eq("lab_id", activeLab.labId).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("meetings").select("status,meeting_at").eq("student_user_id", context.user.id).eq("lab_id", activeLab.labId),
-    supabase.from("meeting_actions").select("status,due_date,owner_type,owner_user_id,student_user_id").eq("student_user_id", context.user.id).eq("lab_id", activeLab.labId),
+    supabase.from("weekly_updates").select("updated_at").eq("student_user_id", context.user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("meetings").select("status,meeting_at").eq("student_user_id", context.user.id),
+    supabase.from("meeting_actions").select("status,due_date,owner_type,owner_user_id,student_user_id").eq("student_user_id", context.user.id),
   ]);
   if (weeklyResult.error) console.error("[graduation-risk] weekly read failed", { operation: "load", code: weeklyResult.error.code });
   if (meetingsResult.error) console.error("[graduation-risk] meetings read failed", { operation: "load", code: meetingsResult.error.code });

@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireActiveUser } from "@/lib/auth/authorization";
 import { parseTaipeiDateTimeLocal } from "@/lib/meetings/meeting-time";
 import { isNonEmptyMeetingSummary } from "@/lib/meetings/meeting-domain";
+import { resolveStudentCapabilities } from "@/lib/student/capabilities";
 
 export type MeetingActionState = { status: "idle" | "success" | "error"; message: string };
 const initialState: MeetingActionState = { status: "idle", message: "" };
@@ -24,7 +25,7 @@ function success(message: string): MeetingActionState {
   return { status: "success", message };
 }
 
-function revalidateMeetingPaths(labId?: string) {
+function revalidateMeetingPaths(labId?: string | null) {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/meetings");
   revalidatePath("/professor/dashboard");
@@ -40,14 +41,22 @@ export async function createMeeting(_previousState: MeetingActionState = initial
   if (meetingAt.getTime() <= Date.now()) return failure("請選擇未來的 Meeting 時間。");
 
   const supabase = context.supabase;
+  const meetingContext = text(formData, "meeting_context", 16) ?? "personal";
   let labId = text(formData, "lab_id", 80);
   let studentUserId = text(formData, "student_user_id", 80);
   if (context.profile.role === "student") {
-    const { data: membership } = await supabase.from("lab_memberships").select("lab_id").eq("user_id", context.user.id).eq("role", "student").eq("status", "active").limit(1).maybeSingle();
-    labId = membership?.lab_id ?? null;
+    const capabilities = await resolveStudentCapabilities(supabase, context.user.id);
+    if (meetingContext === "lab") {
+      if (!capabilities.lab.canCreateLabMeeting || !capabilities.lab.labId) return failure("目前無法建立 Lab Meeting；你仍可建立私人研究紀錄。");
+      labId = capabilities.lab.labId;
+    } else if (meetingContext !== "personal") {
+      return failure("請選擇 Meeting 類型。");
+    } else {
+      labId = null;
+    }
     studentUserId = context.user.id;
   }
-  if (!labId || !studentUserId) return failure("目前沒有可安排 Meeting 的研究室。");
+  if (!studentUserId || (context.profile.role !== "student" && !labId)) return failure("目前沒有可安排 Meeting 的研究室。");
   const { error } = await (supabase as unknown as SupabaseClient).from("meetings").insert({ lab_id: labId, student_user_id: studentUserId, meeting_at: meetingAt.toISOString(), status: "scheduled", created_by: context.user.id });
   if (error) {
     console.error("[meetings] create failed", { operation: "create", code: error.code });
@@ -66,8 +75,15 @@ export async function updateMeeting(_previousState: MeetingActionState = initial
   if (!meetingId || !intent || !expectedUpdatedAt) return failure("目前無法修改這筆 Meeting，請重新整理後再試。");
   const supabase = context.supabase as unknown as SupabaseClient;
   const currentResult = await supabase.from("meetings").select("id,lab_id,student_user_id,meeting_at,status,created_by,updated_at").eq("id", meetingId).maybeSingle();
-  const meeting = currentResult.data as { id: string; lab_id: string; student_user_id: string; meeting_at: string; status: string; created_by: string; updated_at: string } | null;
+  const meeting = currentResult.data as { id: string; lab_id: string | null; student_user_id: string; meeting_at: string; status: string; created_by: string; updated_at: string } | null;
   if (currentResult.error || !meeting || meeting.updated_at !== expectedUpdatedAt) return failure("這筆 Meeting 已被其他人更新，請重新整理後再試。");
+  if (context.profile.role === "student") {
+    if (meeting.student_user_id !== context.user.id || meeting.created_by !== context.user.id) return failure("目前無法修改這筆 Meeting，請重新整理後再試。");
+    if (meeting.lab_id) {
+      const capabilities = await resolveStudentCapabilities(supabase, context.user.id);
+      if (!capabilities.lab.canCreateLabMeeting || capabilities.lab.labId !== meeting.lab_id) return failure("目前 Lab 協作為唯讀模式；Personal Meeting 仍可使用。");
+    }
+  }
   const updates: Record<string, unknown> = {};
   if (["reschedule", "complete", "edit"].includes(intent)) {
     if (intent === "reschedule") {
@@ -100,7 +116,7 @@ export async function updateMeeting(_previousState: MeetingActionState = initial
     console.error("[meetings] update failed", { operation: intent, code: updateResult.error?.code });
     return failure(updateResult.error?.code === "PGRST116" ? "這筆 Meeting 已被其他人更新，請重新整理後再試。" : "目前無法修改這筆 Meeting，請重新整理後再試。");
   }
-  revalidateMeetingPaths(meeting.lab_id);
+  revalidateMeetingPaths(meeting.lab_id ?? undefined);
   const messages: Record<string, string> = { complete: "✓ Meeting 紀錄已完成", edit: "✓ Meeting 紀錄已更新", reschedule: "✓ Meeting 時間已更新", cancel: "✓ Meeting 已取消" };
   return success(messages[intent] ?? "✓ Meeting 已更新");
 }

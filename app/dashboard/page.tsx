@@ -122,7 +122,7 @@ export default function DashboardPage() {
         const status = deriveGraduationRiskStatus({ signals, hasThesisRows: (thesisRows ?? []).length > 0, activeLab });
         const primary = getPrimaryGraduationRiskSignal(signals);
         const labels = { urgent: "需要優先處理", attention: "需要注意", stable: "目前穩定", setup_needed: "資料尚未完整" } as const;
-        setGraduationRisk({ status, label: labels[status], reason: primary?.title ?? (status === "setup_needed" ? "先設定論文進度或加入 Lab" : "目前沒有明顯的進度風險") });
+        setGraduationRisk({ status, label: labels[status], reason: primary?.title ?? (status === "setup_needed" ? "先設定論文進度或建立第一筆 Personal 研究資料" : "目前沒有明顯的進度風險") });
       }
 
       if (email) {

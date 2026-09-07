@@ -1709,7 +1709,7 @@ export type Database = {
       weekly_updates: {
         Row: {
           id: string
-          lab_id: string
+          lab_id: string | null
           student_user_id: string
           week_start: string
           completed_summary: string
@@ -1722,7 +1722,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          lab_id: string
+          lab_id?: string | null
           student_user_id: string
           week_start: string
           completed_summary: string
@@ -1735,7 +1735,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          lab_id?: string
+          lab_id?: string | null
           student_user_id?: string
           week_start?: string
           completed_summary?: string

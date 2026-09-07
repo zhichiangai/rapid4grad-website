@@ -3,7 +3,7 @@ export type MeetingMode = "functional" | "read_only" | "none";
 
 export type MeetingRecord = {
   id: string;
-  lab_id: string;
+  lab_id: string | null;
   lab_name?: string;
   student_user_id: string;
   student_name?: string;

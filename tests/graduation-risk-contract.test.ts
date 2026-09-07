@@ -45,6 +45,7 @@ test("Never-submitted Weekly uses the 7/14-day membership boundaries", () => {
 
 test("Graduation Risk overall status includes stable and setup_needed without scores", () => {
   assert.equal(deriveGraduationRiskStatus({ signals: [], hasThesisRows: false, activeLab: false }), "setup_needed");
+  assert.equal(deriveGraduationRiskStatus({ signals: [], hasThesisRows: false, activeLab: false, hasResearchData: true }), "stable");
   assert.equal(deriveGraduationRiskStatus({ signals: [], hasThesisRows: true, activeLab: false }), "stable");
   assert.equal(deriveGraduationRiskStatus({ signals: [{ key: "no_recent_meeting", severity: "attention", title: "", reason: "", recommendation: "", href: "/dashboard/meetings", source: "meetings" }], hasThesisRows: true, activeLab: true }), "attention");
   assert.equal(deriveGraduationRiskStatus({ signals: [{ key: "thesis_blocked", severity: "urgent", title: "", reason: "", recommendation: "", href: "/dashboard/thesis", source: "thesis" }], hasThesisRows: true, activeLab: true }), "urgent");
@@ -59,10 +60,11 @@ test("Graduation Risk is a student-only authenticated server boundary with zero 
   assert.match(data, /context\.supabase/);
   assert.doesNotMatch(data, /createV2AdminClient|createAdminClient/);
   assert.doesNotMatch(page, /createV2AdminClient|createAdminClient/);
-  assert.match(data, /from\("weekly_updates"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
-  assert.match(data, /from\("meetings"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
-  assert.match(data, /from\("meeting_actions"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
-  assert.equal(fs.readdirSync("supabase/migrations").length, 22);
+  assert.match(data, /from\("weekly_updates"\)[\s\S]*eq\("student_user_id", context\.user\.id\)/);
+  assert.match(data, /from\("meetings"\)[\s\S]*eq\("student_user_id", context\.user\.id\)/);
+  assert.match(data, /from\("meeting_actions"\)[\s\S]*eq\("student_user_id", context\.user\.id\)/);
+  assert.doesNotMatch(data, /if \(!activeLab\)/);
+  assert.equal(fs.existsSync("supabase/migrations/20260908120000_student_personal_lab_scope_v1.sql"), true);
 });
 
 test("Graduation Risk UI contains required copy, navigation and compact dashboard card", () => {
@@ -77,4 +79,5 @@ test("Graduation Risk UI contains required copy, navigation and compact dashboar
   assert.match(navigation, /graduation-risk/);
   assert.match(home, /畢業風險/);
   assert.match(home, /\/dashboard\/graduation-risk/);
+  assert.match(overview, /Personal Weekly/);
 });

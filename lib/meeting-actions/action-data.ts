@@ -7,7 +7,7 @@ const ACTION_FIELDS = "id,meeting_id,lab_id,student_user_id,title,owner_type,own
 
 type DbClient = SupabaseClient;
 
-export async function loadActionsForMeetings(supabase: DbClient, meetings: Array<{ id: string; lab_id: string; meeting_at: string; student_user_id: string }>) {
+export async function loadActionsForMeetings(supabase: DbClient, meetings: Array<{ id: string; lab_id: string | null; meeting_at: string; student_user_id: string }>) {
   if (!meetings.length) return [] as MeetingActionRecord[];
   const { data, error } = await supabase.from("meeting_actions").select(ACTION_FIELDS).in("meeting_id", meetings.map((meeting) => meeting.id)).order("due_date", { ascending: true, nullsFirst: false }).returns<MeetingActionRecord[]>();
   if (error) {
@@ -24,12 +24,12 @@ export async function loadStudentActions(supabase: DbClient, studentUserId: stri
     return [] as MeetingActionRecord[];
   }
   const meetingIds = [...new Set((data ?? []).map((action) => action.meeting_id))];
-  const labIds = [...new Set((data ?? []).map((action) => action.lab_id))];
+  const labIds = [...new Set((data ?? []).map((action) => action.lab_id).filter((labId): labId is string => Boolean(labId)))];
   const [meetingsResult, labsResult] = await Promise.all([
     meetingIds.length ? supabase.from("meetings").select("id,meeting_at").in("id", meetingIds) : Promise.resolve({ data: [] }),
     labIds.length ? supabase.from("labs").select("id,name").in("id", labIds) : Promise.resolve({ data: [] }),
   ]);
   const meetings = new Map((meetingsResult.data ?? []).map((meeting: { id: string; meeting_at: string }) => [meeting.id, meeting.meeting_at]));
   const labs = new Map((labsResult.data ?? []).map((lab: { id: string; name: string }) => [lab.id, lab.name]));
-  return (data ?? []).map((action) => ({ ...action, meeting_at: meetings.get(action.meeting_id), lab_name: labs.get(action.lab_id) }));
+  return (data ?? []).map((action) => ({ ...action, meeting_at: meetings.get(action.meeting_id), lab_name: action.lab_id ? labs.get(action.lab_id) : undefined }));
 }

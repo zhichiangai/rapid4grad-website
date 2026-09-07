@@ -16,9 +16,12 @@ test("Weekly Check-in keeps ownership fields server-derived", () => {
   const actions = readFileSync(`${root}/app/dashboard/weekly-check-in/actions.ts`, "utf8");
   assert.match(actions, /context\.user\.id/);
   assert.match(actions, /getTaipeiMonday\(\)/);
-  assert.match(actions, /lab_memberships/);
+  assert.match(actions, /resolveStudentCapabilities/);
+  assert.match(actions, /share_to_lab/);
+  assert.match(actions, /existingResult/);
+  assert.match(actions, /既有的 Lab 協作紀錄/);
   assert.doesNotMatch(actions, /formData\.get\(["'](?:lab_id|student_user_id|week_start)["']\)/);
-  assert.match(actions, /onConflict: "lab_id,student_user_id,week_start"/);
+  assert.match(actions, /onConflict: "student_user_id,week_start"/);
 });
 
 test("Weekly Check-in UI uses semantic radio groups and safe error messages", () => {

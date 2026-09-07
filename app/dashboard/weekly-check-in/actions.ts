@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireStudentWorkspace } from "@/lib/auth/authorization";
 import { getTaipeiMonday } from "@/lib/supervision/week";
 import type { WeeklyHelp, WeeklyStatus } from "@/lib/supervision/weekly-updates";
+import { resolveStudentCapabilities } from "@/lib/student/capabilities";
 
 export type WeeklyActionState = { status: "idle" | "success" | "error"; message: string };
 
@@ -47,22 +48,26 @@ export async function saveWeeklyCheckIn(
     return { status: "error", message: "請填寫本週完成內容與下週計畫。" };
   }
 
-  const { data: membership, error: membershipError } = await context.supabase
-    .from("lab_memberships")
-    .select("lab_id")
-    .eq("user_id", context.user.id)
-    .eq("role", "student")
-    .eq("status", "active")
-    .limit(1)
-    .maybeSingle();
+  const capabilities = await resolveStudentCapabilities(context.supabase, context.user.id);
+  const shareToLab = formData.get("share_to_lab") === "on";
+  if (shareToLab && !capabilities.lab.canShareWeekly) {
+    return { status: "error", message: "目前無法分享給 Lab，但你的 Personal Weekly 仍可儲存。" };
+  }
 
-  if (membershipError || !membership) {
-    return { status: "error", message: "目前無法更新這份研究進度，請重新整理後再試。" };
+  const existingResult = await context.supabase
+    .from("weekly_updates")
+    .select("lab_id")
+    .eq("student_user_id", context.user.id)
+    .eq("week_start", getTaipeiMonday())
+    .maybeSingle<{ lab_id: string | null }>();
+  if (existingResult.error) return { status: "error", message: "目前無法確認本週紀錄，請重新整理後再試。" };
+  if (existingResult.data?.lab_id && !capabilities.lab.canShareWeekly) {
+    return { status: "error", message: "這筆是既有的 Lab 協作紀錄，目前為唯讀，未變更原本的分享範圍。" };
   }
 
   const { error } = await context.supabase.from("weekly_updates").upsert(
     {
-      lab_id: membership.lab_id,
+      lab_id: shareToLab ? capabilities.lab.labId : null,
       student_user_id: context.user.id,
       week_start: getTaipeiMonday(),
       completed_summary: completedSummary,
@@ -71,7 +76,7 @@ export async function saveWeeklyCheckIn(
       self_status: selfStatus,
       needs_professor_help: needsProfessorHelp,
     },
-    { onConflict: "lab_id,student_user_id,week_start" },
+    { onConflict: "student_user_id,week_start" },
   );
 
   if (error) {

@@ -34,12 +34,13 @@ test("Meeting Actions server boundary derives ownership and forbids delete", () 
   assert.match(actions, /includes\(intent\)/);
 });
 
-test("Student Action Center resolves subscription metadata through the server loader", () => {
+test("Student Action Center keeps Personal actions writable and scopes Lab writes", () => {
   const page = fs.readFileSync("app/dashboard/actions/page.tsx", "utf8");
-  assert.match(page, /createV2AdminClient/);
-  assert.match(page, /getMeetingMode/);
+  const center = fs.readFileSync("components/meeting-actions/StudentActionCenter.tsx", "utf8");
   assert.doesNotMatch(page, /context\.supabase\.from\("subscriptions"\)/);
-  assert.match(page, /mode === "functional"/);
+  assert.match(page, /canWrite=\{capabilities\.personal\.actions\}/);
+  assert.match(center, /action\.lab_id === null/);
+  assert.match(center, /activeLabId/);
 });
 
 test("Professor Action cards do not link to the Student Meeting route", () => {

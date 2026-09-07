@@ -6,7 +6,7 @@ export type ActionOwnerType = "student" | "supervisor";
 export type MeetingActionRecord = {
   id: string;
   meeting_id: string;
-  lab_id: string;
+  lab_id: string | null;
   student_user_id: string;
   title: string;
   owner_type: ActionOwnerType;

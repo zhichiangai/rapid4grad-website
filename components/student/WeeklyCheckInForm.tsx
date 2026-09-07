@@ -8,6 +8,8 @@ import { weeklyHelpOptions, weeklyStatuses, type WeeklyUpdate } from "@/lib/supe
 type WeeklyCheckInFormProps = {
   currentUpdate: WeeklyUpdate | null;
   disabled: boolean;
+  canShareLab: boolean;
+  labName: string | null;
 };
 
 const initialState: WeeklyActionState = { status: "idle", message: "" };
@@ -24,7 +26,7 @@ const helpStyles = {
   soon: "has-[:checked]:border-amber-300/70 has-[:checked]:bg-amber-400/10",
 } as const;
 
-export function WeeklyCheckInForm({ currentUpdate, disabled }: WeeklyCheckInFormProps) {
+export function WeeklyCheckInForm({ currentUpdate, disabled, canShareLab, labName }: WeeklyCheckInFormProps) {
   const [state, formAction, isPending] = useActionState(saveWeeklyCheckIn, initialState);
   const router = useRouter();
 
@@ -63,6 +65,15 @@ export function WeeklyCheckInForm({ currentUpdate, disabled }: WeeklyCheckInForm
         </div>
       </fieldset>
 
+      <fieldset className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+        <legend className="text-sm font-semibold text-white">分享設定</legend>
+        <label className={`mt-3 flex items-start gap-3 text-sm ${canShareLab ? "cursor-pointer text-slate-200" : "text-slate-500"}`}>
+          <input type="checkbox" name="share_to_lab" defaultChecked={Boolean(currentUpdate?.lab_id)} disabled={disabled || isPending || !canShareLab} className="mt-1 h-4 w-4 accent-cyan-400" />
+          <span>{canShareLab ? `分享這份 Weekly 給「${labName ?? "目前的 Lab"}」` : labName ? `目前 Lab 為唯讀，無法分享新的 Weekly；這份紀錄仍會私人儲存。` : "目前沒有可分享的 Lab；這份 Weekly 只有你看得到。"}</span>
+        </label>
+        {!canShareLab && labName ? <p className="mt-2 pl-7 text-xs leading-5 text-slate-500">Lab 協作恢復後，你可以再選擇分享。</p> : null}
+      </fieldset>
+
       <fieldset>
         <legend className="text-sm font-semibold text-white">需要教授協助嗎？</legend>
         <div className="mt-3 grid gap-3 md:grid-cols-3">
@@ -76,6 +87,7 @@ export function WeeklyCheckInForm({ currentUpdate, disabled }: WeeklyCheckInForm
         </div>
       </fieldset>
 
+      {disabled && currentUpdate?.lab_id ? <p className="rounded-2xl border border-amber-300/20 bg-amber-400/10 px-4 py-3 text-sm leading-6 text-amber-100">這筆是既有的 Lab 協作紀錄，目前為唯讀；原本的分享範圍不會被改動。</p> : null}
       {!disabled ? <button type="submit" disabled={isPending} className="w-full rounded-2xl bg-blue-500 px-6 py-4 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:bg-blue-400 disabled:cursor-not-allowed disabled:opacity-60">{isPending ? "儲存中..." : currentUpdate ? "更新本週進度" : "提交本週進度"}</button> : null}
       {state.message ? <p role={state.status === "error" ? "alert" : "status"} className={`rounded-2xl border px-4 py-3 text-sm leading-6 ${state.status === "error" ? "border-red-300/20 bg-red-400/10 text-red-100" : "border-emerald-300/20 bg-emerald-400/10 text-emerald-100"}`}>{state.message}</p> : null}
     </form>
