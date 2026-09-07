@@ -1,6 +1,7 @@
 import "server-only";
 
-import { importPKCS8, SignJWT } from "jose";
+import { SignJWT } from "jose";
+import { importMuxSigningPrivateKey } from "@/lib/course/mux-signing-key";
 
 const MUX_TOKEN_TTL_SECONDS = 3 * 60 * 60;
 const MAX_PLAYBACK_ID_LENGTH = 256;
@@ -19,9 +20,7 @@ export async function signMuxPlaybackToken(playbackId: string) {
   if (!isValidMuxPlaybackId(playbackId)) throw new Error("Invalid Mux playback ID");
 
   const keyId = readRequiredEnv("MUX_SIGNING_KEY_ID");
-  const encodedPrivateKey = readRequiredEnv("MUX_SIGNING_PRIVATE_KEY");
-  const privateKey = Buffer.from(encodedPrivateKey, "base64").toString("utf8");
-  const signingKey = await importPKCS8(privateKey, "RS256");
+  const signingKey = await importMuxSigningPrivateKey(readRequiredEnv("MUX_SIGNING_PRIVATE_KEY"));
   const expiration = Math.floor(Date.now() / 1000) + MUX_TOKEN_TTL_SECONDS;
 
   return new SignJWT({ aud: "v", kid: keyId })
