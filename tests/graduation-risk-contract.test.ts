@@ -62,7 +62,7 @@ test("Graduation Risk is a student-only authenticated server boundary with zero 
   assert.match(data, /from\("weekly_updates"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
   assert.match(data, /from\("meetings"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
   assert.match(data, /from\("meeting_actions"\)[\s\S]*eq\("lab_id", activeLab\.labId\)/);
-  assert.equal(fs.readdirSync("supabase/migrations").length, 20);
+  assert.equal(fs.readdirSync("supabase/migrations").length, 22);
 });
 
 test("Graduation Risk UI contains required copy, navigation and compact dashboard card", () => {

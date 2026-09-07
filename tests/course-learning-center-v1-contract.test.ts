@@ -186,7 +186,7 @@ test("Course Operations V2.1 uses an existing lesson first and makes creation ex
   assert.match(studio, /aria-current=\{selected \? "page"/);
   assert.match(studio, /搜尋課程名稱/);
   assert.match(studio, /全部分類/);
-  assert.match(studio, /全部上架狀態/);
+  assert.match(studio, /全部狀態/);
   assert.match(studio, /觀看對象/);
   assert.match(studio, /上架狀態/);
   assert.match(studio, /影片狀態/);
@@ -276,7 +276,7 @@ test("Publishing requires ready video and replacement preserves the old Playback
 });
 
 test("Course video lifecycle is narrow and does not change access policy", async () => {
-  const migration = await source("supabase/migrations/20260906100000_course_video_upload_lifecycle.sql");
+  const migration = await source("supabase/migrations/20260906021917_course_video_upload_lifecycle.sql");
   assert.match(migration, /ADD COLUMN video_upload_id/);
   assert.match(migration, /ADD COLUMN video_asset_id/);
   assert.match(migration, /video_status/);

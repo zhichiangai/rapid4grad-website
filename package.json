@@ -7,7 +7,12 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test tests/**/*.test.ts"
+    "test": "tsx --test tests/**/*.test.ts",
+    "env:check": "tsx scripts/env-check.ts",
+    "qa:course": "playwright test tests/course-staging.spec.ts",
+    "qa:course:staging": "BASE_URL=https://staging.rapid4grad.com playwright test tests/course-staging.spec.ts",
+    "qa:course:headed": "playwright test tests/course-staging.spec.ts --headed",
+    "qa:seed:staging": "tsx scripts/qa-seed-staging.ts"
   },
   "dependencies": {
     "@mux/mux-node": "^15.1.0",
@@ -26,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

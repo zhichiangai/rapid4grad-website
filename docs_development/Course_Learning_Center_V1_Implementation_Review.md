@@ -52,7 +52,7 @@ Mux Direct Upload、signed webhook 與 asset lifecycle 只更新目前 lesson �
 - Student catalog/progress 使用 authenticated Supabase client 與既有 RLS。
 - Admin mutation 只在 `requireAdminContext` 成功後執行，並使用既有 server-only admin client pattern。
 - Browser 不可指定或覆寫 student progress 的授權身份；播放授權由既有 API 驗證。
-- 本輪只新增 `20260906100000_course_video_upload_lifecycle.sql` 的三個欄位與狀態 constraint，未修改 private data、subscription、billing、permission foundation、RLS 或 Production data。
+- 本輪只新增 `20260906021917_course_video_upload_lifecycle.sql` 的三個欄位與狀態 constraint，未修改 private data、subscription、billing、permission foundation、RLS 或 Production data。
 
 ## Validation
 

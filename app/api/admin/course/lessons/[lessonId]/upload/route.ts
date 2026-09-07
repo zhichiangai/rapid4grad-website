@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdminContext } from "@/lib/admin/authorization";
 import { createMuxClient } from "@/lib/course/mux-server";
@@ -29,6 +30,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       console.error("[course-upload] Lesson state update failed", { operation: "mark-uploading", code: updateError.code, lessonId });
       return NextResponse.json({ success: false, error: "目前無法準備影片上傳。" }, { status: 500 });
     }
+    const db = admin as any;
+    const { data: previousVersion } = await db.from("course_video_versions").select("version_number").eq("lesson_id", lesson.id).order("version_number", { ascending: false }).limit(1).maybeSingle();
+    const { error: versionError } = await db.from("course_video_versions").insert({ lesson_id: lesson.id, version_number: (previousVersion?.version_number ?? 0) + 1, video_provider: "mux", mux_upload_id: upload.id, status: "processing" });
+    if (versionError) console.error("[course-upload] Version record creation failed", { code: versionError.code, lessonId });
     return NextResponse.json({ success: true, uploadId: upload.id, uploadUrl: upload.url });
   } catch (error) {
     console.error("[course-upload] Mux upload creation failed", { operation: "create-upload", lessonId, errorCode: error instanceof Error ? error.name : "unknown" });
