@@ -22,4 +22,38 @@ const { data: course, error } = await admin
   .single();
 if (error) throw error;
 console.log(`Staging QA course ready: ${course.slug} (${course.id})`);
+
+const { data: existingLesson, error: lessonLookupError } = await admin
+  .from("course_lessons")
+  .select("id,slug,title,video_status,video_asset_id,video_external_id")
+  .eq("course_id", course.id)
+  .eq("slug", "staging-course-qa-10s")
+  .maybeSingle();
+if (lessonLookupError) throw lessonLookupError;
+
+if (existingLesson) {
+  console.log(`Staging QA lesson already exists: ${existingLesson.slug} (${existingLesson.id})`);
+  console.log(`Video status preserved: ${existingLesson.video_status}`);
+} else {
+  const { data: lesson, error: lessonError } = await admin
+    .from("course_lessons")
+    .insert({
+      course_id: course.id,
+      slug: "staging-course-qa-10s",
+      module_key: "Research",
+      title: "[STAGING] Course Video 10s",
+      description: "Persistent staging-only lesson for non-production course QA.",
+      sort_order: 10,
+      access_level: "public_preview",
+      video_provider: "mux",
+      video_status: "empty",
+      publication_state: "draft",
+      is_published: false,
+    })
+    .select("id,slug,title")
+    .single();
+  if (lessonError) throw lessonError;
+  console.log(`Staging QA lesson created: ${lesson.slug} (${lesson.id})`);
+}
+
 console.log("No Production project was touched.");
