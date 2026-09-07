@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import { createV2AdminClient } from "@/lib/supabase/server";
 import { createMuxClient } from "@/lib/course/mux-server";
@@ -28,6 +29,8 @@ export async function POST(request: NextRequest) {
     const assetId = stringValue(event.data?.asset_id) ?? stringValue(event.data?.id);
     if (!assetId || !uploadId) return NextResponse.json({ success: true });
     const { error } = await admin.from("course_lessons").update({ video_asset_id: assetId, video_status: "processing" }).eq("video_upload_id", uploadId).eq("video_provider", "mux");
+    const { error: versionError } = await (admin as any).from("course_video_versions").update({ mux_asset_id: assetId, status: "processing" }).eq("mux_upload_id", uploadId);
+    if (versionError) console.error("[mux-webhook] version asset update failed", { operation: type, code: versionError.code });
     if (error) console.error("[mux-webhook] asset-created update failed", { operation: type, code: error.code });
     return NextResponse.json({ success: true });
   }
@@ -37,6 +40,10 @@ export async function POST(request: NextRequest) {
     const playbackId = stringValue(event.data?.playback_ids?.find((item) => item.policy === "signed")?.id) ?? stringValue(event.data?.playback_ids?.[0]?.id);
     if (!assetId || !lessonId || !playbackId) return NextResponse.json({ success: true });
     const { error } = await admin.from("course_lessons").update({ video_asset_id: assetId, video_external_id: playbackId, video_status: "ready" }).eq("id", lessonId).eq("video_provider", "mux").eq("video_asset_id", assetId);
+    const { error: retireError } = await (admin as any).from("course_video_versions").update({ status: "retired", retired_at: new Date().toISOString() }).eq("lesson_id", lessonId).neq("mux_asset_id", assetId).eq("status", "ready");
+    if (retireError) console.error("[mux-webhook] previous version retirement failed", { operation: type, code: retireError.code });
+    const { error: versionError } = await (admin as any).from("course_video_versions").update({ mux_asset_id: assetId, playback_id: playbackId, status: "ready", activated_at: new Date().toISOString() }).eq("mux_asset_id", assetId);
+    if (versionError) console.error("[mux-webhook] version ready update failed", { operation: type, code: versionError.code });
     if (error) console.error("[mux-webhook] asset-ready update failed", { operation: type, code: error.code });
     return NextResponse.json({ success: true });
   }
@@ -44,6 +51,8 @@ export async function POST(request: NextRequest) {
     const assetId = stringValue(event.data?.id) ?? stringValue(event.object?.id);
     if (assetId) {
       const { error } = await admin.from("course_lessons").update({ video_status: "errored" }).eq("video_asset_id", assetId).eq("video_provider", "mux");
+      const { error: versionError } = await (admin as any).from("course_video_versions").update({ status: "errored" }).eq("mux_asset_id", assetId);
+      if (versionError) console.error("[mux-webhook] version error update failed", { operation: type, code: versionError.code });
       if (error) console.error("[mux-webhook] asset-error update failed", { operation: type, code: error.code });
     }
   }

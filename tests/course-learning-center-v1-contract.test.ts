@@ -186,7 +186,7 @@ test("Course Operations V2.1 uses an existing lesson first and makes creation ex
   assert.match(studio, /aria-current=\{selected \? "page"/);
   assert.match(studio, /搜尋課程名稱/);
   assert.match(studio, /全部分類/);
-  assert.match(studio, /全部上架狀態/);
+  assert.match(studio, /全部狀態/);
   assert.match(studio, /觀看對象/);
   assert.match(studio, /上架狀態/);
   assert.match(studio, /影片狀態/);

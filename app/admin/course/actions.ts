@@ -1,4 +1,5 @@
 "use server";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -28,8 +29,9 @@ function parseLesson(formData: FormData) {
   const sortOrderRaw = value(formData, "sortOrder", 12);
   const sortOrder = /^\d+$/.test(sortOrderRaw) ? Number(sortOrderRaw) : NaN;
   const isPublished = formData.get("isPublished") === "on";
+  const publicationState = value(formData, "publicationState", 20) || (isPublished ? "live" : "draft");
   const lessonId = value(formData, "lessonId", 80);
-  return { title, slug, moduleKey, accessLevel, videoProvider, muxPlaybackId, videoSource, materialUrl, description, sortOrder, isPublished, lessonId };
+  return { title, slug, moduleKey, accessLevel, videoProvider, muxPlaybackId, videoSource, materialUrl, description, sortOrder, isPublished, publicationState, lessonId };
 }
 
 function validUrl(valueToCheck: string, allowEmpty = true) {
@@ -137,10 +139,15 @@ export async function saveCourseLesson(formData: FormData) {
   const valid = lesson.title.length > 0 && lesson.slug.length > 0 && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(lesson.slug) && MODULE_KEYS.includes(lesson.moduleKey as (typeof MODULE_KEYS)[number]) && ACCESS_LEVELS.includes(lesson.accessLevel as (typeof ACCESS_LEVELS)[number]) && validProvider && validVideo && validMaterialUrl(lesson.materialUrl) && Number.isSafeInteger(lesson.sortOrder) && lesson.sortOrder >= 0;
   if (!courseId || (lesson.lessonId && !current) || !valid) redirect("/admin/course?message=invalid");
 
-  const payload = { course_id: courseId, title: lesson.title, slug: lesson.slug, module_key: lesson.moduleKey, description: lesson.description || null, access_level: lesson.accessLevel as (typeof ACCESS_LEVELS)[number], video_provider: lesson.videoProvider, video_external_id: playbackId || null, video_status: lesson.videoProvider === "html5" ? (playbackId ? "ready" : "empty") : current?.video_status ?? "empty", material_url: lesson.materialUrl || null, sort_order: lesson.sortOrder, is_published: lesson.isPublished };
+  const publicationState = lesson.isPublished
+    ? "live"
+    : lesson.publicationState === "paused" || lesson.publicationState === "archived"
+      ? lesson.publicationState
+      : "draft";
+  const payload = { course_id: courseId, title: lesson.title, slug: lesson.slug, module_key: lesson.moduleKey, description: lesson.description || null, access_level: lesson.accessLevel as (typeof ACCESS_LEVELS)[number], video_provider: lesson.videoProvider, video_external_id: playbackId || null, video_status: lesson.videoProvider === "html5" ? (playbackId ? "ready" : "empty") : current?.video_status ?? "empty", material_url: lesson.materialUrl || null, sort_order: lesson.sortOrder, publication_state: publicationState, is_published: publicationState === "live" };
   const result = lesson.lessonId
-    ? await admin.from("course_lessons").update(payload).eq("id", lesson.lessonId).eq("course_id", courseId)
-    : await admin.from("course_lessons").insert(payload).select("id").single();
+    ? await (admin as unknown as { from: (table: string) => any }).from("course_lessons").update(payload).eq("id", lesson.lessonId).eq("course_id", courseId)
+    : await (admin as unknown as { from: (table: string) => any }).from("course_lessons").insert(payload).select("id").single();
   if (result.error) {
     console.error("[admin-course] Lesson mutation failed", { operation: lesson.lessonId ? "update" : "insert", code: result.error.code });
     redirect("/admin/course?message=save-failed");
@@ -161,6 +168,76 @@ export async function unpublishCourseLesson(formData: FormData) {
   revalidatePath("/admin/course");
   revalidatePath("/learn");
   redirect(`/admin/course?edit=${lessonId}&message=unpublished`);
+}
+
+export async function pauseCourseLesson(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const lessonId = value(formData, "lessonId", 80);
+  const pauseReason = value(formData, "pauseReason", 80);
+  const { data: lesson } = await (admin as any).from("course_lessons").select("id,publication_state").eq("id", lessonId).maybeSingle();
+  if (!lesson || lesson.publication_state !== "live") redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  const { error } = await (admin as any).from("course_lessons").update({ publication_state: "paused", pause_reason: pauseReason || null, paused_at: new Date().toISOString() }).eq("id", lessonId);
+  if (error) redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  revalidatePath("/admin/course");
+  revalidatePath("/learn");
+  redirect(`/admin/course?edit=${lessonId}&message=paused`);
+}
+
+export async function resumeCourseLesson(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const lessonId = value(formData, "lessonId", 80);
+  const { data: lesson } = await (admin as any).from("course_lessons").select("id,publication_state").eq("id", lessonId).maybeSingle();
+  if (!lesson || lesson.publication_state !== "paused") redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  const { error } = await (admin as any).from("course_lessons").update({ publication_state: "live", pause_reason: null }).eq("id", lessonId);
+  if (error) redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  revalidatePath("/admin/course");
+  revalidatePath("/learn");
+  redirect(`/admin/course?edit=${lessonId}&message=resumed`);
+}
+
+export async function archiveCourseLesson(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const lessonId = value(formData, "lessonId", 80);
+  const { data: lesson } = await (admin as any).from("course_lessons").select("id,publication_state").eq("id", lessonId).maybeSingle();
+  if (!lesson || lesson.publication_state === "draft" || lesson.publication_state === "archived") redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  const { error } = await (admin as any).from("course_lessons").update({ publication_state: "archived", archived_at: new Date().toISOString() }).eq("id", lessonId);
+  if (error) redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  revalidatePath("/admin/course");
+  revalidatePath("/learn");
+  redirect(`/admin/course?edit=${lessonId}&message=archived`);
+}
+
+export async function restoreArchivedCourseLesson(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const lessonId = value(formData, "lessonId", 80);
+  const { data: lesson } = await (admin as any).from("course_lessons").select("id,publication_state").eq("id", lessonId).maybeSingle();
+  if (!lesson || lesson.publication_state !== "archived") redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  const { error } = await (admin as any).from("course_lessons").update({ publication_state: "paused", archived_at: null, pause_reason: "從封存恢復，等待人工確認" }).eq("id", lessonId);
+  if (error) redirect(`/admin/course?edit=${lessonId}&message=save-failed`);
+  revalidatePath("/admin/course");
+  revalidatePath("/learn");
+  redirect(`/admin/course?edit=${lessonId}&message=restored`);
+}
+
+export async function answerCourseQuestion(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const questionId = value(formData, "questionId", 80);
+  const answer = value(formData, "answer", 4000);
+  if (!questionId || !answer) redirect("/admin/course?view=questions&message=save-failed");
+  const { error } = await (admin as any).from("course_questions").update({ admin_answer: answer, status: "answered", answered_at: new Date().toISOString() }).eq("id", questionId);
+  if (error) redirect("/admin/course?view=questions&message=save-failed");
+  revalidatePath("/admin/course");
+  redirect("/admin/course?view=questions&message=answered");
+}
+
+export async function resolveCourseQuestion(formData: FormData) {
+  const { admin } = await requireAdminContext("/admin/course");
+  const questionId = value(formData, "questionId", 80);
+  if (!questionId) redirect("/admin/course?view=questions&message=save-failed");
+  const { error } = await (admin as any).from("course_questions").update({ status: "resolved" }).eq("id", questionId);
+  if (error) redirect("/admin/course?view=questions&message=save-failed");
+  revalidatePath("/admin/course");
+  redirect("/admin/course?view=questions&message=resolved");
 }
 
 export async function removeCourseLessonVideo(formData: FormData) {
