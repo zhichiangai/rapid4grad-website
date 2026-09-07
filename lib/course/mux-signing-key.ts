@@ -3,11 +3,28 @@ import { importPKCS8 } from "jose";
 const PKCS8_PEM_HEADER = "-----BEGIN PRIVATE KEY-----";
 const PKCS8_PEM_FOOTER = "-----END PRIVATE KEY-----";
 
+function normalizePem(value: string) {
+  return value.trim().replace(/\\n/g, "\n");
+}
+
+function isBase64(value: string) {
+  const compact = value.replace(/\s/g, "");
+  return compact.length > 0 && compact.length % 4 !== 1 && /^[A-Za-z0-9+/_-]*={0,2}$/.test(compact);
+}
+
+function derToPem(bytes: Buffer) {
+  const encoded = bytes.toString("base64").match(/.{1,64}/g)?.join("\n") ?? "";
+  return `${PKCS8_PEM_HEADER}\n${encoded}\n${PKCS8_PEM_FOOTER}`;
+}
+
 export function decodeMuxSigningPrivateKey(value: string) {
-  const candidate = value.trim();
-  const decodedPem = candidate.startsWith(PKCS8_PEM_HEADER)
-    ? candidate
-    : Buffer.from(candidate, "base64").toString("utf8").trim();
+  const candidate = normalizePem(value);
+  if (candidate.startsWith(PKCS8_PEM_HEADER)) return candidate;
+  if (!isBase64(candidate)) throw new Error("MUX signing key is not a supported encoding");
+
+  const bytes = Buffer.from(candidate.replace(/\s/g, "").replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  const decodedText = bytes.toString("utf8");
+  const decodedPem = decodedText.includes(PKCS8_PEM_HEADER) ? normalizePem(decodedText) : derToPem(bytes);
 
   if (!decodedPem.startsWith(PKCS8_PEM_HEADER) || !decodedPem.endsWith(PKCS8_PEM_FOOTER)) {
     throw new Error("MUX signing key must be a PKCS8 PEM or Base64-encoded PKCS8 PEM");
@@ -17,5 +34,29 @@ export function decodeMuxSigningPrivateKey(value: string) {
 }
 
 export function importMuxSigningPrivateKey(value: string) {
-  return importPKCS8(decodeMuxSigningPrivateKey(value), "RS256");
+  const candidate = normalizePem(value);
+  let decodedPem: string;
+  try {
+    decodedPem = decodeMuxSigningPrivateKey(candidate);
+  } catch (error) {
+    console.error("[mux-signing-key] PKCS8 input rejected", {
+      inputFormat: candidate.startsWith(PKCS8_PEM_HEADER) ? "raw-pem" : isBase64(candidate) ? "base64-or-der" : "unknown",
+      decodedLength: 0,
+      header: false,
+      footer: false,
+      importPKCS8: "NOT_ATTEMPTED",
+    });
+    throw error;
+  }
+  const diagnostics = {
+    inputFormat: candidate.startsWith(PKCS8_PEM_HEADER) ? "raw-pem" : "base64-or-der",
+    decodedLength: decodedPem.length,
+    header: decodedPem.startsWith(PKCS8_PEM_HEADER),
+    footer: decodedPem.endsWith(PKCS8_PEM_FOOTER),
+  };
+
+  return importPKCS8(decodedPem, "RS256").catch((error) => {
+    console.error("[mux-signing-key] PKCS8 import failed", { ...diagnostics, importPKCS8: "FAIL" });
+    throw error;
+  });
 }
