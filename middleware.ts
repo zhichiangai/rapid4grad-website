@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { assertEnvironmentSafety } from "@/lib/runtime/environment";
 
 function isProtectedPath(pathname: string) {
   return pathname === "/dashboard" || pathname.startsWith("/dashboard/");
@@ -14,6 +15,7 @@ function isProfessorPath(pathname: string) {
 }
 
 export async function middleware(request: NextRequest) {
+  assertEnvironmentSafety();
   let supabaseResponse = NextResponse.next({
     request,
   });

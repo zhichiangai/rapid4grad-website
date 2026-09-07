@@ -4,8 +4,10 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { Database as V2Database } from "@/types/database-v2.generated";
+import { assertEnvironmentSafety } from "@/lib/runtime/environment";
 
 export async function createClient() {
+  assertEnvironmentSafety();
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -31,6 +33,7 @@ export async function createClient() {
 }
 
 export function createAdminClient() {
+  assertEnvironmentSafety();
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
@@ -44,6 +47,7 @@ export function createAdminClient() {
 }
 
 export async function createV2Client() {
+  assertEnvironmentSafety();
   const cookieStore = await cookies();
 
   return createServerClient<V2Database>(
@@ -69,6 +73,7 @@ export async function createV2Client() {
 }
 
 export function createV2AdminClient() {
+  assertEnvironmentSafety();
   return createSupabaseClient<V2Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SECRET_KEY!,
