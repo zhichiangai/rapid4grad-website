@@ -79,7 +79,7 @@ test("Course Studio is active-admin protected and validates server-side", async 
   assert.match(workspace, /選擇影片/);
   assert.match(workspace, /進階設定/);
   assert.match(workspace, /發布課程/);
-  assert.match(studio, /影片上傳/);
+  assert.match(studio, /影片狀態/);
   assert.match(actions, /select\("id"\)\.single\(\)/);
 });
 
@@ -174,8 +174,40 @@ test("Course operations preserve metadata while controlling publication and dele
   assert.match(actions, /current\?\.video_status === "ready"/);
   assert.match(workspace, /取消發布/);
   assert.match(workspace, /取消發布並移除影片/);
-  assert.match(workspace, /危險區：刪除草稿單元/);
-  assert.match(workspace, /實際學生入口/);
+  assert.match(workspace, /危險操作/);
+  assert.match(workspace, /學生顯示位置/);
+});
+
+test("Course Operations V2.1 uses an existing lesson first and makes creation explicit", async () => {
+  const [studio, workspace] = await Promise.all([source(files.studio), source(files.workspace)]);
+  assert.match(studio, /params\.new === "1"/);
+  assert.match(studio, /explicitLesson \?\? lessons\[0\]/);
+  assert.match(studio, /href="\/admin\/course\?new=1"/);
+  assert.match(studio, /aria-current=\{selected \? "page"/);
+  assert.match(studio, /搜尋課程名稱/);
+  assert.match(studio, /全部分類/);
+  assert.match(studio, /全部上架狀態/);
+  assert.match(studio, /觀看對象/);
+  assert.match(studio, /上架狀態/);
+  assert.match(studio, /影片狀態/);
+  assert.doesNotMatch(studio, /lesson\.slug\} ·/);
+  assert.doesNotMatch(studio, /Mux Video/);
+  assert.match(workspace, /目前營運狀態/);
+  assert.match(workspace, /學生顯示位置/);
+  assert.match(workspace, /target="_blank"/);
+  assert.match(workspace, /發布課程/);
+  assert.match(workspace, /取消發布/);
+  assert.match(workspace, /更多操作/);
+  assert.match(workspace, /危險操作/);
+});
+
+test("Course Operations V2.1 keeps direct upload and auto-draft flow", async () => {
+  const workspace = await source(files.workspace);
+  assert.match(workspace, /createDraftCourseLesson/);
+  assert.match(workspace, /系統會先自動建立草稿/);
+  assert.match(workspace, /不需要先儲存/);
+  assert.match(workspace, /MuxVideoUploader/);
+  assert.match(workspace, /選擇影片/);
 });
 
 test("Course progress remains the authenticated course_progress workflow", async () => {

@@ -91,3 +91,13 @@ Mux Direct Upload、signed webhook 與 asset lifecycle 只更新目前 lesson �
 - Authenticated Admin UI playback and destructive-action E2E: NOT EXECUTED — no isolated Preview Mux/data environment was available; Production was not used as a substitute. Production smoke QA remained non-destructive.
 - Main merge: COMPLETED via fast-forward to `20b03dee26304667448b44f0b4381dc58e9051ba`
 - Production: DEPLOYED and READY; no destructive operations performed.
+
+## Admin Course Operations V2.1 UX Polish
+
+- `/admin/course` now defaults to the first lesson in the current operational list when lessons exist. The `?edit=` lesson remains authoritative when valid, while `?new=1` is the explicit New Lesson mode.
+- The lesson library is presented as an operational content list: whole rows are keyboard-selectable links with visible focus and selected state, and the primary list hides slug/provider/Playback ID implementation details.
+- The selected workspace is status-first. It exposes the lesson title, `已發布`/`未上架`, video readiness, `觀看對象`, student display location, Preview, Publish/Unpublish, and video operations before basic metadata.
+- Audience terminology is consistently `觀看對象`, with help text aligned to the existing `public_preview`, `lab_basic`, and `full_course` authorization tiers. Student location is explicit and does not claim `/learn` availability when the course slug is not configured.
+- New lessons remain direct-upload driven: choosing a file creates an Admin-authorized draft automatically, switches the URL/list selection to that draft, and keeps the Mux upload progress in the same workspace. There is no Save-before-upload requirement.
+- Replace/remove actions remain under `更多操作`; draft deletion remains under `危險操作`. Existing Server Actions, Admin authorization, signed playback, webhook verification, trusted asset deletion, and server-side publish validation were not changed.
+- UX contract coverage was extended for default selection, explicit creation mode, operational list wording, status/audience/learner visibility, Preview and publication actions, and auto-draft direct upload.
