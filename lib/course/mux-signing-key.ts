@@ -17,14 +17,25 @@ function derToPem(bytes: Buffer) {
   return `${PKCS8_PEM_HEADER}\n${encoded}\n${PKCS8_PEM_FOOTER}`;
 }
 
+function canonicalizePem(pem: string) {
+  const body = pem
+    .slice(PKCS8_PEM_HEADER.length, -PKCS8_PEM_FOOTER.length)
+    .replace(/\s/g, "");
+  if (!isBase64(body)) throw new Error("MUX signing key PEM body is not valid Base64");
+  return derToPem(Buffer.from(body.replace(/-/g, "+").replace(/_/g, "/"), "base64"));
+}
+
 export function decodeMuxSigningPrivateKey(value: string) {
   const candidate = normalizePem(value);
-  if (candidate.startsWith(PKCS8_PEM_HEADER)) return candidate;
+  if (candidate.startsWith(PKCS8_PEM_HEADER)) {
+    if (!candidate.endsWith(PKCS8_PEM_FOOTER)) throw new Error("MUX signing key has an invalid PEM footer");
+    return canonicalizePem(candidate);
+  }
   if (!isBase64(candidate)) throw new Error("MUX signing key is not a supported encoding");
 
   const bytes = Buffer.from(candidate.replace(/\s/g, "").replace(/-/g, "+").replace(/_/g, "/"), "base64");
   const decodedText = bytes.toString("utf8");
-  const decodedPem = decodedText.includes(PKCS8_PEM_HEADER) ? normalizePem(decodedText) : derToPem(bytes);
+  const decodedPem = decodedText.includes(PKCS8_PEM_HEADER) ? canonicalizePem(normalizePem(decodedText)) : derToPem(bytes);
 
   if (!decodedPem.startsWith(PKCS8_PEM_HEADER) || !decodedPem.endsWith(PKCS8_PEM_FOOTER)) {
     throw new Error("MUX signing key must be a PKCS8 PEM or Base64-encoded PKCS8 PEM");
@@ -53,6 +64,7 @@ export function importMuxSigningPrivateKey(value: string) {
     decodedLength: decodedPem.length,
     header: decodedPem.startsWith(PKCS8_PEM_HEADER),
     footer: decodedPem.endsWith(PKCS8_PEM_FOOTER),
+    pemBodyLength: decodedPem.slice(PKCS8_PEM_HEADER.length, -PKCS8_PEM_FOOTER.length).replace(/\s/g, "").length,
   };
 
   return importPKCS8(decodedPem, "RS256").catch((error) => {
