@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getTaipeiMonday } from "@/lib/supervision/week";
 import { getThesisProgressSummary, mergeMilestoneDefinitionsWithRows, type ThesisMilestoneRow } from "@/lib/thesis-progress/thesis-domain";
 import { deriveGraduationRiskSignals, deriveGraduationRiskStatus, getPrimaryGraduationRiskSignal } from "@/lib/graduation-risk/risk-domain";
+import { deriveStudentActivationState, type StudentActivationState } from "@/lib/student/activation";
 
 type AdvisorMemory = {
   id: string;
@@ -29,6 +30,9 @@ export default function DashboardPage() {
   const [graduationRisk, setGraduationRisk] = useState<{ status: "urgent" | "attention" | "stable" | "setup_needed"; label: string; reason: string } | undefined>();
   const [advisorConfigured, setAdvisorConfigured] = useState(false);
   const [learningSummary, setLearningSummary] = useState<{ courseTitle: string; lessonTitle: string | null; completedCount: number; visibleCount: number }>({ courseTitle: "", lessonTitle: null, completedCount: 0, visibleCount: 0 });
+  const [activation, setActivation] = useState<StudentActivationState | undefined>();
+  const [activationError, setActivationError] = useState(false);
+  const [hasActiveLab, setHasActiveLab] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -48,12 +52,13 @@ export default function DashboardPage() {
 
       const email = user.email?.toLowerCase();
 
-      const { data: weekly } = await supabase
+      const weeklyResult = await supabase
         .from("weekly_updates")
         .select("id,updated_at")
         .eq("student_user_id", user.id)
         .eq("week_start", getTaipeiMonday())
         .maybeSingle<{ id: string; updated_at: string }>();
+      const weekly = weeklyResult.data;
 
       if (isMounted) setWeeklyCheckIn({ updatedAt: weekly?.updated_at ?? null });
 
@@ -79,11 +84,12 @@ export default function DashboardPage() {
         if (isMounted) setLearningSummary({ courseTitle: learningCourse.title, lessonTitle: nextLesson?.title ?? null, completedCount: (visibleLessons ?? []).filter((lesson) => progressByLesson.get(lesson.id) === "completed").length, visibleCount: (visibleLessons ?? []).length });
       }
 
-      const { data: meetings } = await supabase
+      const meetingsResult = await supabase
         .from("meetings")
         .select("meeting_at,status")
         .eq("student_user_id", user.id)
         .order("meeting_at", { ascending: true });
+      const meetings = meetingsResult.data;
       const now = Date.now();
       const scheduled = (meetings ?? []).filter((meeting: { meeting_at: string; status: string }) => meeting.status === "scheduled");
       const nextMeeting = scheduled.find((meeting: { meeting_at: string }) => new Date(meeting.meeting_at).getTime() > now);
@@ -92,7 +98,19 @@ export default function DashboardPage() {
         nextMeetingAt: nextMeeting?.meeting_at ?? null,
       });
 
-      const { data: actions } = await supabase.from("meeting_actions").select("due_date,status").eq("student_user_id", user.id);
+      const actionsResult = await supabase.from("meeting_actions").select("due_date,status").eq("student_user_id", user.id);
+      const actions = actionsResult.data;
+      const membershipResult = await supabase
+        .from("lab_memberships")
+        .select("lab_id,joined_at,labs(status)")
+        .eq("user_id", user.id)
+        .eq("role", "student")
+        .eq("status", "active")
+        .limit(1)
+        .maybeSingle<{ lab_id: string; joined_at: string; labs: { status: string } | null }>();
+      const membership = membershipResult.data;
+      const activeLab = membership?.labs?.status === "active";
+      if (isMounted) setHasActiveLab(activeLab);
       const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
       const maxDate = new Date(`${today}T00:00:00Z`);
       maxDate.setUTCDate(maxDate.getUTCDate() + 14);
@@ -104,22 +122,28 @@ export default function DashboardPage() {
         openCount: openActions.length,
       });
 
-      const { data: thesisRows } = await supabase
+      const thesisResult = await supabase
         .from("thesis_milestones")
         .select("milestone_key,status,target_date,completed_at")
         .eq("student_user_id", user.id);
+      const thesisRows = thesisResult.data;
       if (isMounted) {
+        const activationDataFailed = Boolean(weeklyResult.error || meetingsResult.error || actionsResult.error || membershipResult.error || thesisResult.error);
+        setActivationError(activationDataFailed);
+        setActivation(activationDataFailed ? undefined : deriveStudentActivationState({
+            hasThesisSetup: (thesisRows ?? []).length > 0,
+            hasMeeting: (meetings ?? []).length > 0,
+            hasCurrentWeekly: Boolean(weekly),
+            hasAnyAction: (actions ?? []).length > 0,
+          }));
         const thesis = getThesisProgressSummary(mergeMilestoneDefinitionsWithRows(user.id, (thesisRows ?? []) as ThesisMilestoneRow[]));
         setThesisSummary({
           currentLabel: thesis.current?.label ?? "所有論文里程碑已完成",
           completedCount: thesis.completedCount,
           blocked: thesis.current?.status === "blocked",
         });
-        const membership = await supabase.from("lab_memberships").select("lab_id,joined_at,labs(status)").eq("user_id", user.id).eq("role", "student").eq("status", "active").limit(1).maybeSingle();
-        const member = membership.data as { lab_id: string; joined_at: string; labs: { status: string } | null } | null;
-        const activeLab = member?.labs?.status === "active";
-        const signals = deriveGraduationRiskSignals({ activeLab, joinedAt: member?.joined_at, latestWeekly: weekly ?? null, meetings: (meetings ?? []) as Array<{ status: string; meeting_at: string }>, actions: (actions ?? []) as Array<{ status: string; due_date: string | null; owner_type: string; owner_user_id: string; student_user_id: string }>, thesisMilestones: (thesisRows ?? []) as ThesisMilestoneRow[] });
-        const status = deriveGraduationRiskStatus({ signals, hasThesisRows: (thesisRows ?? []).length > 0, activeLab });
+        const signals = deriveGraduationRiskSignals({ activeLab, joinedAt: membership?.joined_at, latestWeekly: weekly ?? null, meetings: (meetings ?? []) as Array<{ status: string; meeting_at: string }>, actions: (actions ?? []) as Array<{ status: string; due_date: string | null; owner_type: string; owner_user_id: string; student_user_id: string }>, thesisMilestones: (thesisRows ?? []) as ThesisMilestoneRow[] });
+        const status = deriveGraduationRiskStatus({ signals, hasThesisRows: (thesisRows ?? []).length > 0, activeLab, hasResearchData: Boolean((thesisRows ?? []).length || (meetings ?? []).length || (actions ?? []).length || weekly) });
         const primary = getPrimaryGraduationRiskSignal(signals);
         const labels = { urgent: "需要優先處理", attention: "需要注意", stable: "目前穩定", setup_needed: "資料尚未完整" } as const;
         setGraduationRisk({ status, label: labels[status], reason: primary?.title ?? (status === "setup_needed" ? "先設定論文進度或建立第一筆 Personal 研究資料" : "目前沒有明顯的進度風險") });
@@ -170,6 +194,9 @@ export default function DashboardPage() {
       meetingSummary={meetingSummary}
       actionSummary={actionSummary}
       thesisSummary={thesisSummary}
+      activation={activation}
+      activationError={activationError}
+      hasActiveLab={hasActiveLab}
       graduationRisk={graduationRisk}
       advisorConfigured={advisorConfigured}
       learningSummary={learningSummary}

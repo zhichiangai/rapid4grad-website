@@ -37,7 +37,7 @@ export default async function WeeklyCheckInPage() {
           <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
             <div>
               <h1 className="text-3xl font-semibold tracking-tight">本週研究進度</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">不用寫正式週報。花 1 分鐘整理這週的研究節奏，讓下一次 Meeting 更容易接續。</p>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400">不用寫完整週報。花 1 分鐘留下這週做了什麼、卡在哪、下一步是什麼，讓下一次 Meeting 更容易接續。</p>
             </div>
             <div className="rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.07] px-4 py-3 text-right">
               <p className="text-xs uppercase tracking-[0.18em] text-cyan-200">本週</p>
@@ -58,7 +58,7 @@ export default async function WeeklyCheckInPage() {
                   <h2 className="text-2xl font-semibold">把這週整理成一個小回顧</h2>
                   {currentUpdate ? <span className="rounded-full border border-emerald-300/30 bg-emerald-400/10 px-3 py-1 text-xs font-semibold text-emerald-100">✓ 已更新</span> : <span className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-slate-400">本週尚未更新</span>}
                 </div>
-                <p className="mt-2 text-sm leading-6 text-slate-400">不用完整，只要讓未來的自己知道現在走到哪裡。</p>
+                <p className="mt-2 text-sm leading-6 text-slate-400">不用完整，只要留下這週做了什麼、卡在哪、下一步是什麼。</p>
                 {currentUpdate ? <p className="mt-2 text-xs text-slate-500">最後更新：{formatTaipeiDateTime(currentUpdate.updated_at)}</p> : null}
               </div>
               <WeeklyCheckInForm currentUpdate={currentUpdate} disabled={currentUpdateReadOnly} canShareLab={capabilities.lab.canShareWeekly} labName={capabilities.lab.labName} />

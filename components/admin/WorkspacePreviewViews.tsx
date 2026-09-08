@@ -12,8 +12,10 @@ import { LabJoinForm } from "@/components/labs/LabJoinForm";
 import { StudentWorkspaceHome } from "@/components/workspace/StudentWorkspaceHome";
 import {
   StudentWorkspaceNavigation,
+  type StudentNavigationCapabilities,
   type StudentWorkspaceHref,
 } from "@/components/workspace/StudentWorkspaceNavigation";
+import type { StudentActivationState } from "@/lib/student/activation";
 import type {
   ProfessorPreviewView,
   ProfessorSubscriptionMode,
@@ -29,6 +31,8 @@ type StudentWorkspacePreviewProps = {
   canUseAudit: boolean;
   hasFullCourse: boolean;
   hasLabCourse: boolean;
+  activation: StudentActivationState;
+  capabilities: StudentNavigationCapabilities;
 };
 
 const previewDocuments = [
@@ -294,6 +298,8 @@ export function StudentWorkspacePreview({
   canUseAudit,
   hasFullCourse,
   hasLabCourse,
+  activation,
+  capabilities,
 }: StudentWorkspacePreviewProps) {
   const visibleLessons = allPreviewLessons.filter((lesson) => {
     if (lesson.accessLevel === "public_preview") return true;
@@ -317,6 +323,8 @@ export function StudentWorkspacePreview({
         onFrequentQuestionsChange={() => undefined}
         onSubmitAdvisorMemory={preventSubmit}
         accessSummary={{ course: courseLabel, lab: labLabel, audit: auditLabel }}
+        activation={activation}
+        hasActiveLab={capabilities.lab.hasActiveLab}
       />
     );
   } else if (activeHref === "/dashboard/ai-command") {
@@ -348,7 +356,7 @@ export function StudentWorkspacePreview({
 
   return (
     <div className="bg-slate-950">
-      <StudentWorkspaceNavigation previewMode activeHref={activeHref} onPreviewNavigate={onNavigate} />
+      <StudentWorkspaceNavigation previewMode activeHref={activeHref} onPreviewNavigate={onNavigate} capabilities={capabilities} />
       {content}
     </div>
   );

@@ -77,8 +77,9 @@ export function StudentWorkspaceNavigation({ previewMode = false, activeHref, on
   const groups = studentWorkspaceGroups.map((group) => ({
     ...group,
     links: group.links.filter((link) => (
-      (link.href !== "/dashboard/ai-audit" && link.href !== "/dashboard/ai-audit/history" || capabilities?.lab.canUsePdfAudit)
+      (link.href !== "/dashboard/ai-audit" && link.href !== "/dashboard/ai-audit/history" || capabilities?.lab.hasActiveLab === true)
       && (link.href !== "/learn" || capabilities?.course.canOpenLearningCenter !== false)
+      && (link.href !== "/dashboard/lab-join" || capabilities?.lab.hasActiveLab !== true)
     )),
   })).filter((group) => group.links.length > 0);
 

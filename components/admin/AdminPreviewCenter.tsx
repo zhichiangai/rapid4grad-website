@@ -11,11 +11,13 @@ import {
   ProfessorWorkspaceLab,
   ProfessorSubscriptionMode,
 } from "@/components/workspace/ProfessorWorkspaceHome";
-import type { StudentWorkspaceHref } from "@/components/workspace/StudentWorkspaceNavigation";
+import type { StudentNavigationCapabilities, StudentWorkspaceHref } from "@/components/workspace/StudentWorkspaceNavigation";
+import { deriveStudentActivationState } from "@/lib/student/activation";
 
 type PreviewWorkspace = "student" | "professor";
 type StudentCourseState = "locked" | "lab_basic" | "course_full";
 type StudentLabState = "none" | "active" | "readonly";
+type StudentActivationPreviewState = "fresh" | "started" | "established";
 type ProfessorSubscriptionState =
   | "trial"
   | "standard"
@@ -34,6 +36,12 @@ const studentLabLabels: Record<StudentLabState, string> = {
   none: "未加入 Lab",
   active: "有效訂閱 Lab 成員",
   readonly: "Lab 訂閱失效唯讀",
+};
+
+const studentActivationLabels: Record<StudentActivationPreviewState, string> = {
+  fresh: "Fresh Personal Student",
+  started: "Started Personal Student",
+  established: "Established Personal Student",
 };
 
 const professorSubscriptionLabels: Record<ProfessorSubscriptionState, string> = {
@@ -197,7 +205,8 @@ export function AdminPreviewCenter() {
   const [professorPreviewView, setProfessorPreviewView] =
     useState<ProfessorPreviewView>("dashboard");
   const [studentCourse, setStudentCourse] = useState<StudentCourseState>("lab_basic");
-  const [studentLab, setStudentLab] = useState<StudentLabState>("active");
+  const [studentLab, setStudentLab] = useState<StudentLabState>("none");
+  const [studentActivation, setStudentActivation] = useState<StudentActivationPreviewState>("fresh");
   const [professorSubscription, setProfessorSubscription] =
     useState<ProfessorSubscriptionState>("trial");
   const [studentCount, setStudentCount] = useState(12);
@@ -233,6 +242,21 @@ export function AdminPreviewCenter() {
         ? "可使用 Lab shared pool：本月剩餘 18 次"
         : "PDF AI 稽核需加入有效訂閱 Lab",
   };
+  const previewActivation = deriveStudentActivationState(
+    studentActivation === "fresh"
+      ? { hasThesisSetup: false, hasMeeting: false, hasCurrentWeekly: false, hasAnyAction: false }
+      : studentActivation === "started"
+        ? { hasThesisSetup: true, hasMeeting: false, hasCurrentWeekly: false, hasAnyAction: false }
+        : { hasThesisSetup: true, hasMeeting: true, hasCurrentWeekly: true, hasAnyAction: true },
+  );
+  const previewCapabilities = {
+    lab: {
+      hasActiveLab: studentLab !== "none",
+      canUsePdfAudit: studentLab === "active",
+      labName: studentLab === "none" ? null : "智慧製造研究室",
+    },
+    course: { canOpenLearningCenter: true },
+  } satisfies StudentNavigationCapabilities;
 
   return (
     <section className="space-y-6">
@@ -273,6 +297,12 @@ export function AdminPreviewCenter() {
                   onChange={setStudentLab}
                   options={(Object.entries(studentLabLabels) as [StudentLabState, string][]).map(([value, label]) => ({ value, label }))}
                 />
+                <SelectField
+                  label="研究啟動狀態"
+                  value={studentActivation}
+                  onChange={setStudentActivation}
+                  options={(Object.entries(studentActivationLabels) as [StudentActivationPreviewState, string][]).map(([value, label]) => ({ value, label }))}
+                />
               </>
             ) : (
               <>
@@ -303,7 +333,7 @@ export function AdminPreviewCenter() {
         <section className="min-w-0 overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950 shadow-2xl shadow-blue-950/30">
           <div className="border-b border-white/10 bg-white/[0.035] px-6 py-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-300">Live workspace canvas</p>
-            <p className="mt-1 text-sm text-slate-400">目前情境：{workspace === "student" ? `${studentCourseLabels[studentCourse]} · ${studentLabLabels[studentLab]}` : professorSubscriptionLabels[professorSubscription]}</p>
+            <p className="mt-1 text-sm text-slate-400">目前情境：{workspace === "student" ? `${studentActivationLabels[studentActivation]} · ${studentLabLabels[studentLab]}` : professorSubscriptionLabels[professorSubscription]}</p>
             <p className="mt-2 text-xs text-cyan-200">
               目前頁面：{workspace === "student" ? studentPreviewHref : professorPreviewView}
             </p>
@@ -323,6 +353,8 @@ export function AdminPreviewCenter() {
               canUseAudit={studentLab === "active"}
               hasFullCourse={studentCourse === "course_full"}
               hasLabCourse={studentCourse === "lab_basic" || studentLab === "active"}
+              activation={previewActivation}
+              capabilities={previewCapabilities}
             />
           ) : professorPreviewView === "dashboard" ? (
             <ProfessorWorkspaceHome
