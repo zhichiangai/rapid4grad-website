@@ -17,7 +17,7 @@ import { deriveStudentActivationState } from "@/lib/student/activation";
 type PreviewWorkspace = "student" | "professor";
 type StudentCourseState = "locked" | "lab_basic" | "course_full";
 type StudentLabState = "none" | "active" | "readonly";
-type StudentActivationPreviewState = "fresh" | "started" | "established";
+type StudentActivationPreviewState = "fresh" | "started" | "two_of_three" | "established";
 type ProfessorSubscriptionState =
   | "trial"
   | "standard"
@@ -41,6 +41,7 @@ const studentLabLabels: Record<StudentLabState, string> = {
 const studentActivationLabels: Record<StudentActivationPreviewState, string> = {
   fresh: "Fresh Personal Student",
   started: "Started Personal Student",
+  two_of_three: "2/3 Personal Student",
   established: "Established Personal Student",
 };
 
@@ -247,7 +248,9 @@ export function AdminPreviewCenter() {
       ? { hasThesisSetup: false, hasMeeting: false, hasCurrentWeekly: false, hasAnyAction: false }
       : studentActivation === "started"
         ? { hasThesisSetup: true, hasMeeting: false, hasCurrentWeekly: false, hasAnyAction: false }
-        : { hasThesisSetup: true, hasMeeting: true, hasCurrentWeekly: true, hasAnyAction: true },
+        : studentActivation === "two_of_three"
+          ? { hasThesisSetup: true, hasMeeting: true, hasCurrentWeekly: false, hasAnyAction: false }
+          : { hasThesisSetup: true, hasMeeting: true, hasCurrentWeekly: true, hasAnyAction: true },
   );
   const previewCapabilities = {
     lab: {

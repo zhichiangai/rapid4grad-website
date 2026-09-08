@@ -289,6 +289,34 @@ function StudentCoursePlanPreview({ hasFullCourse }: { hasFullCourse: boolean })
   );
 }
 
+function PreviewRouteButton({ label, href, onNavigate }: { label: string; href: StudentWorkspaceHref; onNavigate: (href: StudentWorkspaceHref) => void }) {
+  return <button type="button" onClick={() => onNavigate(href)} className="rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-cyan-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-200/80">{label}</button>;
+}
+
+const previewPageCopy = {
+  "/dashboard/actions": { eyebrow: "NEXT ACTIONS", title: "我的下一步", description: "把每次 Meeting 確認的下一步集中在這裡，完成後就能直接接回下一次研究進度。" },
+  "/dashboard/thesis": { eyebrow: "THESIS PROGRESS", title: "論文進度", description: "用幾個關鍵里程碑看清楚自己目前的位置，知道已經完成什麼，以及下一步要往哪裡走。" },
+  "/dashboard/meetings": { eyebrow: "RESEARCH MEETINGS", title: "研究 Meeting", description: "記錄任何研究討論。私人 Meeting 只有你看得到，選擇 Lab 協作後才會分享給有權限的教授。" },
+  "/dashboard/weekly-check-in": { eyebrow: "WEEKLY RESEARCH CHECK-IN", title: "本週研究進度", description: "不用寫完整週報。花 1 分鐘留下這週做了什麼、卡在哪、下一步是什麼。" },
+  "/dashboard/graduation-risk": { eyebrow: "GRADUATION NAVIGATION", title: "畢業風險", description: "根據你在 RAPID 中留下的研究進度，找出目前最值得處理的風險與下一步。" },
+} as const;
+
+function StudentFocusedPagePreview({ activeHref, activation, onNavigate }: { activeHref: StudentWorkspaceHref; activation: StudentActivationState; onNavigate: (href: StudentWorkspaceHref) => void }) {
+  const established = activation.stage === "established";
+  const started = activation.stage !== "new";
+  const page = previewPageCopy[activeHref as keyof typeof previewPageCopy];
+
+  if (!page) return null;
+
+  return <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(6,182,212,0.14),transparent_34rem),linear-gradient(180deg,#020617_0%,#0f172a_100%)] px-4 py-10 text-white"><div className="mx-auto w-full max-w-5xl space-y-6"><PreviewPageHeader eyebrow={page.eyebrow} title={page.title} description={page.description} />
+    {activeHref === "/dashboard/actions" ? <section className="space-y-4"><div className="grid gap-3 sm:grid-cols-3">{[["已逾期", established ? "1" : "0"], ["14 天內", established ? "1" : "0"], ["待處理", established ? "2" : "0"]].map(([label, value]) => <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"><p className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</p><p className="mt-3 text-2xl font-semibold">{value}</p></div>)}</div>{started ? <div className="rounded-2xl border border-white/10 bg-slate-950/70 p-5"><p className="font-semibold">整理 Meeting 後的研究下一步</p><p className="mt-2 text-sm leading-6 text-slate-400">Preview 示範待處理 Action；不會修改任何真實紀錄。</p><span className="mt-4 inline-flex rounded-full border border-amber-300/20 bg-amber-400/10 px-3 py-1 text-xs text-amber-100">待完成</span></div> : <div className="rounded-3xl border border-cyan-300/20 bg-cyan-400/[0.06] p-7"><h2 className="text-2xl font-semibold">目前還沒有下一步。</h2><p className="mt-3 text-sm leading-7 text-slate-300">你可以先建立一場 Meeting。討論後確認的工作會集中出現在這裡。</p><div className="mt-5"><PreviewRouteButton label="前往 Meeting" href="/dashboard/meetings" onNavigate={onNavigate} /></div></div>}</section> : null}
+    {activeHref === "/dashboard/thesis" ? <section className="space-y-4"><div className="grid gap-3 md:grid-cols-3"><div className="rounded-3xl border border-cyan-300/15 bg-cyan-400/[0.06] p-5"><p className="text-xs uppercase tracking-[0.18em] text-cyan-200">目前階段</p><p className="mt-3 font-semibold">{established ? "研究方法與實驗設計" : "研究方向與題目"}</p></div><div className="rounded-3xl border border-blue-300/15 bg-blue-400/[0.06] p-5"><p className="text-xs uppercase tracking-[0.18em] text-blue-200">里程碑完成度</p><p className="mt-3 text-2xl font-semibold">{established ? "3 / 8" : "0 / 8"}</p></div><div className="rounded-3xl border border-emerald-300/15 bg-emerald-400/[0.06] p-5"><p className="text-xs uppercase tracking-[0.18em] text-emerald-200">下一個目標</p><p className="mt-3 font-semibold">尚未設定</p></div></div>{["研究方向與題目", "文獻回顧", "研究方法與實驗設計"].map((label, index) => <article key={label} className="rounded-3xl border border-white/10 bg-slate-950/70 p-5"><div className="flex items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.18em] text-cyan-200">MILESTONE {index + 1}</p><h2 className="mt-2 text-xl font-semibold">{label}</h2><p className="mt-2 text-sm leading-6 text-slate-400">Preview 只展示里程碑狀態，不會儲存變更。</p></div><span className="rounded-full border border-white/10 px-3 py-1 text-xs text-slate-300">{established && index < 2 ? "已完成" : index === 0 && started ? "進行中" : "未開始"}</span></div></article>)}</section> : null}
+    {activeHref === "/dashboard/meetings" ? <section className="space-y-4"><div className="grid gap-3 sm:grid-cols-3">{[["下一場 Meeting", established ? "下週二 14:00" : "尚未安排"], ["待補紀錄", "0"], ["已完成 Meeting", established ? "1" : "0"]].map(([label, value]) => <div key={label} className="rounded-3xl border border-white/10 bg-white/[0.04] p-5"><p className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</p><p className="mt-3 font-semibold">{value}</p></div>)}</div>{!started ? <div className="rounded-3xl border border-cyan-300/20 bg-cyan-400/[0.06] p-7"><h2 className="text-2xl font-semibold">先安排第一場 Meeting</h2><p className="mt-3 text-sm leading-7 text-slate-300">Personal Meeting 只有你自己看得到。Preview 不會建立實際行程。</p></div> : <div className="rounded-3xl border border-white/10 bg-slate-950/70 p-5"><p className="text-lg font-semibold">研究問題與方法討論</p><p className="mt-2 text-sm text-slate-400">私人研究紀錄 · Preview 示範資料</p><span className="mt-4 inline-flex rounded-full border border-emerald-300/20 bg-emerald-400/10 px-3 py-1 text-xs text-emerald-100">已完成</span></div>}</section> : null}
+    {activeHref === "/dashboard/weekly-check-in" ? <section className="space-y-4"><div className="rounded-2xl border border-cyan-300/25 bg-cyan-400/10 p-5"><p className="font-semibold">你的 Personal Weekly 已開放</p><p className="mt-2 text-sm leading-6 text-cyan-100/80">不需要加入研究室，也可以記錄自己的每週研究進度。</p></div><div className="rounded-[2rem] border border-white/10 bg-slate-950/70 p-6"><p className="text-xs uppercase tracking-[0.24em] text-cyan-200">CURRENT WEEK</p><h2 className="mt-3 text-2xl font-semibold">把這週整理成一個小回顧</h2><p className="mt-2 text-sm text-slate-400">Preview 表單為唯讀展示，不會提交或修改 Weekly。</p><textarea disabled rows={4} placeholder="這週完成了什麼？" className="mt-5 w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 text-sm text-white opacity-70" /></div></section> : null}
+    {activeHref === "/dashboard/graduation-risk" ? <section className="space-y-4"><div className="rounded-3xl border border-cyan-300/20 bg-cyan-400/[0.06] p-7"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs uppercase tracking-[0.18em] text-cyan-200">目前狀態</p><h2 className="mt-3 text-2xl font-semibold">{started ? "需要注意" : "資料尚未完整"}</h2></div><span className="rounded-full border border-cyan-300/30 px-3 py-1 text-xs text-cyan-100">{started ? "導航提醒" : "Setup needed"}</span></div><p className="mt-4 text-sm leading-7 text-slate-300">這是根據 RAPID 研究資料提供的導航提醒，不是學校正式畢業資格判定。</p>{!started ? <div className="mt-5 flex flex-wrap gap-3"><PreviewRouteButton label="設定論文進度" href="/dashboard/thesis" onNavigate={onNavigate} /><PreviewRouteButton label="建立 Personal Weekly" href="/dashboard/weekly-check-in" onNavigate={onNavigate} /></div> : <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm text-amber-100">下一步：確認研究方法與實驗設計的目標日期。</div>}</div></section> : null}
+  </div></main>;
+}
+
 export function StudentWorkspacePreview({
   activeHref,
   onNavigate,
@@ -325,6 +353,7 @@ export function StudentWorkspacePreview({
         accessSummary={{ course: courseLabel, lab: labLabel, audit: auditLabel }}
         activation={activation}
         hasActiveLab={capabilities.lab.hasActiveLab}
+        canUsePdfAudit={capabilities.lab.canUsePdfAudit}
       />
     );
   } else if (activeHref === "/dashboard/ai-command") {
@@ -350,6 +379,8 @@ export function StudentWorkspacePreview({
         </div>
       </main>
     );
+  } else if (["/dashboard/actions", "/dashboard/thesis", "/dashboard/meetings", "/dashboard/weekly-check-in", "/dashboard/graduation-risk"].includes(activeHref)) {
+    content = <StudentFocusedPagePreview activeHref={activeHref} activation={activation} onNavigate={onNavigate} />;
   } else {
     content = <StudentCoursePlanPreview hasFullCourse={hasFullCourse} />;
   }

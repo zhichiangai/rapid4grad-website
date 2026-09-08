@@ -55,6 +55,14 @@ test("preview canvas reuses interactive formal feature components", () => {
   assert.match(previewViews, /CourseLearningExperience previewMode/);
 });
 
+test("student core routes render dedicated Preview content", () => {
+  for (const href of ["/dashboard/actions", "/dashboard/thesis", "/dashboard/meetings", "/dashboard/weekly-check-in", "/dashboard/graduation-risk"]) {
+    assert.match(previewViews, new RegExp(`activeHref === [\\\"']${href}[\\\"']`));
+  }
+  assert.match(previewViews, /StudentFocusedPagePreview/);
+  assert.match(previewViews, /不會儲存變更/);
+});
+
 test("preview interactions cannot call mutation APIs", () => {
   assert.match(aiCommand, /if \(previewMode\)[\s\S]*setGeneratedPrompt\(prompt\)[\s\S]*return/);
   assert.match(uploadForm, /if \(previewMode\)[\s\S]*Preview 模擬完成[\s\S]*return/);

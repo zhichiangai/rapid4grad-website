@@ -35,6 +35,15 @@ test("activation is derived from real research records", () => {
   assert.equal(started.stage, "started");
   assert.equal(started.nextStep, "meeting");
 
+  const twoOfThree = deriveStudentActivationState({
+    hasThesisSetup: true,
+    hasMeeting: true,
+    hasCurrentWeekly: false,
+    hasAnyAction: false,
+  });
+  assert.equal(twoOfThree.completedCoreSteps, 2);
+  assert.equal(twoOfThree.nextStep, "weekly");
+
   const established = deriveStudentActivationState({
     hasThesisSetup: true,
     hasMeeting: true,
@@ -44,6 +53,13 @@ test("activation is derived from real research records", () => {
   assert.equal(established.completedCoreSteps, 3);
   assert.equal(established.stage, "established");
   assert.equal(established.nextStep, null);
+});
+
+test("Admin Preview includes the deterministic 2/3 activation scenario", () => {
+  const preview = fs.readFileSync("components/admin/AdminPreviewCenter.tsx", "utf8");
+  assert.match(preview, /two_of_three: "2\/3 Personal Student"/);
+  assert.match(preview, /studentActivation === "two_of_three"/);
+  assert.match(preview, /hasThesisSetup: true, hasMeeting: true, hasCurrentWeekly: false/);
 });
 
 test("dashboard does not classify failed core queries as a fresh student", () => {
@@ -80,8 +96,8 @@ test("empty student surfaces have one actionable first-use path", () => {
 test("PDF AI and Join Lab visibility follow active Lab relevance", () => {
   const navigation = fs.readFileSync("components/workspace/StudentWorkspaceNavigation.tsx", "utf8");
   const home = fs.readFileSync("components/workspace/StudentWorkspaceHome.tsx", "utf8");
-  assert.match(navigation, /capabilities\?\.lab\.hasActiveLab === true/);
   assert.match(navigation, /capabilities\?\.lab\.hasActiveLab !== true/);
-  assert.match(home, /hasActiveLab \? <><Link href="\/dashboard\/ai-audit"/);
+  assert.match(navigation, /capabilities\?\.lab\.canUsePdfAudit === true/);
+  assert.match(home, /pdfAuditVisible \? <><Link href="\/dashboard\/ai-audit"/);
   assert.match(home, /!hasActiveLab \? <Link href="\/dashboard\/lab-join"/);
 });
