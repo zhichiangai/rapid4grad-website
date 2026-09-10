@@ -37,12 +37,25 @@ export async function POST(request: Request) {
 
   try {
     const supabase = await createClient();
+    const callbackUrl = new URL("/auth/callback", request.url);
+    if (nextPath) {
+      callbackUrl.searchParams.set("next", nextPath);
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: callbackUrl.toString(),
+      },
     });
 
     if (error || !data.user) {
+      console.warn("[auth/signup] signUp failed", {
+        operation: "signUp",
+        status: 400,
+        code: error?.code ?? "unknown",
+      });
       return NextResponse.json(
         { success: false, error: "signup_failed" },
         { status: 400 },
@@ -68,6 +81,11 @@ export async function POST(request: Request) {
       redirectTo: nextPath ?? getDefaultWorkspacePath(profile?.role),
     });
   } catch {
+    console.warn("[auth/signup] signUp request failed", {
+      operation: "signUp",
+      status: 500,
+      code: "unexpected_error",
+    });
     return NextResponse.json(
       { success: false, error: "signup_failed" },
       { status: 500 },

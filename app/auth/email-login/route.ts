@@ -43,6 +43,11 @@ export async function POST(request: Request) {
     });
 
     if (error || !data.user) {
+      console.warn("[auth/email-login] signInWithPassword failed", {
+        operation: "signInWithPassword",
+        status: 401,
+        code: error?.code ?? "unknown",
+      });
       return NextResponse.json(
         { success: false, error: "login_failed" },
         { status: 401 },
@@ -60,6 +65,11 @@ export async function POST(request: Request) {
       redirectTo: nextPath ?? getDefaultWorkspacePath(profile?.role),
     });
   } catch {
+    console.warn("[auth/email-login] signInWithPassword request failed", {
+      operation: "signInWithPassword",
+      status: 500,
+      code: "unexpected_error",
+    });
     return NextResponse.json(
       { success: false, error: "login_failed" },
       { status: 500 },

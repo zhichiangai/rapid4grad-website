@@ -22,6 +22,7 @@ export const studentWorkspaceGroups = [
     { href: "/learn", label: "課程學習" },
     { href: "/dashboard/advisor-profile", label: "教授偏好" },
     { href: "/course", label: "課程方案" },
+    { href: "/account/security", label: "帳號與安全" },
   ] },
 ] as const;
 
