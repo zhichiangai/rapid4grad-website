@@ -15,6 +15,9 @@ function readSource(path: string) {
 const loginPage = readSource("../app/login/page.tsx");
 const loginRoute = readSource("../app/auth/login/route.ts");
 const callbackRoute = readSource("../app/auth/callback/route.ts");
+const emailLoginRoute = readSource("../app/auth/email-login/route.ts");
+const signupPage = readSource("../app/signup/page.tsx");
+const signupRoute = readSource("../app/auth/signup/route.ts");
 
 test("OAuth starts and completes on the current request origin", () => {
   assert.match(loginPage, /new URL\("\/auth\/login", window\.location\.origin\)/);
@@ -47,4 +50,41 @@ test("workspace fallback remains role-specific", () => {
     "professor",
     "admin",
   ]);
+});
+
+test("email login preserves native Supabase auth and the existing workspace routing", () => {
+  assert.match(loginPage, /<form[^>]+onSubmit=\{handleEmailLogin\}/);
+  assert.match(loginPage, /name="email"/);
+  assert.match(loginPage, /autoComplete="email"/);
+  assert.match(loginPage, /name="password"/);
+  assert.match(loginPage, /autoComplete="current-password"/);
+  assert.match(loginPage, /使用 Google 登入/);
+  assert.match(loginPage, /href="\/signup"/);
+  assert.match(emailLoginRoute, /auth\.signInWithPassword/);
+  assert.match(emailLoginRoute, /getDefaultWorkspacePath\(profile\?\.role\)/);
+  assert.match(emailLoginRoute, /isSafeNextPath\(rawNextPath\)/);
+  assert.doesNotMatch(emailLoginRoute, /createAdminClient|SUPABASE_SECRET_KEY/);
+});
+
+test("public signup is student-only and keeps Supabase email confirmation behavior", () => {
+  assert.match(signupPage, /name="email"/);
+  assert.match(signupPage, /name="password"/);
+  assert.match(signupPage, /name="confirmPassword"/);
+  assert.match(signupPage, /autoComplete="new-password"/);
+  assert.match(signupRoute, /auth\.signUp/);
+  assert.match(signupRoute, /if \(!data\.session\)/);
+  assert.match(signupRoute, /getDefaultWorkspacePath\(profile\?\.role\)/);
+  assert.doesNotMatch(signupPage, /admin|professor/);
+  assert.doesNotMatch(
+    signupRoute,
+    /createAdminClient|SUPABASE_SECRET_KEY|body\.role|options:\s*\{[^}]*role/,
+  );
+});
+
+test("new-user profile trigger remains student-only without a migration", () => {
+  const coreMigration = readSource("../supabase/migrations/002_phase1_core.sql");
+  assert.match(coreMigration, /role public\.profile_role NOT NULL DEFAULT 'student'/);
+  assert.match(coreMigration, /'student'::public\.profile_role/);
+  assert.doesNotMatch(coreMigration, /raw_user_meta_data\s*->>\s*['"]role/);
+  assert.doesNotMatch(signupRoute, /CREATE TABLE|ALTER TABLE|DROP TABLE|RLS/);
 });

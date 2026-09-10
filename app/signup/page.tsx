@@ -1,37 +1,39 @@
 "use client";
 
 import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { isSafeNextPath } from "@/lib/workspace/access";
 
-const GENERIC_LOGIN_ERROR = "登入失敗，請確認 Email 與密碼後再試。";
+const GENERIC_SIGNUP_ERROR = "註冊失敗，請確認資料後再試。";
 
 function getSafeNextPath() {
   const rawNextPath = new URLSearchParams(window.location.search).get("next");
   return isSafeNextPath(rawNextPath) ? rawNextPath : null;
 }
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  useEffect(() => {
-    const error = new URLSearchParams(window.location.search).get("error");
-    if (error) {
-      setErrorMessage(GENERIC_LOGIN_ERROR);
-    }
-  }, []);
-
-  const handleEmailLogin = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSignup = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsLoading(true);
     setErrorMessage("");
+    setSuccessMessage("");
+
+    if (password !== confirmPassword) {
+      setErrorMessage("兩次輸入的密碼不一致。");
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
-      const response = await fetch("/auth/email-login", {
+      const response = await fetch("/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
@@ -42,39 +44,35 @@ export default function LoginPage() {
         }),
       });
       const payload = (await response.json()) as {
+        confirmationRequired?: boolean;
         redirectTo?: unknown;
         success?: boolean;
       };
 
+      if (!response.ok || payload.success !== true) {
+        setErrorMessage(GENERIC_SIGNUP_ERROR);
+        return;
+      }
+
+      if (payload.confirmationRequired) {
+        setSuccessMessage("註冊成功，請先到 Email 完成帳號驗證。");
+        return;
+      }
+
       if (
-        !response.ok ||
-        payload.success !== true ||
         typeof payload.redirectTo !== "string" ||
         !isSafeNextPath(payload.redirectTo)
       ) {
-        setErrorMessage(GENERIC_LOGIN_ERROR);
+        setErrorMessage(GENERIC_SIGNUP_ERROR);
         return;
       }
 
       window.location.assign(payload.redirectTo);
     } catch {
-      setErrorMessage(GENERIC_LOGIN_ERROR);
+      setErrorMessage(GENERIC_SIGNUP_ERROR);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGoogleLogin = () => {
-    setIsLoading(true);
-    setErrorMessage("");
-    const nextPath = getSafeNextPath();
-    const loginUrl = new URL("/auth/login", window.location.origin);
-
-    if (nextPath) {
-      loginUrl.searchParams.set("next", nextPath);
-    }
-
-    window.location.href = loginUrl.toString();
   };
 
   return (
@@ -84,22 +82,22 @@ export default function LoginPage() {
           RAPID4GRAD
         </p>
         <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-          登入你的研究導航系統
+          建立你的研究導航帳號
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-400">
-          使用 Email 或 Google 帳號登入，繼續你的研究規劃。
+          新帳號會以學生身分建立，不需要選擇工作區或角色。
         </p>
 
-        <form className="mt-8 space-y-5" onSubmit={handleEmailLogin}>
+        <form className="mt-8 space-y-5" onSubmit={handleSignup}>
           <div>
             <label
               className="mb-2 block text-sm font-medium text-slate-200"
-              htmlFor="login-email"
+              htmlFor="signup-email"
             >
               Email
             </label>
             <input
-              id="login-email"
+              id="signup-email"
               name="email"
               type="email"
               autoComplete="email"
@@ -115,20 +113,42 @@ export default function LoginPage() {
           <div>
             <label
               className="mb-2 block text-sm font-medium text-slate-200"
-              htmlFor="login-password"
+              htmlFor="signup-password"
             >
               密碼
             </label>
             <input
-              id="login-password"
+              id="signup-password"
               name="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               required
+              minLength={6}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/30"
-              placeholder="輸入密碼"
+              placeholder="至少 6 個字元"
+            />
+          </div>
+
+          <div>
+            <label
+              className="mb-2 block text-sm font-medium text-slate-200"
+              htmlFor="signup-confirm-password"
+            >
+              確認密碼
+            </label>
+            <input
+              id="signup-confirm-password"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={6}
+              value={confirmPassword}
+              onChange={(event) => setConfirmPassword(event.target.value)}
+              className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-base text-white outline-none transition placeholder:text-slate-600 focus:border-cyan-300 focus:ring-2 focus:ring-cyan-300/30"
+              placeholder="再次輸入密碼"
             />
           </div>
 
@@ -137,27 +157,9 @@ export default function LoginPage() {
             disabled={isLoading}
             className="w-full rounded-xl bg-cyan-300 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-200 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isLoading ? "登入中..." : "登入"}
+            {isLoading ? "註冊中..." : "建立學生帳號"}
           </button>
         </form>
-
-        <div className="my-7 flex items-center gap-3 text-xs text-slate-500">
-          <span className="h-px flex-1 bg-slate-800" />
-          <span>或</span>
-          <span className="h-px flex-1 bg-slate-800" />
-        </div>
-
-        <button
-          type="button"
-          onClick={handleGoogleLogin}
-          disabled={isLoading}
-          className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-semibold text-white transition hover:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          <span aria-hidden="true" className="text-lg font-bold text-cyan-300">
-            G
-          </span>
-          {isLoading ? "處理中..." : "使用 Google 登入"}
-        </button>
 
         {errorMessage ? (
           <p
@@ -167,18 +169,23 @@ export default function LoginPage() {
             {errorMessage}
           </p>
         ) : null}
+        {successMessage ? (
+          <p
+            role="status"
+            className="mt-5 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-100"
+          >
+            {successMessage}
+          </p>
+        ) : null}
 
         <p className="mt-6 text-center text-sm text-slate-400">
-          還沒有帳號？{" "}
+          已經有帳號？{" "}
           <Link
             className="font-semibold text-cyan-300 hover:text-cyan-200"
-            href="/signup"
+            href="/login"
           >
-            建立學生帳號
+            返回登入
           </Link>
-        </p>
-        <p className="mt-6 text-xs leading-5 text-slate-500">
-          登入代表你同意 RAPID4GRAD 使用 Supabase Auth 安全處理登入狀態。
         </p>
       </section>
     </main>
