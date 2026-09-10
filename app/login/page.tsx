@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { isSafeNextPath } from "@/lib/workspace/access";
 
-const GENERIC_LOGIN_ERROR = "登入失敗，請確認 Email 與密碼後再試。";
+const GENERIC_LOGIN_ERROR =
+  "登入失敗，請確認 Email、密碼及 Email 驗證狀態後再試。";
 
 function getSafeNextPath() {
   const rawNextPath = new URLSearchParams(window.location.search).get("next");

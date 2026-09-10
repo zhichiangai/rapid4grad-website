@@ -55,7 +55,9 @@ export default function SignupPage() {
       }
 
       if (payload.confirmationRequired) {
-        setSuccessMessage("註冊成功，請先到 Email 完成帳號驗證。");
+        setSuccessMessage(
+          "請查看 Email 是否收到帳號驗證信。若你原本使用 Google 登入，請改用 Google 登入後到「帳號與安全」建立密碼。",
+        );
         return;
       }
 
