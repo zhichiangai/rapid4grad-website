@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { StudentSignOutButton } from "@/components/workspace/StudentSignOutButton";
 
 export const studentWorkspaceGroups = [
   { label: "核心", links: [
@@ -94,6 +95,7 @@ export function StudentWorkspaceNavigation({ previewMode = false, activeHref, on
             {groups.map((group) => <div key={group.label} className="flex flex-col gap-1 md:gap-0"><p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 md:mb-1">{group.label}</p><div className="flex flex-col gap-1 md:flex-row">{group.links.map((link) => renderLink(link.href, link.label))}</div></div>)}
           </div>
         </nav>
+        {!previewMode ? <StudentSignOutButton /> : null}
       </div>
     </header>
   );
