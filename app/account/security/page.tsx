@@ -20,7 +20,9 @@ export default async function AccountSecurityPage() {
           如果你原本使用 Google 登入，可以在這裡為同一個帳號建立 Email + 密碼登入方式。這不會建立新的 RAPID4GRAD 帳號，也不會改變你的工作區角色。
         </p>
         <div className="mt-8">
-          <AccountSecurityForm />
+          <AccountSecurityForm
+            accountEmail={context.user.email ?? context.profile.email ?? ""}
+          />
         </div>
       </section>
     </main>

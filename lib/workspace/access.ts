@@ -34,5 +34,10 @@ export function getDefaultWorkspacePath(role: string | null | undefined) {
 }
 
 export function isSafeNextPath(value: string | null): value is string {
-  return Boolean(value && value.startsWith("/") && !value.startsWith("//"));
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return false;
+  }
+
+  // Backslashes and control characters can be normalized into external URLs by browsers.
+  return !value.includes("\\") && !/[\u0000-\u001f\u007f]/.test(value);
 }
