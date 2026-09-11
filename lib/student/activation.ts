@@ -27,7 +27,7 @@ export function deriveStudentActivationState(
   ].filter(Boolean).length;
 
   const stage: StudentActivationStage =
-    input.hasThesisSetup && (input.hasMeeting || input.hasCurrentWeekly)
+    completedCoreSteps === 3
       ? "established"
       : completedCoreSteps > 0
         ? "started"

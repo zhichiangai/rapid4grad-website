@@ -42,6 +42,7 @@ test("activation is derived from real research records", () => {
     hasAnyAction: false,
   });
   assert.equal(twoOfThree.completedCoreSteps, 2);
+  assert.equal(twoOfThree.stage, "started");
   assert.equal(twoOfThree.nextStep, "weekly");
 
   const established = deriveStudentActivationState({
