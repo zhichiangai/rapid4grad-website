@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   LabMemberManagement,
   type LabSeatUsage,
@@ -8,6 +9,9 @@ import {
 import { ProfessorLabControls } from "@/components/professor/ProfessorLabControls";
 import { createV2AdminClient } from "@/lib/supabase/server";
 import { requireProfessorWorkspace } from "@/lib/auth/authorization";
+import { LabPlanningPanel, type LabMilestone, type LabResource } from "@/components/professor/LabPlanningPanel";
+import { ProfessorAiEntry } from "@/components/professor/ProfessorAiEntry";
+import { getTaipeiMonday } from "@/lib/supervision/week";
 import type { LabMembershipStatus, LabRole } from "@/types/database";
 
 type LabRow = {
@@ -178,6 +182,20 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
     { target_lab_id: lab.id },
   );
   if (summariesError) throw new Error(summariesError.message);
+  const planningClient = supabase as unknown as SupabaseClient;
+  const currentWeekStart = getTaipeiMonday(new Date());
+  const [milestonesResponse, resourcesResponse, weeklyResponse, meetingsResponse, actionsResponse] = await Promise.all([
+    planningClient.from("lab_milestones").select("id,lab_id,title,description,target_date,status,created_by,created_at,updated_at").eq("lab_id", lab.id).order("target_date", { ascending: true }).returns<LabMilestone[]>(),
+    planningClient.from("lab_resources").select("id,lab_id,title,description,category,resource_url,created_by,created_at,updated_at,archived_at").eq("lab_id", lab.id).is("archived_at", null).order("created_at", { ascending: false }).returns<LabResource[]>(),
+    planningClient.from("weekly_updates").select("id").eq("lab_id", lab.id).eq("week_start", currentWeekStart),
+    planningClient.from("meetings").select("id,status,meeting_at").eq("lab_id", lab.id),
+    planningClient.from("meeting_actions").select("id,status,due_date").eq("lab_id", lab.id),
+  ]);
+  const labMeetings = meetingsResponse.data ?? [];
+  const today = new Date().toISOString().slice(0, 10);
+  const openActions = (actionsResponse.data ?? []).filter((action: { status: string }) => ["todo", "doing"].includes(action.status));
+  const overdueActions = openActions.filter((action: { due_date: string | null }) => action.due_date && action.due_date < today).length;
+  const upcomingMeetings = labMeetings.filter((meeting: { status: string; meeting_at: string }) => meeting.status === "scheduled" && new Date(meeting.meeting_at).getTime() > Date.now()).length;
 
   const profilesById = new Map(
     (profilesData ?? []).map((studentProfile) => [studentProfile.id, studentProfile]),
@@ -308,13 +326,28 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
           }
         />
 
+        <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.035] p-5 sm:p-6">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-200">Lab Pulse</p><h2 className="mt-2 text-2xl font-semibold">Lab 本週脈動</h2></div><p className="text-sm text-slate-500">只統計此 Lab 的授權紀錄</p></div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><div className="rounded-2xl border border-cyan-300/20 bg-cyan-400/[0.06] p-4"><p className="text-sm text-slate-400">Active students</p><p className="mt-2 text-2xl font-semibold">{seatUsage.activeStudents}</p></div><div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/[0.06] p-4"><p className="text-sm text-slate-400">本週 Weekly</p><p className="mt-2 text-2xl font-semibold">{weeklyResponse.data?.length ?? 0}</p></div><div className="rounded-2xl border border-blue-300/20 bg-blue-400/[0.06] p-4"><p className="text-sm text-slate-400">Upcoming Meetings</p><p className="mt-2 text-2xl font-semibold">{upcomingMeetings}</p></div><div className="rounded-2xl border border-amber-300/20 bg-amber-400/[0.06] p-4"><p className="text-sm text-slate-400">Open Actions</p><p className="mt-2 text-2xl font-semibold">{openActions.length}</p></div><div className="rounded-2xl border border-red-300/20 bg-red-400/[0.06] p-4"><p className="text-sm text-slate-400">逾期 Actions</p><p className="mt-2 text-2xl font-semibold">{overdueActions}</p></div></div>
+        </section>
+
+        <div className="mt-8"><ProfessorAiEntry contextType="lab" labId={lab.id} /></div>
+
+        <LabPlanningPanel
+          labId={lab.id}
+          initialMilestones={milestonesResponse.data ?? []}
+          initialResources={resourcesResponse.data ?? []}
+          canManage={profile?.role === "professor" && (isOwner || viewerMembership?.role === "professor") && subscriptionMode === "functional"}
+          readOnlyReason={isAdminObservation ? "Admin 在 Professor workspace 僅能觀察。" : subscriptionMode !== "functional" ? "目前 Lab 為唯讀模式。" : "Assistant 只能查看 Lab planning。"}
+        />
+
         <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.035] p-5">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-2xl font-semibold">研究 Meeting</h2>
             <Link href={`/professor/labs/${lab.id}/meetings`} className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20">Meeting Center</Link>
           </div>
           <h2 className="text-2xl font-semibold">Lab Students</h2>
-          <div className="mt-5 overflow-hidden rounded-2xl border border-white/10">
+          <div className="mt-5 hidden overflow-hidden rounded-2xl border border-white/10 md:block">
             <table className="w-full min-w-[900px] text-left text-sm">
               <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.2em] text-slate-400">
                 <tr>
@@ -389,6 +422,70 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="mt-5 grid gap-3 md:hidden">
+            {rows.length === 0 ? (
+              <p className="rounded-2xl border border-white/10 px-4 py-6 text-slate-400">
+                尚無學生加入。
+              </p>
+            ) : (
+              rows.map((row) => (
+                <article
+                  key={row.studentProfile.id}
+                  className="rounded-2xl border border-white/10 bg-white/[0.025] p-4"
+                >
+                  <Link
+                    href={`/professor/labs/${lab.id}/students/${row.studentProfile.id}`}
+                    className="font-semibold text-cyan-100 hover:text-cyan-200"
+                  >
+                    {row.studentProfile.full_name ?? row.studentProfile.email}
+                  </Link>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {row.studentProfile.email}
+                  </p>
+                  <dl className="mt-4 grid gap-3 text-sm">
+                    <div>
+                      <dt className="text-xs uppercase tracking-[0.15em] text-slate-500">
+                        研究背景
+                      </dt>
+                      <dd className="mt-1 text-slate-300">
+                        {row.studentProfile.degree ?? "未設定學位"} · {row.studentProfile.research_area ?? row.studentProfile.department ?? "未設定研究背景"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs uppercase tracking-[0.15em] text-slate-500">
+                        最近授權稽核摘要
+                      </dt>
+                      <dd className="mt-1 text-slate-300">
+                        {row.latestSummary?.summary ?? "尚無稽核結果"}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <dt className="text-xs uppercase tracking-[0.15em] text-slate-500">
+                          風險
+                        </dt>
+                        <dd className="mt-2">
+                          <span
+                            className={`rounded-full border px-3 py-1 text-xs font-semibold ${riskClass(row.latestSummary?.risk_level)}`}
+                          >
+                            {row.latestSummary?.risk_level ?? "low"}
+                          </span>
+                        </dd>
+                      </div>
+                      <div className="text-right">
+                        <dt className="text-xs uppercase tracking-[0.15em] text-slate-500">
+                          加入時間
+                        </dt>
+                        <dd className="mt-1 text-slate-400">
+                          {formatDate(row.membership.joined_at)}
+                        </dd>
+                      </div>
+                    </div>
+                  </dl>
+                </article>
+              ))
+            )}
           </div>
         </section>
       </div>

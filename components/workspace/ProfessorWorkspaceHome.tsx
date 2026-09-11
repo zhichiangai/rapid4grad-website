@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import { ProfessorAttentionSummary } from "@/components/professor/ProfessorAttentionSummary";
-import { ProfessorThisWeek } from "@/components/professor/ProfessorThisWeek";
-import { ProfessorUpcomingMeetings } from "@/components/professor/ProfessorUpcomingMeetings";
+import { ProfessorMilestonePreview, ProfessorNextAction, ProfessorThisWeekMeetings, ProfessorWeeklyDigest } from "@/components/professor/ProfessorWeeklyDigest";
+import { ProfessorAiEntry } from "@/components/professor/ProfessorAiEntry";
 import type { ProfessorAttentionData } from "@/lib/professor/attention-data";
 
 export type ProfessorWorkspaceRole = "professor" | "assistant" | "admin";
@@ -128,10 +128,10 @@ export function ProfessorWorkspaceHome({
           <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-4xl font-semibold tracking-tight">
-                研究指導工作台
+                本週研究指導中心
               </h1>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">
-                先掌握需要介入的學生，再查看本週研究進度、Meeting 與 Lab 狀態。
+                用一個清楚的週級視角，先處理最重要的指導動作，再回到 Student Supervision 與 Lab Hub。
               </p>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -182,9 +182,12 @@ export function ProfessorWorkspaceHome({
 
         {attentionData ? (
           <div className="mt-6 space-y-5">
+            {!previewMode ? <ProfessorAiEntry contextType="dashboard" /> : null}
+            <ProfessorNextAction action={attentionData.nextAction} />
+            <ProfessorWeeklyDigest digest={attentionData.weeklyDigest} />
             <ProfessorAttentionSummary students={attentionData.students} generatedAt={attentionData.generatedAt} />
-            <ProfessorThisWeek students={attentionData.students} weekStart={attentionData.currentWeekStart} />
-            <ProfessorUpcomingMeetings students={attentionData.students} />
+            <ProfessorThisWeekMeetings meetings={attentionData.thisWeekMeetings} />
+            <ProfessorMilestonePreview milestones={attentionData.milestonePreview} />
           </div>
         ) : null}
 
@@ -211,8 +214,8 @@ export function ProfessorWorkspaceHome({
                     <Link href={`/professor/labs/${lab.id}`} className="rounded-full border border-cyan-300/30 bg-cyan-300/10 px-4 py-2 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-300/20">查看 Lab 詳情</Link>
                   )}
                 </div>
-                <div className="mt-5 overflow-x-auto rounded-2xl border border-white/10">
-                  <table className="w-full min-w-[860px] text-left text-sm">
+                <div className="mt-5 hidden overflow-x-auto rounded-2xl border border-white/10 md:block">
+                  <table className="w-full text-left text-sm">
                     <thead className="bg-white/[0.04] text-xs uppercase tracking-[0.2em] text-slate-400">
                       <tr><th className="px-4 py-3">學生</th><th className="px-4 py-3">學位 / 領域</th><th className="px-4 py-3">最近摘要</th><th className="px-4 py-3">風險</th><th className="px-4 py-3">卡點</th><th className="px-4 py-3">更新</th></tr>
                     </thead>
@@ -236,6 +239,25 @@ export function ProfessorWorkspaceHome({
                       )}
                     </tbody>
                   </table>
+                </div>
+                <div className="mt-5 space-y-3 md:hidden">
+                  {lab.students.length === 0 ? (
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/40 p-5 text-sm text-slate-400">尚無學生加入。請產生邀請碼給學生。</div>
+                  ) : lab.students.map((student) => (
+                    <article key={`${lab.id}:mobile:${student.id}`} className="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          {previewMode ? <button type="button" onClick={() => onPreviewNavigate?.("lab")} className="break-words text-left font-semibold text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70">{student.name}</button> : <Link href={`/professor/labs/${lab.id}/students/${student.id}`} className="break-words font-semibold text-cyan-100 hover:text-cyan-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300/70">{student.name}</Link>}
+                          <p className="mt-1 break-all text-xs text-slate-500">{student.email}</p>
+                        </div>
+                        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${riskBadgeClass(student.latestSummary?.riskLevel)}`}>{student.latestSummary?.riskLevel ?? "low"}</span>
+                      </div>
+                      <p className="mt-3 text-sm text-slate-300">{student.degree ?? "未設定"} · {student.researchArea ?? "未設定研究領域"}</p>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">{student.latestSummary?.summary ?? "尚無 AI 稽核摘要"}</p>
+                      <div className="mt-3 flex flex-wrap gap-1">{(student.latestSummary?.issueTags ?? ["no_audit_yet"]).map((tag) => <span key={tag} className="rounded-full bg-white/[0.06] px-2 py-1 text-xs text-slate-300">{tag}</span>)}</div>
+                      <p className="mt-3 text-xs text-slate-500">最近更新：{formatDate(student.latestSummary?.completedAt ?? student.latestSummary?.createdAt ?? student.joinedAt)}</p>
+                    </article>
+                  ))}
                 </div>
               </article>
             ))

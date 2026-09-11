@@ -10,11 +10,50 @@ type WeeklyRow = { id: string; lab_id: string; student_user_id: string; week_sta
 type MeetingRow = { id: string; lab_id: string; student_user_id: string; meeting_at: string; status: string };
 type ActionRow = { id: string; lab_id: string; student_user_id: string; due_date: string | null; status: string };
 type SummaryRow = { student_user_id: string; risk_level: "low" | "medium" | "high" | null; completed_at: string | null; created_at: string };
+type MilestoneRow = { id: string; lab_id: string; title: string; target_date: string; status: string };
 
 export type ProfessorAttentionData = {
   students: AttentionStudent[];
   generatedAt: string;
   currentWeekStart: string;
+  thisWeekMeetings: ProfessorThisWeekMeeting[];
+  milestonePreview: ProfessorMilestonePreview[];
+  weeklyDigest: ProfessorWeeklyDigest;
+  nextAction: ProfessorNextAction | null;
+};
+
+export type ProfessorThisWeekMeeting = {
+  id: string;
+  labId: string;
+  labName: string;
+  studentId: string;
+  studentName: string;
+  meetingAt: string;
+  status: "scheduled" | "completed" | "canceled";
+};
+
+export type ProfessorMilestonePreview = {
+  id: string;
+  labId: string;
+  labName: string;
+  title: string;
+  targetDate: string;
+};
+
+export type ProfessorWeeklyDigest = {
+  activeStudents: number;
+  weeklyUpdated: number;
+  currentBlockers: number;
+  overdueActions: number;
+  meetingsThisWeek: number;
+};
+
+export type ProfessorNextAction = {
+  studentId: string;
+  labId: string;
+  studentName: string;
+  label: string;
+  reason: string;
 };
 
 function latestByStudent<T extends { student_user_id: string; lab_id: string }>(rows: T[], compare: (a: T, b: T) => number) {
@@ -52,7 +91,16 @@ export async function loadProfessorAttentionData({
 }): Promise<ProfessorAttentionData> {
   const now = new Date();
   const currentWeekStart = getTaipeiMonday(now);
-  if (role === "admin") return { students: [], generatedAt: now.toISOString(), currentWeekStart };
+  const empty = {
+    students: [],
+    generatedAt: now.toISOString(),
+    currentWeekStart,
+    thisWeekMeetings: [],
+    milestonePreview: [],
+    weeklyDigest: { activeStudents: 0, weeklyUpdated: 0, currentBlockers: 0, overdueActions: 0, meetingsThisWeek: 0 },
+    nextAction: null,
+  } satisfies ProfessorAttentionData;
+  if (role === "admin") return empty;
 
   const admin = createV2AdminClient();
   const { data: ownedLabs } = await admin
@@ -69,13 +117,13 @@ export async function loadProfessorAttentionData({
     .in("role", ["professor", "assistant"])
     .returns<MembershipRow[]>();
   const labIds = [...new Set([...(ownedLabs ?? []).map((lab) => lab.id), ...(memberLabs ?? []).map((row) => row.lab_id)])];
-  if (labIds.length === 0) return { students: [], generatedAt: now.toISOString(), currentWeekStart };
+  if (labIds.length === 0) return empty;
 
   const { data: labs } = await admin.from("labs").select("id,name,owner_professor_id").in("id", labIds).eq("status", "active").returns<LabRow[]>();
   const { data: memberships } = await admin.from("lab_memberships").select("lab_id,user_id,joined_at").in("lab_id", labIds).eq("role", "student").eq("status", "active").returns<MembershipRow[]>();
   const activeMemberships = memberships ?? [];
   const studentIds = [...new Set(activeMemberships.map((row) => row.user_id))];
-  if (studentIds.length === 0) return { students: [], generatedAt: now.toISOString(), currentWeekStart };
+  if (studentIds.length === 0) return empty;
   const { data: profiles } = await admin.from("profiles").select("id,email,full_name,degree,research_area").in("id", studentIds).returns<ProfileRow[]>();
 
   // These three reads use the authenticated RLS client. The admin client above only resolves the existing Lab roster.
@@ -87,7 +135,7 @@ export async function loadProfessorAttentionData({
   ]);
   if (weeklyResponse.error || meetingsResponse.error || actionsResponse.error) {
     console.error("Professor attention supervision lookup failed", { code: weeklyResponse.error?.code ?? meetingsResponse.error?.code ?? actionsResponse.error?.code });
-    return { students: [], generatedAt: now.toISOString(), currentWeekStart };
+    return empty;
   }
 
   const latestWeekly = latestByStudent(weeklyResponse.data ?? [], (a, b) => a.updated_at.localeCompare(b.updated_at));
@@ -98,11 +146,30 @@ export async function loadProfessorAttentionData({
   );
   const latestSummaries = latestByStudent(summaryRows, (a, b) => (a.completed_at ?? a.created_at).localeCompare(b.completed_at ?? b.created_at));
   const today = getTaipeiDate(now);
+  const nextWeekStart = new Date(`${currentWeekStart}T00:00:00Z`);
+  nextWeekStart.setUTCDate(nextWeekStart.getUTCDate() + 7);
+  const nextWeekStartString = nextWeekStart.toISOString().slice(0, 10);
+  const weekStartAt = new Date(`${currentWeekStart}T00:00:00+08:00`).getTime();
+  const nextWeekStartAt = new Date(`${nextWeekStartString}T00:00:00+08:00`).getTime();
   const soonDate = new Date(`${today}T00:00:00Z`);
   soonDate.setUTCDate(soonDate.getUTCDate() + 14);
   const soonDateString = soonDate.toISOString().slice(0, 10);
   const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
   const labById = new Map((labs ?? []).map((lab) => [lab.id, lab]));
+  const planningAdmin = admin as unknown as SupabaseClient;
+  const { data: milestoneRows } = await planningAdmin
+    .from("lab_milestones")
+    .select("id,lab_id,title,target_date,status")
+    .in("lab_id", labIds)
+    .eq("status", "active")
+    .gte("target_date", today)
+    .order("target_date", { ascending: true })
+    .limit(8)
+    .returns<MilestoneRow[]>();
+  const milestonePreview = (milestoneRows ?? []).flatMap((milestone) => {
+    const lab = labById.get(milestone.lab_id);
+    return lab ? [{ id: milestone.id, labId: milestone.lab_id, labName: lab.name, title: milestone.title, targetDate: milestone.target_date }] : [];
+  });
   const students = activeMemberships.flatMap((membership) => {
     const profile = profileById.get(membership.user_id);
     const lab = labById.get(membership.lab_id);
@@ -131,5 +198,54 @@ export async function loadProfessorAttentionData({
       now,
     })];
   });
-  return { students: sortAttentionStudents(students), generatedAt: now.toISOString(), currentWeekStart };
+  const sortedStudents = sortAttentionStudents(students);
+  const thisWeekMeetings = meetingRows
+    .filter((meeting) => {
+      const meetingAt = new Date(meeting.meeting_at).getTime();
+      return meetingAt >= weekStartAt && meetingAt < nextWeekStartAt;
+    })
+    .filter((meeting) => meeting.status === "scheduled" || meeting.status === "completed")
+    .flatMap((meeting) => {
+      const lab = labById.get(meeting.lab_id);
+      const profile = profileById.get(meeting.student_user_id);
+      if (!lab || !profile) return [];
+      return [{
+        id: meeting.id,
+        labId: meeting.lab_id,
+        labName: lab.name,
+        studentId: meeting.student_user_id,
+        studentName: profile.full_name ?? profile.email,
+        meetingAt: meeting.meeting_at,
+        status: meeting.status as ProfessorThisWeekMeeting["status"],
+      }];
+    })
+    .sort((left, right) => left.meetingAt.localeCompare(right.meetingAt));
+  const digest: ProfessorWeeklyDigest = {
+    activeStudents: sortedStudents.length,
+    weeklyUpdated: sortedStudents.filter((student) => student.latestWeekly?.weekStart === currentWeekStart).length,
+    currentBlockers: sortedStudents.filter((student) => student.latestWeekly?.selfStatus === "blocked").length,
+    overdueActions: sortedStudents.reduce((total, student) => total + student.overdueActionCount, 0),
+    meetingsThisWeek: thisWeekMeetings.length,
+  };
+  const candidate = sortedStudents.find((student) => student.signals.length > 0);
+  const nextAction = candidate
+    ? {
+        studentId: candidate.studentId,
+        labId: candidate.labId,
+        studentName: candidate.name,
+        label: candidate.signals.includes("overdue_action")
+          ? "跟進逾期 Meeting Action"
+          : candidate.signals.includes("blocked") || candidate.signals.includes("help_soon")
+            ? "準備下一次研究 Meeting"
+            : "查看本週研究回報",
+        reason: candidate.signals.includes("overdue_action")
+          ? `${candidate.name} 有 ${candidate.overdueActionCount} 項逾期 Action。`
+          : candidate.signals.includes("blocked")
+            ? `${candidate.name} 的 Lab Weekly 標記為目前卡住。`
+            : candidate.signals.includes("help_soon")
+              ? `${candidate.name} 在 Lab Weekly 表示近期需要協助。`
+              : `${candidate.name} 的授權 Lab 資料需要你先查看。`,
+      }
+    : null;
+  return { students: sortedStudents, generatedAt: now.toISOString(), currentWeekStart, thisWeekMeetings, milestonePreview, weeklyDigest: digest, nextAction };
 }

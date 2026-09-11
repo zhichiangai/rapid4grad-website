@@ -11,8 +11,8 @@ export function ProfessorAttentionSummary({ students, generatedAt, full = false 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-200">Professor Attention</p>
-          <h2 className="mt-2 text-2xl font-semibold text-white">{full ? "需要注意的學生" : "現在需要你注意"}</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">RAPID 依學生最近的進度、卡點與指導紀錄，整理出目前最值得你先看的學生。</p>
+          <h2 className="mt-2 text-2xl font-semibold text-white">{full ? "本週需要注意的學生" : "本週需要注意的學生"}</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">RAPID 只依授權 Lab Weekly、Meeting、Action 與已分享摘要整理 deterministic supervision signals，不建立排名或 AI 風險分數。</p>
         </div>
         <div className="text-left sm:text-right"><p className="text-sm text-slate-400">需要注意</p><p className="text-3xl font-semibold text-white">{urgent.length + attention.length} 位</p>{urgent.length > 0 ? <p className="text-xs text-red-200">其中 {urgent.length} 位建議優先處理</p> : null}</div>
       </div>
