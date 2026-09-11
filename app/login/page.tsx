@@ -9,6 +9,7 @@ const GENERIC_LOGIN_ERROR =
   "登入失敗，請確認 Email、密碼及 Email 驗證狀態後再試。";
 
 function getSafeNextPath() {
+  if (typeof window === "undefined") return null;
   const rawNextPath = new URLSearchParams(window.location.search).get("next");
   return isSafeNextPath(rawNextPath) ? rawNextPath : null;
 }
@@ -18,11 +19,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
-    const error = new URLSearchParams(window.location.search).get("error");
+    const query = new URLSearchParams(window.location.search);
+    const error = query.get("error");
     if (error) {
       setErrorMessage(GENERIC_LOGIN_ERROR);
+    }
+    if (query.get("password_reset") === "success") {
+      setSuccessMessage("密碼已更新，請使用新密碼登入。");
     }
   }, []);
 
@@ -168,6 +174,14 @@ export default function LoginPage() {
             {errorMessage}
           </p>
         ) : null}
+        {successMessage ? (
+          <p
+            role="status"
+            className="mt-5 rounded-xl border border-cyan-300/30 bg-cyan-300/10 px-4 py-3 text-sm text-cyan-100"
+          >
+            {successMessage}
+          </p>
+        ) : null}
 
         <p className="mt-6 text-center text-sm text-slate-400">
           還沒有帳號？{" "}
@@ -176,6 +190,14 @@ export default function LoginPage() {
             href="/signup"
           >
             建立學生帳號
+          </Link>
+        </p>
+        <p className="mt-3 text-center text-sm">
+          <Link
+            className="font-semibold text-cyan-300 hover:text-cyan-200"
+            href={`/forgot-password${getSafeNextPath() ? `?next=${encodeURIComponent(getSafeNextPath()!)}` : ""}`}
+          >
+            忘記密碼？
           </Link>
         </p>
         <p className="mt-6 text-xs leading-5 text-slate-500">

@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const rawNextPath = requestUrl.searchParams.get("next");
+  const flow = requestUrl.searchParams.get("flow");
   const cookieNextPath = request.cookies.get(OAUTH_NEXT_COOKIE)?.value ?? null;
   const nextPath = isSafeNextPath(rawNextPath)
     ? rawNextPath
@@ -18,9 +19,16 @@ export async function GET(request: NextRequest) {
       ? cookieNextPath
       : null;
   const origin = requestUrl.origin;
+  const isRecoveryFlow = flow === "recovery";
+  const isLinkFlow = flow === "link";
 
   if (!code) {
-    const response = NextResponse.redirect(`${origin}/login?error=missing_code`);
+    const destination = isRecoveryFlow
+      ? "/reset-password?error=invalid_recovery"
+      : isLinkFlow
+        ? "/account/security?link=error"
+        : "/login?error=missing_code";
+    const response = NextResponse.redirect(new URL(destination, request.url));
     response.cookies.delete(OAUTH_NEXT_COOKIE);
     return response;
   }
@@ -29,9 +37,24 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
 
   if (error) {
-    const response = NextResponse.redirect(
-      `${origin}/login?error=oauth_callback_failed`,
-    );
+    const destination = isRecoveryFlow
+      ? "/reset-password?error=invalid_recovery"
+      : isLinkFlow
+        ? "/account/security?link=error"
+        : "/login?error=oauth_callback_failed";
+    const response = NextResponse.redirect(new URL(destination, request.url));
+    response.cookies.delete(OAUTH_NEXT_COOKIE);
+    return response;
+  }
+
+  if (isRecoveryFlow) {
+    const response = NextResponse.redirect(new URL("/reset-password", request.url));
+    response.cookies.delete(OAUTH_NEXT_COOKIE);
+    return response;
+  }
+
+  if (isLinkFlow) {
+    const response = NextResponse.redirect(new URL("/account/security?link=success", request.url));
     response.cookies.delete(OAUTH_NEXT_COOKIE);
     return response;
   }
