@@ -29,4 +29,5 @@ test("Student navigation keeps capability filtering for Lab and course links", (
   assert.match(navigation, /capabilities\?\.lab\.canUsePdfAudit === true/);
   assert.match(navigation, /capabilities\?\.course\.canOpenLearningCenter !== false/);
   assert.match(navigation, /capabilities\?\.lab\.hasActiveLab !== true/);
+  assert.match(navigation, /md:flex-col md:items-end lg:flex-row lg:items-center/);
 });
