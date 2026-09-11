@@ -14,7 +14,7 @@ export function StudentSignOutButton() {
     setError(null);
     const { error: signOutError } = await createClient().auth.signOut();
     if (signOutError) {
-      setError("目前無法登出，請稍後再試。");
+      setError("登出失敗，請稍後再試。");
       setPending(false);
       return;
     }

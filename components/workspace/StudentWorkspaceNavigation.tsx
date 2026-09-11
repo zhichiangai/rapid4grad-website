@@ -93,9 +93,9 @@ export function StudentWorkspaceNavigation({ previewMode = false, activeHref, on
         <nav id="student-workspace-menu" aria-label="學生工作台導覽" className={`${menuOpen ? "absolute inset-x-4 top-[4.5rem] z-20 block" : "hidden"} rounded-2xl border border-white/10 bg-slate-950 p-3 shadow-2xl shadow-black/30 md:static md:block md:border-0 md:bg-transparent md:p-0 md:shadow-none`}>
           <div className="flex flex-col gap-4 md:flex-row md:items-center">
             {groups.map((group) => <div key={group.label} className="flex flex-col gap-1 md:gap-0"><p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 md:mb-1">{group.label}</p><div className="flex flex-col gap-1 md:flex-row">{group.links.map((link) => renderLink(link.href, link.label))}</div></div>)}
+            {!previewMode ? <div className="border-t border-white/10 pt-3 md:border-l md:border-t-0 md:pl-3 md:pt-0"><StudentSignOutButton /></div> : null}
           </div>
         </nav>
-        {!previewMode ? <StudentSignOutButton /> : null}
       </div>
     </header>
   );
