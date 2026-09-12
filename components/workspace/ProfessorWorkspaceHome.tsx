@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { ProfessorAttentionSummary } from "@/components/professor/ProfessorAttentionSummary";
 import { ProfessorMilestonePreview, ProfessorNextAction, ProfessorThisWeekMeetings, ProfessorWeeklyDigest } from "@/components/professor/ProfessorWeeklyDigest";
 import { ProfessorAiEntry } from "@/components/professor/ProfessorAiEntry";
+import { ProfessorSignOutButton } from "@/components/workspace/ProfessorSignOutButton";
 import type { ProfessorAttentionData } from "@/lib/professor/attention-data";
 
 export type ProfessorWorkspaceRole = "professor" | "assistant" | "admin";
@@ -150,6 +151,7 @@ export function ProfessorWorkspaceHome({
               <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm text-slate-300">
                 登入{viewerRole === "admin" ? "管理者" : "教授"}：{viewerName}
               </div>
+              {!previewMode ? <ProfessorSignOutButton /> : null}
             </div>
           </div>
         </div>
