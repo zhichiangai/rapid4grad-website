@@ -191,7 +191,11 @@ export function ProfessorWorkspaceHome({
           </div>
         ) : null}
 
-        {canManage && managerControls ? <div className="mt-6">{managerControls}</div> : null}
+        {managerControls &&
+        (canManage ||
+          (!previewMode && viewerRole === "professor" && ownedLabCount === 0)) ? (
+          <div className="mt-6">{managerControls}</div>
+        ) : null}
 
         <section className="mt-8 space-y-5">
           {labs.length === 0 ? (
