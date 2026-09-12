@@ -90,7 +90,7 @@ test("Professor dashboard limits management controls to owned Labs", () => {
   const workspace = readFileSync(`${root}/components/workspace/ProfessorWorkspaceHome.tsx`, "utf8");
   const billing = readFileSync(`${root}/app/billing/page.tsx`, "utf8");
   assert.match(dashboard, /canManage=\{profile\.role === "professor" && ownedLabs\.length > 0\}/);
-  assert.match(dashboard, /profile\.role === "professor" && ownedLabs\.length > 0 \?\s*\(/);
+  assert.match(dashboard, /profile\.role === "professor" \?\s*\(/);
   assert.match(workspace, /canManage \? <Link href="\/billing"/);
   assert.match(workspace, /viewerRole === "professor" && ownedLabCount === 0/);
   assert.match(billing, /eq\("owner_professor_id", user\.id\)/);
