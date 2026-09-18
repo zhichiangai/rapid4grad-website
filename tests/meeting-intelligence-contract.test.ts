@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { isMeetingIntelligenceAnalysis, trimAnalysis } from "../lib/meeting-intelligence/meeting-intelligence-domain";
+import { isMeetingIntelligenceAnalysis, trimAnalysis, type MeetingIntelligenceAnalysis } from "../lib/meeting-intelligence/meeting-intelligence-domain";
 
 const migration = readFileSync("supabase/migrations/20260918120000_meeting_intelligence_v1.sql", "utf8");
 const launcher = readFileSync("components/meetings/MeetingIntelligenceLauncher.tsx", "utf8");
@@ -9,7 +9,7 @@ const confirmRoute = readFileSync("app/api/meeting-intelligence/confirm/route.ts
 const uploadRoute = readFileSync("app/api/meeting-intelligence/upload-url/route.ts", "utf8");
 
 test("Meeting Intelligence analysis is strict and never invents a due date", () => {
-  const analysis = {
+  const analysis: MeetingIntelligenceAnalysis = {
     summary: "確認實驗方向",
     professorInstructions: [],
     decisions: ["下週回報"],

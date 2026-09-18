@@ -72,10 +72,12 @@ test("AI gateway requires validated proposals and reuses canonical meeting actio
 test("Voice keeps the approved limits and never persists raw audio", () => {
   const route = read("app/api/professor/ai/voice/route.ts");
   const groq = read("lib/professor/groq.ts");
+  const ui = read("components/professor/ProfessorAiEntry.tsx");
 
   assert.match(route, /120/);
   assert.match(route, /300/);
   assert.match(route, /0\.8/);
+  assert.match(route, /usedSeconds \+ durationSeconds > MONTHLY_SECONDS/);
   assert.match(route, /audio_seconds/);
   assert.doesNotMatch(route, /storage\.from|writeFile|rawAudio|audio_blob/i);
   assert.match(groq, /GROQ_TEXT_MODEL/);
@@ -84,6 +86,10 @@ test("Voice keeps the approved limits and never persists raw audio", () => {
   assert.match(groq, /GROQ_API_KEY_CONFIGURATION_REQUIRED/);
   assert.match(groq, /json_schema/);
   assert.doesNotMatch(groq, /NEXT_PUBLIC_GROQ_API_KEY/);
+  assert.match(ui, /120_000/);
+  assert.match(ui, /precision/);
+  assert.match(ui, /使用精準模型重試/);
+  assert.match(ui, /quotaWarning/);
 });
 
 test("Lab Hub keeps a usable mobile surface instead of forcing horizontal overflow", () => {
