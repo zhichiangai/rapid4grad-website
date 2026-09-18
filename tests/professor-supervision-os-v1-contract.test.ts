@@ -38,6 +38,15 @@ test("Lab planning archive mutations do not read back rows hidden by active-only
   assert.match(milestoneRoute, /milestone: \{ id: milestoneId, status: "archived" \}/);
 });
 
+test("Lab planning identity triggers run safely for authenticated updates", () => {
+  const migration = read("supabase/migrations/20260918112133_fix_lab_planning_trigger_execution.sql");
+
+  assert.match(migration, /SECURITY DEFINER/);
+  assert.match(migration, /SET search_path = public, pg_temp/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION .* TO service_role/);
+});
+
 test("Student Supervision does not widen access to private student records", () => {
   const loader = read("lib/professor/student-supervision-data.ts");
   const page = read("app/professor/labs/[labId]/students/[studentId]/page.tsx");
