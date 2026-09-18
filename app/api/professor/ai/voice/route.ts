@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   monthStart.setUTCDate(1); monthStart.setUTCHours(0, 0, 0, 0);
   const { data: previousOperations } = await supabase.from("ai_operations").select("audio_seconds").eq("user_id", auth.context.user.id).gte("created_at", monthStart.toISOString());
   const usedSeconds = (previousOperations ?? []).reduce((total: number, row: { audio_seconds: number | null }) => total + Number(row.audio_seconds ?? 0), 0);
-  if (usedSeconds >= MONTHLY_SECONDS) return NextResponse.json({ success: false, error: "VOICE_QUOTA_EXCEEDED", usedSeconds, monthlySeconds: MONTHLY_SECONDS }, { status: 429 });
+  if (usedSeconds + durationSeconds > MONTHLY_SECONDS) return NextResponse.json({ success: false, error: "VOICE_QUOTA_EXCEEDED", usedSeconds, monthlySeconds: MONTHLY_SECONDS }, { status: 429 });
   try {
     const transcript = await transcribeProfessorAudio(file, precision ? GROQ_PRECISION_STT_MODEL : GROQ_STT_MODEL);
     const context = await compileProfessorContext({ context: auth.context, contextType, labId, studentId });
