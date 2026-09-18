@@ -2,6 +2,8 @@ import "server-only";
 
 import type { ProfessorAiContextType, ProfessorAiProposal } from "@/lib/professor/ai-contract";
 import { PROFESSOR_AI_INTENTS, isProfessorAiContextType, isProfessorAiIntent, validateProposal } from "@/lib/professor/ai-contract";
+import type { MeetingIntelligenceAnalysis } from "@/lib/meeting-intelligence/meeting-intelligence-domain";
+import { isMeetingIntelligenceAnalysis, trimAnalysis } from "@/lib/meeting-intelligence/meeting-intelligence-domain";
 
 export const GROQ_TEXT_MODEL = "openai/gpt-oss-20b";
 export const GROQ_REASONING_MODEL = "openai/gpt-oss-120b";
@@ -10,6 +12,35 @@ export const GROQ_PRECISION_STT_MODEL = "whisper-large-v3";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+
+const meetingAnalysisSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    summary: { type: "string" },
+    professorInstructions: { type: "array", items: { type: "string" } },
+    decisions: { type: "array", items: { type: "string" } },
+    blockers: { type: "array", items: { type: "string" } },
+    openQuestions: { type: "array", items: { type: "string" } },
+    suggestedActions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          title: { type: "string" },
+          ownerType: { type: "string", enum: ["student", "supervisor", "unspecified"] },
+          dueDate: { type: ["string", "null"] },
+          dueDateReason: { type: ["string", "null"] },
+          sourceText: { type: "string" },
+        },
+        required: ["title", "ownerType", "dueDate", "dueDateReason", "sourceText"],
+      },
+    },
+    advisorSignals: { type: "array", items: { type: "string" } },
+  },
+  required: ["summary", "professorInstructions", "decisions", "blockers", "openQuestions", "suggestedActions", "advisorSignals"],
+} as const;
 
 const proposalSchema = {
   type: "object",
@@ -154,4 +185,59 @@ export async function transcribeProfessorAudio(file: File, model = GROQ_STT_MODE
   const text = typeof body.text === "string" ? body.text.trim().slice(0, 8_000) : "";
   if (!text) throw new Error("GROQ_TRANSCRIPTION_EMPTY");
   return text;
+}
+
+function parseMeetingAnalysis(value: unknown): MeetingIntelligenceAnalysis {
+  if (!isMeetingIntelligenceAnalysis(value)) throw new Error("GROQ_INVALID_MEETING_ANALYSIS");
+  return trimAnalysis(value);
+}
+
+export async function analyzeMeetingTranscript(input: {
+  transcript: string;
+  meetingContext?: { meetingAt: string; labName?: string | null; existingSummary?: string | null };
+  priorAdvisorSignals?: string[];
+}): Promise<{ analysis: MeetingIntelligenceAnalysis; providerModel: string; inputTokens: number | null; outputTokens: number | null }> {
+  assertGroqConfigured();
+  const model = approvedTextModel();
+  const body = await groqJson("/chat/completions", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      model,
+      temperature: 0.1,
+      max_completion_tokens: 3000,
+      reasoning_effort: model === GROQ_REASONING_MODEL ? "low" : "none",
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "meeting_intelligence", strict: true, schema: meetingAnalysisSchema },
+      },
+      messages: [
+        {
+          role: "system",
+          content: "你是 RAPID4GRAD 的 Meeting Intelligence AI。只整理逐字稿中明確說出的內容，不得捏造研究進度、決定、阻礙、教授指示、問題或期限。所有 suggestedActions 都是給學生審核的 proposal，不得宣稱已寫入。若沒有明確日期，dueDate 必須是 null，並在 dueDateReason 說明未提供明確期限。advisorSignals 只列出逐字稿中可支持的訊號；不要推斷醫療、人格或畢業結論。只回傳符合 schema 的 JSON。",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            meetingContext: input.meetingContext ?? null,
+            priorAdvisorSignals: (input.priorAdvisorSignals ?? []).slice(0, 10),
+            transcript: input.transcript.slice(0, 60_000),
+          }),
+        },
+      ],
+    }),
+  }, 60_000);
+  const choices = body.choices;
+  const content = Array.isArray(choices) && choices[0] && typeof choices[0] === "object" ? (choices[0] as Record<string, unknown>).message : null;
+  const rawContent = content && typeof content === "object" ? (content as Record<string, unknown>).content : null;
+  if (typeof rawContent !== "string") throw new Error("GROQ_INVALID_MEETING_ANALYSIS");
+  let parsed: unknown;
+  try { parsed = JSON.parse(rawContent); } catch { throw new Error("GROQ_INVALID_MEETING_ANALYSIS"); }
+  const usage = body.usage && typeof body.usage === "object" ? body.usage as Record<string, unknown> : {};
+  return {
+    analysis: parseMeetingAnalysis(parsed),
+    providerModel: model,
+    inputTokens: typeof usage.prompt_tokens === "number" ? usage.prompt_tokens : null,
+    outputTokens: typeof usage.completion_tokens === "number" ? usage.completion_tokens : null,
+  };
 }
