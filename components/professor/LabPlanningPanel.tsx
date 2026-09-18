@@ -26,11 +26,12 @@ export function LabPlanningPanel({ labId, initialMilestones, initialResources, c
   async function createMilestone(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setMilestonePending(true); setMessage(null);
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       const result = await requestJson(`/api/professor/labs/${labId}/milestones`, "POST", { title: form.get("title"), targetDate: form.get("targetDate"), description: form.get("description") });
       if (result.milestone) setMilestones((current) => [result.milestone!, ...current]);
-      event.currentTarget.reset(); setMessage("里程碑已建立。");
+      formElement.reset(); setMessage("里程碑已建立。");
     } catch (error) { setMessage(error instanceof Error ? error.message : "里程碑建立失敗。"); }
     finally { setMilestonePending(false); }
   }
@@ -46,11 +47,12 @@ export function LabPlanningPanel({ labId, initialMilestones, initialResources, c
   async function createResource(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setResourcePending(true); setMessage(null);
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     try {
       const result = await requestJson(`/api/professor/labs/${labId}/resources`, "POST", { title: form.get("title"), resourceUrl: form.get("resourceUrl"), category: form.get("category"), description: form.get("description") });
       if (result.resource) setResources((current) => [result.resource!, ...current]);
-      event.currentTarget.reset(); setMessage("Lab Resource 已建立。");
+      formElement.reset(); setMessage("Lab Resource 已建立。");
     } catch (error) { setMessage(error instanceof Error ? error.message : "資源建立失敗。"); }
     finally { setResourcePending(false); }
   }

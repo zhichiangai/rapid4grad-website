@@ -21,6 +21,13 @@ test("Professor Supervision keeps the three-surface information architecture", (
   assert.doesNotMatch(dashboard + student + lab, /Student 360/);
 });
 
+test("Lab planning forms retain their DOM reference across async saves", () => {
+  const panel = read("components/professor/LabPlanningPanel.tsx");
+
+  assert.match(panel, /const formElement = event\.currentTarget/);
+  assert.match(panel, /formElement\.reset\(\)/);
+});
+
 test("Student Supervision does not widen access to private student records", () => {
   const loader = read("lib/professor/student-supervision-data.ts");
   const page = read("app/professor/labs/[labId]/students/[studentId]/page.tsx");
