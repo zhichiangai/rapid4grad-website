@@ -28,6 +28,16 @@ test("Lab planning forms retain their DOM reference across async saves", () => {
   assert.match(panel, /formElement\.reset\(\)/);
 });
 
+test("Lab planning archive mutations do not read back rows hidden by active-only RLS", () => {
+  const resourceRoute = read("app/api/professor/labs/[labId]/resources/[resourceId]/route.ts");
+  const milestoneRoute = read("app/api/professor/labs/[labId]/milestones/[milestoneId]/route.ts");
+
+  assert.match(resourceRoute, /resource archive failed/);
+  assert.match(resourceRoute, /resource: \{ id: resourceId, archived_at/);
+  assert.match(milestoneRoute, /milestone archive failed/);
+  assert.match(milestoneRoute, /milestone: \{ id: milestoneId, status: "archived" \}/);
+});
+
 test("Student Supervision does not widen access to private student records", () => {
   const loader = read("lib/professor/student-supervision-data.ts");
   const page = read("app/professor/labs/[labId]/students/[studentId]/page.tsx");

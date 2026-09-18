@@ -29,7 +29,16 @@ export async function PATCH(request: Request, { params }: Context) {
     update.status = status;
   }
   if (!Object.keys(update).length) return NextResponse.json({ success: false, error: "沒有可更新的內容。" }, { status: 400 });
-  const { data, error } = await asPlanningClient(auth.context).from("lab_milestones").update(update).eq("id", milestoneId).eq("lab_id", labId).select("id,lab_id,title,description,target_date,status,created_by,created_at,updated_at").single();
+  const query = asPlanningClient(auth.context).from("lab_milestones").update(update).eq("id", milestoneId).eq("lab_id", labId);
+  if (update.status === "archived") {
+    const { error } = await query;
+    if (error) {
+      console.error("[lab-planning] milestone archive failed", { code: error.code });
+      return NextResponse.json({ success: false, error: "里程碑封存失敗，請稍後再試。" }, { status: 400 });
+    }
+    return NextResponse.json({ success: true, milestone: { id: milestoneId, status: "archived" } });
+  }
+  const { data, error } = await query.select("id,lab_id,title,description,target_date,status,created_by,created_at,updated_at").single();
   if (error) {
     console.error("[lab-planning] milestone update failed", { code: error.code });
     return NextResponse.json({ success: false, error: "里程碑更新失敗，請稍後再試。" }, { status: 400 });
