@@ -36,6 +36,19 @@ test("Lab planning archive mutations do not read back rows hidden by active-only
   assert.match(resourceRoute, /resource: \{ id: resourceId, archived_at/);
   assert.match(milestoneRoute, /milestone archive failed/);
   assert.match(milestoneRoute, /milestone: \{ id: milestoneId, status: "archived" \}/);
+  assert.match(resourceRoute, /payload\?\.archive === false/);
+  assert.match(resourceRoute, /resource restore failed/);
+});
+
+test("Archived Lab resources are visible only to the owning active Professor", () => {
+  const migration = read("supabase/migrations/20260918200700_allow_lab_owner_read_archived_resources.sql");
+  assert.match(migration, /CREATE POLICY "lab_resources_select_archived_owner"/);
+  assert.match(migration, /FOR SELECT TO authenticated/);
+  assert.match(migration, /archived_at IS NOT NULL/);
+  assert.match(migration, /app_private\.is_active_user\(\(SELECT auth\.uid\(\)\)\)/);
+  assert.match(migration, /app_private\.owns_lab\(lab_id\)/);
+  assert.doesNotMatch(migration, /is_active_lab_member|has_active_lab_subscription/);
+  assert.doesNotMatch(migration, /DROP\s+(TABLE|COLUMN|POLICY|FUNCTION)|DELETE\s+FROM/i);
 });
 
 test("Lab planning identity triggers run safely for authenticated updates", () => {

@@ -186,7 +186,10 @@ export default async function ProfessorLabPage({ params }: LabPageProps) {
   const currentWeekStart = getTaipeiMonday(new Date());
   const [milestonesResponse, resourcesResponse, weeklyResponse, meetingsResponse, actionsResponse] = await Promise.all([
     planningClient.from("lab_milestones").select("id,lab_id,title,description,target_date,status,created_by,created_at,updated_at").eq("lab_id", lab.id).order("target_date", { ascending: true }).returns<LabMilestone[]>(),
-    planningClient.from("lab_resources").select("id,lab_id,title,description,category,resource_url,created_by,created_at,updated_at,archived_at").eq("lab_id", lab.id).is("archived_at", null).order("created_at", { ascending: false }).returns<LabResource[]>(),
+    (isOwner
+      ? planningClient.from("lab_resources").select("id,lab_id,title,description,category,resource_url,created_by,created_at,updated_at,archived_at").eq("lab_id", lab.id)
+      : planningClient.from("lab_resources").select("id,lab_id,title,description,category,resource_url,created_by,created_at,updated_at,archived_at").eq("lab_id", lab.id).is("archived_at", null)
+    ).order("created_at", { ascending: false }).returns<LabResource[]>(),
     planningClient.from("weekly_updates").select("id").eq("lab_id", lab.id).eq("week_start", currentWeekStart),
     planningClient.from("meetings").select("id,status,meeting_at").eq("lab_id", lab.id),
     planningClient.from("meeting_actions").select("id,status,due_date").eq("lab_id", lab.id),

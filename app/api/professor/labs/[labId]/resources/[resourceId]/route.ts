@@ -35,13 +35,21 @@ export async function PATCH(request: Request, { params }: Context) {
     update.resource_url = resourceUrl;
   }
   if (payload?.archive === true) update.archived_at = new Date().toISOString();
+  if (payload?.archive === false) update.archived_at = null;
   if (!Object.keys(update).length) return NextResponse.json({ success: false, error: "沒有可更新的內容。" }, { status: 400 });
-  const query = asPlanningClient(auth.context).from("lab_resources").update(update).eq("id", resourceId).eq("lab_id", labId).is("archived_at", null);
-  if (payload?.archive === true) {
+  const query = asPlanningClient(auth.context).from("lab_resources").update(update).eq("id", resourceId).eq("lab_id", labId);
+  if (payload?.archive === true) query.is("archived_at", null);
+  if (payload?.archive === false) query.not("archived_at", "is", null);
+  if (payload?.archive !== true && payload?.archive !== false) query.is("archived_at", null);
+  if (payload?.archive === true || payload?.archive === false) {
     const { error } = await query;
     if (error) {
-      console.error("[lab-planning] resource archive failed", { code: error.code });
-      return NextResponse.json({ success: false, error: "資源封存失敗，請稍後再試。" }, { status: 400 });
+      if (payload?.archive === true) {
+        console.error("[lab-planning] resource archive failed", { code: error.code });
+      } else {
+        console.error("[lab-planning] resource restore failed", { code: error.code });
+      }
+      return NextResponse.json({ success: false, error: payload?.archive === true ? "資源封存失敗，請稍後再試。" : "資源還原失敗，請稍後再試。" }, { status: 400 });
     }
     return NextResponse.json({ success: true, resource: { id: resourceId, archived_at: update.archived_at } });
   }
