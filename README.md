@@ -2,6 +2,8 @@
 
 RAPID4GRAD 是研究生課程、Professor Lab 管理與團隊 PDF AI 稽核平台；免費研究工具現行產品為 RAPID AI Navigator，支援 V3 Chat Prompt Pack 與 V4 Agent Execution Pack。
 
+Supabase Main / Preview 的固定對應、專案額度與現行清理阻擋，請以 [Supabase Environment Architecture](docs/deployment/STAGING.md) 為準。舊專案尚未通過刪除稽核，不可視為已刪除。
+
 Agent Mode 會自動檢查 RAPID 核准 Skills，優先使用 `gh skill preview` 與 pinned project install；若安裝失敗，不會阻斷研究任務。
 
 ## AI / 開發者必讀順序

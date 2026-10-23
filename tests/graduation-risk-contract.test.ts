@@ -11,7 +11,7 @@ const base = { activeLab: true, joinedAt: "2026-08-01T00:00:00Z", latestWeekly: 
 const action = (overrides: Record<string, unknown> = {}) => ({ status: "todo", due_date: null, owner_type: "student", owner_user_id: "student-a", student_user_id: "student-a", ...overrides });
 
 test("Graduation Risk derives the frozen signal rules and Taipei boundaries", () => {
-  const signals = deriveGraduationRiskSignals({ ...base, joinedAt: "2026-09-01T00:00:00Z", today: "2026-09-05", latestWeekly: { updated_at: "2026-08-29T00:00:00Z" }, actions: [action({ due_date: "2026-09-04" }), action({ due_date: "2026-09-12" })], thesisMilestones: [{ milestone_key: "proposal", status: "blocked", target_date: "2026-09-20" }, { milestone_key: "methodology", status: "in_progress", target_date: "2026-09-12" }] });
+  const signals = deriveGraduationRiskSignals({ ...base, joinedAt: "2026-09-01T00:00:00Z", today: "2026-09-05", now: new Date("2026-09-05T00:00:00Z"), latestWeekly: { updated_at: "2026-08-29T00:00:00Z" }, actions: [action({ due_date: "2026-09-04" }), action({ due_date: "2026-09-12" })], thesisMilestones: [{ milestone_key: "proposal", status: "blocked", target_date: "2026-09-20" }, { milestone_key: "methodology", status: "in_progress", target_date: "2026-09-12" }] });
   assert.deepEqual(signals.map((signal) => signal.key), ["thesis_blocked", "overdue_action", "no_recent_update", "deadline_soon", "thesis_target_soon"]);
   assert.equal(signals.find((signal) => signal.key === "deadline_soon")?.severity, "attention");
   assert.equal(getPrimaryGraduationRiskSignal(signals)?.key, "thesis_blocked");
