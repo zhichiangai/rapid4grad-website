@@ -28,6 +28,15 @@ export function assertEnvironmentSafety() {
   // Runtime requests still execute this guard before any Supabase client is created.
   if (process.env.NEXT_PHASE === "phase-production-build") return;
   const environment = getRuntimeEnvironment();
+  // Vercel deployments must never silently fall back to the permissive local mode.
+  // The deployment target is authoritative even if RAPID_ENV is absent or misspelled.
+  const vercelEnvironment = process.env.VERCEL_ENV;
+  if (vercelEnvironment === "production" && environment !== "production") {
+    throw new Error("VERCEL_ENV=production requires RAPID_ENV=production.");
+  }
+  if (vercelEnvironment === "preview" && environment !== "staging") {
+    throw new Error("VERCEL_ENV=preview requires RAPID_ENV=staging.");
+  }
   const projectRef = getSupabaseProjectRef();
   const expectedRef = environment === "local" ? null : EXPECTED_SUPABASE_REFS[environment];
   if (!projectRef) throw new Error("NEXT_PUBLIC_SUPABASE_URL must be a valid Supabase URL.");
