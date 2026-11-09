@@ -58,3 +58,42 @@ test("legacy project is rejected even in local mode", async () => {
     else process.env.NEXT_PHASE = previous.nextPhase;
   }
 });
+
+test("Vercel cloud targets fail closed when RAPID_ENV is missing or incorrect", async () => {
+  const environmentModule = await import("../lib/runtime/environment");
+  const previous = {
+    rapidEnv: process.env.RAPID_ENV,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    nextPhase: process.env.NEXT_PHASE,
+    vercelEnv: process.env.VERCEL_ENV,
+  };
+  try {
+    delete process.env.NEXT_PHASE;
+    process.env.VERCEL_ENV = "production";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://ktfvscyxsdrcrbaemlbl.supabase.co";
+    delete process.env.RAPID_ENV;
+    assert.throws(() => environmentModule.assertEnvironmentSafety(), /VERCEL_ENV=production requires RAPID_ENV=production/);
+    process.env.RAPID_ENV = "staging";
+    assert.throws(() => environmentModule.assertEnvironmentSafety(), /VERCEL_ENV=production requires RAPID_ENV=production/);
+    process.env.RAPID_ENV = "production";
+    assert.doesNotThrow(() => environmentModule.assertEnvironmentSafety());
+
+    process.env.VERCEL_ENV = "preview";
+    assert.throws(() => environmentModule.assertEnvironmentSafety(), /VERCEL_ENV=preview requires RAPID_ENV=staging/);
+    process.env.RAPID_ENV = "staging";
+    assert.throws(() => environmentModule.assertEnvironmentSafety(), /Environment mismatch/);
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://jpvvcniktyjcdpkfopna.supabase.co";
+    assert.doesNotThrow(() => environmentModule.assertEnvironmentSafety());
+    delete process.env.RAPID_ENV;
+    assert.throws(() => environmentModule.assertEnvironmentSafety(), /VERCEL_ENV=preview requires RAPID_ENV=staging/);
+  } finally {
+    if (previous.rapidEnv === undefined) delete process.env.RAPID_ENV;
+    else process.env.RAPID_ENV = previous.rapidEnv;
+    if (previous.supabaseUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = previous.supabaseUrl;
+    if (previous.nextPhase === undefined) delete process.env.NEXT_PHASE;
+    else process.env.NEXT_PHASE = previous.nextPhase;
+    if (previous.vercelEnv === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = previous.vercelEnv;
+  }
+});
